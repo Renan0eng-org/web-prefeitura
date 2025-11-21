@@ -378,8 +378,27 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
                               </div>
                             )}
 
-                            {(q.type === 'SHORT_TEXT' || q.type === 'PARAGRAPH') && (
-                              <Input value={(answersByForm[form.idForm] || {})[q.idQuestion] || ''} onChange={(e) => setAnswer(form.idForm, q.idQuestion, e.target.value)} />
+                            {(q.type === 'CHECKBOXES') && (
+                              <div className="flex flex-col gap-2 mt-1">
+                                {q.options?.map((opt: any) => (
+                                  <div key={opt.idOption} className="flex items-center gap-2">
+                                    <Checkbox
+                                      checked={((answersByForm[form.idForm] || {})[q.idQuestion] || []).includes(opt.text)}
+                                      onCheckedChange={(checked) => {
+                                        const currentAnswers = (answersByForm[form.idForm] || {})[q.idQuestion] || []
+                                        let newAnswers = [...currentAnswers]
+                                        if (checked) {
+                                          newAnswers.push(opt.text)
+                                        } else {
+                                          newAnswers = newAnswers.filter((a) => a !== opt.text)
+                                        }
+                                        setAnswer(form.idForm, q.idQuestion, newAnswers)
+                                      }}
+                                    />
+                                    <Label>{opt.text}</Label>
+                                  </div>
+                                ))}
+                              </div>
                             )}
 
                           </div>

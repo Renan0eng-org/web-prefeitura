@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 
 const COOKIE_NAME = 'refresh_token';
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
 
     // se a rota for / redireciona para /admin
     if (request.nextUrl.pathname === '/') {

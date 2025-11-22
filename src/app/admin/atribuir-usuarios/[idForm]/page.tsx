@@ -1,6 +1,7 @@
 import AssignUserPage from "@/views/assign-user/AssignUserPage";
 
-export default function ViewAssignUserPage({ params }: { params: { idForm: string } }) {
+export default async function ViewAssignUserPage(props: { params: Promise<{ idForm: string }> }) {
+  const params = await props.params;
   const { idForm } = params;
 
   if (!idForm) {

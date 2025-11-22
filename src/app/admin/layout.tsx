@@ -25,9 +25,8 @@ export default async function RootLayout({
 }>) {
 
   return (
-    <html>
-      <body>
-        <AlertProvider>
+    <>
+      <AlertProvider>
         <AuthProvider>
           <GlobalAlert />
           <SidebarProvider>
@@ -46,9 +45,8 @@ export default async function RootLayout({
             </SidebarInset>
           </SidebarProvider>
         </AuthProvider>
-        </AlertProvider>
-        <Analytics />
-      </body>
-    </html>
+      </AlertProvider>
+      <Analytics />
+    </>
   )
 }

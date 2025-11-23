@@ -23,6 +23,7 @@ export default function FormulariosTab() {
     const [columns, setColumns] = useState({
         title: true,
         description: true,
+        isScreening: true,
         updatedAt: true,
         responses: true,
         actions: true
@@ -32,6 +33,7 @@ export default function FormulariosTab() {
         try {
             setIsLoading(true)
             const response = await api.get(`/forms?page=${page}&limit=${limit}`)
+            console.log("Fetched forms:", response.data);
             setForms(response.data.forms || response.data)
             setTotalPages(response.data.totalPages || 1)
             setError(null)
@@ -48,6 +50,15 @@ export default function FormulariosTab() {
             fetchForms()
         } catch (err) {
             console.error("Erro ao excluir:", err)
+        }
+    }
+
+    const handleToggleScreening = async (id: string) => {
+        try {
+            await api.post(`/forms/${id}/toggle-screening`)
+            fetchForms()
+        } catch (err) {
+            console.error("Erro ao alternar screening:", err)
         }
     }
 
@@ -104,6 +115,7 @@ export default function FormulariosTab() {
                             {columns.title && <TableHead className="min-w-52">Título</TableHead>}
                             {columns.description && <TableHead>Descrição</TableHead>}
                             {columns.updatedAt && <TableHead className="min-w-32">Atualizado em</TableHead>}
+                            {columns.isScreening && <TableHead className="min-w-20">Triagem</TableHead>}
                             {columns.responses && <TableHead>Respostas</TableHead>}
                             {columns.actions && <TableHead className="min-w-20 flex justify-center items-center">Ações</TableHead>}
                         </TableRow>
@@ -116,6 +128,7 @@ export default function FormulariosTab() {
                                     {columns.title && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
                                     {columns.description && <TableCell><Skeleton className="h-4 w-60" /></TableCell>}
                                     {columns.updatedAt && <TableCell><Skeleton className="h-4 w-32" /></TableCell>}
+                                    {columns.isScreening && <TableCell><Skeleton className="h-4 w-16" /></TableCell>}
                                     {columns.responses && <TableCell><Skeleton className="h-4 w-24" /></TableCell>}
                                     {columns.actions && <TableCell><Skeleton className="h-4 w-12 mx-auto" /></TableCell>}
                                 </TableRow>
@@ -138,6 +151,14 @@ export default function FormulariosTab() {
                                             })}
                                         </TableCell>
                                     )}
+                                    {columns.isScreening && (
+                                        <TableCell>
+                                            <Badge className={"px-2 py-1 " + (form.isScreening ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600')}>
+                                                {form.isScreening ? 'Ativa' : 'Inativa'}
+                                            </Badge>
+                                        </TableCell>
+                                    )}
+
                                     {columns.responses && (
                                         <TableCell className="max-w-[120px]">
                                             <Link href={`/admin/criar-formulario/${form.idForm}/respostas`}>
@@ -186,6 +207,12 @@ export default function FormulariosTab() {
                                                             <ListChecks className="mr-2 h-4 w-4" />
                                                             <span>Ver Respostas</span>
                                                         </Link>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        onSelect={() => handleToggleScreening(form.idForm)}
+                                                    >
+                                                        <Settings2 className="mr-2 h-4 w-4" />
+                                                        {form.isScreening ? 'Desativar Triagem' : 'Ativar Triagem'}
                                                     </DropdownMenuItem>
                                                     <DropdownMenuSeparator />
                                                     {permissions?.excluir && (

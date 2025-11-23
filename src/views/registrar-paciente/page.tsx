@@ -224,6 +224,37 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
       assignedForms: [],
     }
 
+    // pre-submit: ensure all selected forms to RESPONDER have required questions answered
+    const formsToRespondPrecheck = (screeningForms || []).filter((f) => selectedFormIds[f.idForm])
+    const invalidPre: string[] = []
+    for (const form of formsToRespondPrecheck) {
+      const questions = form.questions || []
+      const answersMap = answersByForm[form.idForm] || {}
+      for (const q of questions) {
+        if (q.required) {
+          const val = answersMap[q.idQuestion]
+          if (val === undefined || val === null) {
+            invalidPre.push(form.title || form.idForm)
+            break
+          }
+          if (Array.isArray(val) && val.length === 0) {
+            invalidPre.push(form.title || form.idForm)
+            break
+          }
+          if (!Array.isArray(val) && String(val).trim() === '') {
+            invalidPre.push(form.title || form.idForm)
+            break
+          }
+        }
+      }
+    }
+
+    if (invalidPre.length > 0) {
+      setAlert(`Preencha os campos obrigatórios dos formulários: ${invalidPre.join(', ')} antes de salvar.`, 'warning', 8000)
+      setIsSubmitting(false)
+      return
+    }
+
     for (const form of screeningForms || []) {
       if (selectedFormIds[form.idForm]) {
         payload.screeningAnswers[form.idForm] = answersByForm[form.idForm] || {}
@@ -274,8 +305,36 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
 
       // For each form selected to RESPONDER, submit a response to the form endpoint
       const formsToRespond = (screeningForms || []).filter((f) => selectedFormIds[f.idForm])
-      if (formsToRespond.length > 0) {
-        const submitPromises = formsToRespond.map(async (form) => {
+      // validate required questions before sending responses
+      const invalidForms: string[] = []
+      const validForms = formsToRespond.filter((form) => {
+        const questions = form.questions || []
+        const answersMap = answersByForm[form.idForm] || {}
+        for (const q of questions) {
+          if (q.required) {
+            const val = answersMap[q.idQuestion]
+            if (val === undefined || val === null) {
+              invalidForms.push(form.title || form.idForm)
+              return false
+            }
+            if (Array.isArray(val) && val.length === 0) {
+              invalidForms.push(form.title || form.idForm)
+              return false
+            }
+            if (!Array.isArray(val) && String(val).trim() === '') {
+              invalidForms.push(form.title || form.idForm)
+              return false
+            }
+          }
+        }
+        return true
+      })
+
+      if (invalidForms.length > 0) {
+        setAlert(`Os seguintes formulários possuem campos obrigatórios não preenchidos: ${invalidForms.join(', ')}. Preencha-os antes de responder.`, 'warning', 8000)
+      }
+      if (validForms.length > 0) {
+        const submitPromises = validForms.map(async (form) => {
           const answersMap = answersByForm[form.idForm] || {}
           const answersPayload = Object.entries(answersMap).map(([questionId, answerValue]) => {
             if (Array.isArray(answerValue)) return { questionId, values: answerValue }

@@ -14,6 +14,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import {
     Select,
     SelectContent,
@@ -25,7 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAlert } from "@/hooks/use-alert"
-import { Check, ClipboardList, MoreVertical, Settings2 } from "lucide-react"
+import { Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ClipboardList, MoreVertical, Settings2 } from "lucide-react"
 
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
@@ -45,11 +46,12 @@ import {
 
 export default function LogsPage() {
     const [page, setPage] = useState(1)
-    const [pageSize] = useState(10)
+    const [pageSize, setPageSize] = useState(5)
     const [logs, setLogs] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [totalPages, setTotalPages] = useState(1)
+    const [total, setTotal] = useState(0)
 
     const [filterUser, setFilterUser] = useState("")
     const [filterRoute, setFilterRoute] = useState("")
@@ -87,6 +89,7 @@ export default function LogsPage() {
 
     const fetchLogs = async (overrides?: {
         page?: number
+        pageSize?: number
         userId?: string
         route?: string
         statusCode?: string
@@ -100,6 +103,7 @@ export default function LogsPage() {
             setIsLoading(true)
 
             const p = overrides?.page ?? page
+            const psize = overrides?.pageSize ?? pageSize
             const user = overrides?.userId ?? filterUser
             const routeFilter = overrides?.route ?? filterRoute
             const status = overrides?.statusCode ?? filterStatus
@@ -109,7 +113,7 @@ export default function LogsPage() {
 
             const params = new URLSearchParams()
             params.set("page", String(p))
-            params.set("pageSize", String(pageSize))
+            params.set("pageSize", String(psize))
             if (user) params.set("userId", user)
             if (routeFilter) params.set("route", routeFilter)
             if (status) params.set("statusCode", status)
@@ -121,11 +125,13 @@ export default function LogsPage() {
             const response = await api.get(`/logs?${params.toString()}`)
             const payload = response.data
 
-            // Normalize API envelope: support both { data: { logs, totalPages } } and direct { logs, totalPages }
-            const data = payload?.data ?? payload
+            // const { total, page, pageSize, data } = payload?.data ?? payload
+            const { total, data } = payload
 
-            setLogs(data.logs || data || [])
-            setTotalPages(data.totalPages || 1)
+            // total: total rows in dataset (if provided by API)
+            setTotal(typeof total === 'number' ? total : 0)
+            setTotalPages(total && psize ? Math.ceil(total / psize) : (data?.totalPages || 1))
+            setLogs( data || [])
             setError(null)
         } catch (err) {
             setError("Erro ao buscar logs")
@@ -175,10 +181,27 @@ export default function LogsPage() {
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (!active || !payload?.length) return null
 
+        const logsOfDay = logs.filter((l) => {
+            const created = l.created || l.createdAt || l.timestamp || Date.now()
+            const d = new Date(created).toLocaleDateString()
+            return d === label
+        })
+
+        const statusCountMap = new Map<number, number>()
+        for (const log of logsOfDay) {
+            const status = Number(log.statusCode || log.status || 0)
+            statusCountMap.set(status, (statusCountMap.get(status) || 0) + 1)
+        }
+        const statusCounts = [...statusCountMap.entries()].map(([statusCode, count]) => ({ statusCode, count }))        
+
         return (
             <div className="rounded-md bg-white shadow-md border px-3 py-2 text-sm">
                 <p className="font-semibold">{label}</p>
-                <p className="text-primary">count: {payload[0].value}</p>
+                {statusCounts.map((sc) => (
+                    <p key={sc.statusCode} className="mt-1">
+                        <span className="font-medium text-primary-500">Status {sc.statusCode}:</span> {sc.count}
+                    </p>
+                ))}
             </div>
         )
     }
@@ -358,7 +381,7 @@ export default function LogsPage() {
                 </DropdownMenu>
             </div>
 
-            <div className="rounded-lg border h-[460px] overflow-auto">
+            <div className="rounded-lg border shadow-md overflow-x-auto">
                 <Table>
                     <TableHeader className="sticky top-0 bg-muted z-10">
                         <TableRow>
@@ -403,7 +426,7 @@ export default function LogsPage() {
                                     <TableCell><Skeleton className="h-4 w-20 mx-auto" /></TableCell>
                                 </TableRow>
                             ))
-                            : logs.map((l: any) => (
+                            : logs.length > 0 ? logs.map((l: any) => (
                                 <TableRow key={l.id || l._id || l.logId}>
                                     {columns.id && <TableCell className="max-w-[220px] truncate">{l.id || l._id || l.logId || '-'}</TableCell>}
                                     {columns.createdAt && <TableCell className="min-w-[180px] text-center">{new Date(l.created || l.createdAt || l.timestamp || Date.now()).toLocaleString()}</TableCell>}
@@ -460,9 +483,104 @@ export default function LogsPage() {
                                         </TableCell>
                                     )}
                                 </TableRow>
-                            ))}
+                            )): <TableRow>
+                                <TableCell colSpan={Object.values(columns).filter(Boolean).length} className="text-center py-6">
+                                    Nenhum log encontrado.
+                                </TableCell>
+                                </TableRow>}
+
                     </TableBody>
                 </Table>
+                <div className="flex items-center justify-between px-4 bg-muted rounded-b-md py-2">
+                <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+                    {0} of {total} row(s) selected.
+                </div>
+                <div className="flex w-full items-center gap-8 lg:w-fit bg-muted">
+                    <div className="hidden items-center gap-2 lg:flex">
+                        <Label htmlFor="rows-per-page" className="text-sm font-medium">
+                            Rows per page
+                        </Label>
+                        <Select
+                            value={`${pageSize}`}
+                            onValueChange={(value) => {
+                                const size = Number(value)
+                                setPageSize(size)
+                                setPage(1)
+                                fetchLogs({ page: 1, pageSize: size })
+                            }}
+                        >
+                            <SelectTrigger className="w-20" id="rows-per-page">
+                                <SelectValue placeholder={`${pageSize}`} />
+                            </SelectTrigger>
+                            <SelectContent side="top">
+                                {[5, 10, 20, 30, 40, 50].map((ps) => (
+                                    <SelectItem key={ps} value={`${ps}`}>
+                                        {ps}
+                                    </SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="flex w-fit items-center justify-center text-sm font-medium">
+                        Page {page} of {totalPages}
+                    </div>
+                    <div className="ml-auto flex items-center gap-2 lg:ml-0">
+                        <Button
+                            variant="outline"
+                            className="hidden h-8 w-8 p-0 lg:flex"
+                            onClick={() => {
+                                setPage(1)
+                                fetchLogs({ page: 1 })
+                            }}
+                            disabled={page === 1}
+                        >
+                            <span className="sr-only">Go to first page</span>
+                            <ChevronsLeft />
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="size-8"
+                            size="icon"
+                            onClick={() => {
+                                const p = Math.max(1, page - 1)
+                                setPage(p)
+                                fetchLogs({ page: p })
+                            }}
+                            disabled={page === 1}
+                        >
+                            <span className="sr-only">Go to previous page</span>
+                            <ChevronLeft />
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="size-8"
+                            size="icon"
+                            onClick={() => {
+                                const p = Math.min(totalPages, page + 1)
+                                setPage(p)
+                                fetchLogs({ page: p })
+                            }}
+                            disabled={page === totalPages}
+                        >
+                            <span className="sr-only">Go to next page</span>
+                            <ChevronRight />
+                        </Button>
+                        <Button
+                            variant="outline"
+                            className="hidden size-8 lg:flex"
+                            size="icon"
+                            onClick={() => {
+                                setPage(totalPages)
+                                fetchLogs({ page: totalPages })
+                            }}
+                            disabled={page === totalPages}
+                        >
+                            <span className="sr-only">Go to last page</span>
+                            <ChevronsRight />
+                        </Button>
+                    </div>
+                </div>
+            </div>
             </div>
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -520,20 +638,7 @@ export default function LogsPage() {
                 </DialogContent>
             </Dialog>
 
-            <div className="flex justify-between items-center">
-                <span>
-                    Página {page} de {totalPages}
-                </span>
-
-                <div className="space-x-2">
-                    <Button size="sm" variant="outline" disabled={page === 1} onClick={() => setPage(page - 1)}>
-                        Anterior
-                    </Button>
-                    <Button size="sm" variant="outline" disabled={page === totalPages} onClick={() => setPage(page + 1)}>
-                        Próxima
-                    </Button>
-                </div>
-            </div>
+            
         </div>
     )
 }

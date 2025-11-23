@@ -45,6 +45,13 @@ export const data = {
       nivel_acesso: "acesso",
     },
     {
+      title: "Ativação de Pacientes",
+      url: "/admin/ativacao-pacientes",
+      icon: UserPlus,
+      isActive: false,
+      nivel_acesso: "acesso",
+    },
+    {
       title: "Usuários",
       url: "/admin/usuarios",
       icon: User,

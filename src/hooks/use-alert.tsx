@@ -1,44 +1,51 @@
 "use client";
-import React, { createContext, useState, useContext, ReactNode } from 'react';
+import { createContext, ReactNode, useContext, useState } from 'react';
+
+type AlertType = "success" | "error" | "info" | "warning" | null | undefined;
+
+export type AlertItem = {
+  id: string;
+  message: string;
+  type?: AlertType;
+  time?: number; // duration in ms
+};
 
 interface AlertContextType {
-  message: string;
-  setMessage: (message: string) => void;
-  visible: boolean;
-  setVisible: (visible: boolean) => void;
-  time: number
-  setTime: (visible: number) => void;
-  type: "success" | "error" | "info" | "warning" | null | undefined;
-  setType: (message: "success" | "error" | "info" | "warning" | null | undefined) => void;
+  alerts: AlertItem[];
   setAlert: (
     alertMessage: string,
-    alertType?: "success" | "error" | "info" | "warning" | null | undefined,
+    alertType?: AlertType,
     alertTime?: number
   ) => void;
+  removeAlert: (id: string) => void;
 }
 
 const AlertContext = createContext<AlertContextType | undefined>(undefined);
 
 export const AlertProvider = ({ children }: { children: ReactNode }) => {
-  const [message, setMessage] = useState<string>('');
-  const [visible, setVisible] = useState<boolean>(false);
-  const [time, setTime] = useState<number>(0);
-  const [type, setType] = useState<"success" | "error" | "info" | "warning" | null | undefined>("info");
+  const [alerts, setAlerts] = useState<AlertItem[]>([]);
+
+  const removeAlert = (id: string) => {
+    setAlerts((prev) => prev.filter(a => a.id !== id));
+  }
 
   const setAlert = (
     alertMessage: string,
-    alertType: "success" | "error" | "info" | "warning" | null | undefined = "success",
+    alertType: AlertType = 'success',
     alertTime: number = 5000
   ) => {
-    // Atualiza os estados com os valores fornecidos ou os padrões
-    setType(alertType);
-    setTime(alertTime);
-    setVisible(true);
-    setMessage(alertMessage);
+    const id = `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const item: AlertItem = { id, message: alertMessage, type: alertType, time: alertTime };
+    setAlerts((prev) => [item, ...prev]);
+
+    // auto remove after time
+    if (alertTime && alertTime > 0) {
+      setTimeout(() => removeAlert(id), alertTime);
+    }
   };
 
   return (
-    <AlertContext.Provider value={{ message, setMessage, visible, setVisible, time, setTime, type, setType, setAlert }}>
+    <AlertContext.Provider value={{ alerts, setAlert, removeAlert }}>
       {children}
     </AlertContext.Provider>
   );

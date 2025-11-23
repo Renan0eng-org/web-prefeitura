@@ -10,6 +10,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useAlert } from '@/hooks/use-alert'
 import api from '@/services/api'
+import { useRouter } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 
@@ -51,12 +52,19 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
 
   const [screeningForms, setScreeningForms] = useState<ScreeningForm[] | null>(null)
   const [selectedFormIds, setSelectedFormIds] = useState<Record<string, boolean>>({})
+  const [assignedFormIds, setAssignedFormIds] = useState<Record<string, boolean>>({})
+  // keep the originally-assigned forms (when editing) to detect removals
+  const [originalAssignedFormIds, setOriginalAssignedFormIds] = useState<Record<string, boolean>>({})
+  // map of existing response id by form id (when editing a patient who already answered)
+  const [existingResponseIdByForm, setExistingResponseIdByForm] = useState<Record<string, string>>({})
   const [answersByForm, setAnswersByForm] = useState<Record<string, any>>({})
 
   const [isLoadingForms, setIsLoadingForms] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isFetchingPatient, setIsFetchingPatient] = useState(false)
   const { setAlert } = useAlert()
+
+  const router = useRouter();
 
   useEffect(() => {
     const fetchScreening = async () => {
@@ -88,9 +96,11 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
         
         const data = res.data || res
 
+        const birthDate = data.birthDate ? new Date(data.birthDate) : null;
+
         form.reset({
           name: data.name || '',
-          birthDate: data.birthDate || '',
+          birthDate: birthDate ? birthDate.toISOString().substring(0, 10) : '',
           cpf: data.cpf || '',
           sexo: data.sexo || '',
           unidadeSaude: data.unidadeSaude || '',
@@ -100,12 +110,55 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
           alergias: data.alergias || '',
         })
 
-        // prefill screening answers if present
-        if (data.screeningAnswers) {
-          setAnswersByForm(data.screeningAnswers || {})
+        // prefill assigned forms (fromAssigned) returned by backend
+        const assigned: Record<string, boolean> = {}
+        const fromAssigned = data.fromAssigned || data.assignedForms || []
+        if (Array.isArray(fromAssigned)) {
+          fromAssigned.forEach((f: any) => {
+            if (f && f.idForm) assigned[f.idForm] = true
+          })
+        }
+        setAssignedFormIds(assigned)
+        // record original assigned set for later delta (unassign) detection
+        setOriginalAssignedFormIds(assigned)
+
+        // If backend returned full assigned forms, merge them into screeningForms so UI shows details
+        if (Array.isArray(fromAssigned) && fromAssigned.length > 0) {
+          setScreeningForms(prev => {
+            const existing = prev || []
+            const existingIds = new Set(existing.map(e => e.idForm))
+            const merged = [...existing]
+            fromAssigned.forEach((f: any) => {
+              if (!existingIds.has(f.idForm)) merged.push(f)
+            })
+            return merged
+          })
+        }
+
+        // prefill screening answers/responses if present (formResponses contains submitted responses)
+        const formResponses = data.formResponses || []
+        if (Array.isArray(formResponses) && formResponses.length > 0) {
+          const answersMap: Record<string, Record<string, any>> = {}
           const selected: Record<string, boolean> = {}
-          Object.keys(data.screeningAnswers).forEach((fid) => { selected[fid] = true })
-          setSelectedFormIds(selected)
+          const existingMap: Record<string, string> = {}
+          formResponses.forEach((resp: any) => {
+            const formId = resp.form?.idForm || resp.formId || resp.form?.id
+            if (!formId) return
+            selected[formId] = true
+            answersMap[formId] = answersMap[formId] || {}
+            // try to capture an identifier for the existing response so we can update instead of creating
+            const respId = resp.idResponse || resp.id || resp.responseId || resp._id
+            if (respId) existingMap[formId] = respId
+            ;(resp.answers || []).forEach((a: any) => {
+              if (a.value !== null && a.value !== undefined) answersMap[formId][a.question?.idQuestion || a.questionId || a.questionId] = a.value
+              else if (a.values !== null && a.values !== undefined) answersMap[formId][a.question?.idQuestion || a.questionId || a.questionId] = a.values
+            })
+          })
+          // merge with any existing answersByForm
+          setAnswersByForm(prev => ({ ...(prev || {}), ...(answersMap || {}) }))
+          setExistingResponseIdByForm(prev => ({ ...(prev || {}), ...(existingMap || {}) }))
+          // mark selected forms for which we have responses (do NOT suppress if also assigned)
+          setSelectedFormIds(prev => ({ ...(prev || {}), ...(selected || {}) }))
         }
       } catch (err) {
         console.error('Erro ao buscar paciente', err)
@@ -119,7 +172,25 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
   }, [idUser])
 
   const toggleSelectForm = (id: string) => {
-    setSelectedFormIds(prev => ({ ...prev, [id]: !prev[id] }))
+    setSelectedFormIds(prev => {
+      const next = { ...prev, [id]: !prev[id] }
+      // if user chose to answer now, ensure it's not assigned
+      if (next[id]) {
+        setAssignedFormIds(a => ({ ...a, [id]: false }))
+      }
+      return next
+    })
+  }
+
+  const toggleAssignForm = (id: string) => {
+    setAssignedFormIds(prev => {
+      const next = { ...prev, [id]: !prev[id] }
+      // if user assigned the form, ensure it's not selected to answer now
+      if (next[id]) {
+        setSelectedFormIds(s => ({ ...s, [id]: false }))
+      }
+      return next
+    })
   }
 
   const setAnswer = (formId: string, questionId: string, value: any) => {
@@ -150,24 +221,144 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
       examesDetalhes: data.examesDetalhes,
       alergias: data.alergias,
       screeningAnswers: {},
+      assignedForms: [],
     }
 
     for (const form of screeningForms || []) {
       if (selectedFormIds[form.idForm]) {
         payload.screeningAnswers[form.idForm] = answersByForm[form.idForm] || {}
       }
+      if (assignedFormIds[form.idForm]) {
+        payload.assignedForms.push(form.idForm)
+      }
     }
 
     try {
+      let patientId = idUser
+
       if (idUser) {
         await api.put(`/patients/${idUser}`, payload)
-        // responde o formulario
-        setAlert('Paciente atualizado com sucesso', 'success')
+        patientId = idUser
       } else {
-        await api.post('/patients', payload)
-        // responde o formulario
-        setAlert('Paciente cadastrado com sucesso', 'success')
+        const res = await api.post('/patients', payload)
+        // try to read created id from response
+        patientId = res?.data?.idUser || res?.data?.id || res?.data?.user?.id || patientId
       }
+
+      // If the user removed selection for forms that already had responses, delete those responses
+      const responseFormIds = Object.keys(existingResponseIdByForm || {}).filter(k => existingResponseIdByForm[k])
+      const toDeleteResponseFormIds = responseFormIds.filter(id => !selectedFormIds[id])
+      if (toDeleteResponseFormIds.length > 0) {
+        if (!patientId) {
+          setAlert('Não foi possível obter o id do paciente para excluir respostas removidas.', 'warning')
+        } else {
+          const deletePromises = toDeleteResponseFormIds.map((formId) => {
+            const respId = existingResponseIdByForm[formId]
+            return api.delete(`/forms/${formId}/responses/${respId}`)
+          })
+
+          const deleteResults = await Promise.allSettled(deletePromises)
+          const deleteFailed = deleteResults.filter(r => r.status === 'rejected')
+          if (deleteFailed.length > 0) {
+            setAlert(`${deleteFailed.length} exclusão(ões) de resposta falharam.`, 'warning')
+          }
+
+          // remove deleted entries from local state
+          setExistingResponseIdByForm(prev => {
+            const next = { ...(prev || {}) }
+            toDeleteResponseFormIds.forEach(id => delete next[id])
+            return next
+          })
+        }
+      }
+
+      // For each form selected to RESPONDER, submit a response to the form endpoint
+      const formsToRespond = (screeningForms || []).filter((f) => selectedFormIds[f.idForm])
+      if (formsToRespond.length > 0) {
+        const submitPromises = formsToRespond.map(async (form) => {
+          const answersMap = answersByForm[form.idForm] || {}
+          const answersPayload = Object.entries(answersMap).map(([questionId, answerValue]) => {
+            if (Array.isArray(answerValue)) return { questionId, values: answerValue }
+            return { questionId, value: answerValue }
+          })
+
+          const respPayload: any = { answers: answersPayload }
+          if (patientId) respPayload.userId = patientId
+
+          // if we have an existing response id for this form, update it instead of creating a new one
+          const existingRespId = existingResponseIdByForm[form.idForm]
+          if (existingRespId) {
+            // try to update (PUT). If backend uses different method, adjust accordingly.
+            return api.put(`/forms/${form.idForm}/responses/${existingRespId}`, respPayload)
+          }
+
+          const res = await api.post(`/forms/${form.idForm}/responses`, respPayload)
+          // if created, try to capture the new response id to update state
+          const newId = res?.data?.idResponse || res?.data?.id || res?.data?.responseId
+          if (newId) setExistingResponseIdByForm(prev => ({ ...(prev || {}), [form.idForm]: newId }))
+          return res
+        })
+
+        const results = await Promise.allSettled(submitPromises)
+        const failed = results.filter(r => r.status === 'rejected')
+        if (failed.length > 0) {
+          setAlert(`${failed.length} formulário(s) não puderam ser respondidos automaticamente.`, 'warning')
+        }
+      }
+
+      // For each form marked to ASSIGN, call the assign endpoint so backend registers the assignment
+      const formsToAssign = (screeningForms || []).filter((f) => assignedFormIds[f.idForm])
+      // detect which originally-assigned forms were removed in this edit
+      const originalAssignedIds = Object.keys(originalAssignedFormIds || {}).filter(k => originalAssignedFormIds[k])
+      const currentAssignedIds = Object.keys(assignedFormIds || {}).filter(k => assignedFormIds[k])
+      const toUnassignIds = originalAssignedIds.filter(id => !currentAssignedIds.includes(id))
+      if (formsToAssign.length > 0) {
+        if (!patientId) {
+          setAlert('Paciente criado mas não foi possível obter o id para atribuir formulários.', 'warning')
+        } else {
+          const assignPromises = formsToAssign.map((form) => api.post(`/forms/${form.idForm}/assign`, { userIds: [patientId] }))
+          const assignResults = await Promise.allSettled(assignPromises)
+          const assignFailed = assignResults.filter(r => r.status === 'rejected')
+          if (assignFailed.length > 0) {
+            setAlert(`${assignFailed.length} atribuição(ões) falharam.`, 'warning')
+          }
+        }
+      }
+
+      // For any forms that were previously assigned but now unmarked, call unassign endpoint
+      if (toUnassignIds.length > 0) {
+        if (!patientId) {
+          setAlert('Não foi possível obter o id do paciente para desatribuir formulários.', 'warning')
+        } else {
+          const unassignPromises = toUnassignIds.map((formId) => api.post(`/forms/${formId}/unassign`, { userIds: [patientId] }))
+          const unassignResults = await Promise.allSettled(unassignPromises)
+          const unassignFailed = unassignResults.filter(r => r.status === 'rejected')
+          if (unassignFailed.length > 0) {
+            setAlert(`${unassignFailed.length} desatribuição(ões) falharam.`, 'warning')
+          }
+        }
+      }
+
+      // Additionally: any form that comes from /forms/screenings and is NOT in assignedFormIds
+      // should be unassigned as well (per request). Avoid duplicating IDs already processed.
+      const screeningFormIds = (screeningForms || []).map(f => f.idForm).filter(Boolean)
+      const screeningNotAssigned = screeningFormIds.filter(id => !assignedFormIds[id])
+      const extraToUnassign = screeningNotAssigned.filter(id => !toUnassignIds.includes(id))
+      if (extraToUnassign.length > 0) {
+        if (!patientId) {
+          setAlert('Não foi possível obter o id do paciente para desatribuir formulários de screening.', 'warning')
+        } else {
+          const extraPromises = extraToUnassign.map((formId) => api.post(`/forms/${formId}/unassign`, { userIds: [patientId] }))
+          const extraResults = await Promise.allSettled(extraPromises)
+          const extraFailed = extraResults.filter(r => r.status === 'rejected')
+          if (extraFailed.length > 0) {
+            setAlert(`${extraFailed.length} desatribuição(ões) adicionais falharam.`, 'warning')
+          }
+        }
+      }
+
+      setAlert(idUser ? 'Paciente atualizado com sucesso' : 'Paciente cadastrado com sucesso', 'success')
+      router.back()
     } catch (err: any) {
       console.error('Erro ao cadastrar paciente', err)
       const msg = err?.response?.data?.message || err?.message || 'Erro ao cadastrar'
@@ -347,10 +538,16 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
                       {form.description && <div className="text-sm text-muted-foreground">{form.description}</div>}
                     </div>
                     <div>
-                      <label className="inline-flex items-center gap-2">
-                        <input type="checkbox" checked={!!selectedFormIds[form.idForm]} onChange={() => toggleSelectForm(form.idForm)} />
-                        <span className="text-sm">Responder</span>
-                      </label>
+                      <div className="flex items-center gap-4">
+                        <label className="inline-flex items-center gap-2">
+                          <input type="checkbox" checked={!!selectedFormIds[form.idForm]} onChange={() => toggleSelectForm(form.idForm)} />
+                          <span className="text-sm">Responder</span>
+                        </label>
+                        <label className="inline-flex items-center gap-2">
+                          <input type="checkbox" checked={!!assignedFormIds[form.idForm]} onChange={() => toggleAssignForm(form.idForm)} />
+                          <span className="text-sm">Atribuir</span>
+                        </label>
+                      </div>
                     </div>
                   </div>
 

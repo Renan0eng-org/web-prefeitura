@@ -12,7 +12,7 @@ import { UserComNivel } from "@/types/access-level"; // Você já deve ter este 
 import { Loader2 } from "lucide-react"
 import * as React from "react"
 
-export default function AtivacaoUsuariosPage() {
+export default function AtivacaoPacientesPage() {
     const [users, setUsers] = React.useState<UserComNivel[]>([])
     const [isLoading, setIsLoading] = React.useState(true)
     const [updatingId, setUpdatingId] = React.useState<string | null>(null)
@@ -29,7 +29,9 @@ export default function AtivacaoUsuariosPage() {
         try {
             setIsLoading(true)
             const usersResponse = await api.get('/admin/acesso/users')
-            const patientsOnly = usersResponse.data.filter((u: any) => u.type !== 'PACIENTE')
+            // filter to patients only
+            const list = usersResponse.data || []
+            const patientsOnly = list.filter((u: any) => u.type === 'PACIENTE')
             setUsers(patientsOnly)
         } catch (err: any) {
             setAlert(err.response?.data?.message || "Erro ao carregar usuários.", "error")
@@ -130,13 +132,13 @@ export default function AtivacaoUsuariosPage() {
     return (
         <div className="container mx-auto p-4 md:p-8">
             <h1 className="text-3xl font-bold tracking-tight mb-6">
-                Ativação de Usuários
+                Ativação de Pacientes
             </h1>
             <Card>
                 <CardHeader>
-                    <CardTitle>Gerenciar Ativação de Contas</CardTitle>
+                    <CardTitle>Gerenciar Ativação de Contas (Pacientes)</CardTitle>
                     <CardDescription>
-                        Ative ou desative o login de usuários no sistema.
+                        Ative ou desative o login de pacientes no sistema.
                     </CardDescription>
                 </CardHeader>
                 <CardContent>

@@ -1,12 +1,11 @@
 "use client";
-import { useAlert } from "@/hooks/use-alert";
+import { AlertItem, useAlert } from "@/hooks/use-alert";
 import { cva } from "class-variance-authority";
 import { Terminal } from "lucide-react";
-import { useEffect } from "react";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
-// Definindo as variantes de alerta
-const alertVariants = cva("absolute top-4 right-4 z-50 w-fit max-w-full p-4 bg-yellow-200 border border-yellow-500 rounded-lg shadow-lg", {
+// Keep visual style of single alert, but remove absolute from the variant
+const alertVariants = cva("w-fit max-w-full p-4 rounded-lg shadow-lg", {
   variants: {
     type: {
       success: "bg-green-200 border border-green-500 text-green-800",
@@ -16,39 +15,31 @@ const alertVariants = cva("absolute top-4 right-4 z-50 w-fit max-w-full p-4 bg-y
     },
   },
   defaultVariants: {
-    type: "info", // Padrão do alerta
+    type: "info",
   },
 });
 
 export function GlobalAlert() {
-  const { message, visible, setVisible, time, setTime, type } = useAlert();
+  const { alerts, removeAlert } = useAlert();
 
-  // Efeito para esconder o alerta após o tempo configurado
-  useEffect(() => {
-    if (visible && time) {
-      const timer = setTimeout(() => {
-        setVisible(false); // Fecha o alerta após o tempo configurado
-        setTime(0);
-      }, time); // Tempo de duração do alerta
+  if (!alerts || alerts.length === 0) return null;
 
-      // Limpeza do timer se o componente for desmontado antes do tempo
-      return () => clearTimeout(timer);
-    }
-  }, [visible, time, setVisible, setTime]);
-
-  if (!visible) return null; // Não exibe se o alerta não estiver visível
-
+  // Container placed at top-right, stacking alerts vertically
   return (
-    <Alert className={alertVariants({ type })}> {/* Aplica a variante do tipo */}
-      <Terminal className="h-4 w-4" />
-      <AlertTitle className="font-bold text-neutral-800">Atenção !!</AlertTitle>
-      <AlertDescription className="font-bold text-neutral-800">{message}</AlertDescription>
-      <button
-        onClick={() => setVisible(false)} // Função para esconder o alerta
-        className="absolute top-0 right-0 p-2 text-xl text-gray-700 hover:text-gray-900"
-      >
-        X
-      </button>
-    </Alert>
+    <div className="absolute top-4 right-4 z-50 flex flex-col items-end gap-3">
+      {alerts.map((a: AlertItem) => (
+        <Alert key={a.id} className={alertVariants({ type: a.type })}>
+          <Terminal className="h-4 w-4" />
+          <AlertTitle className="font-bold text-neutral-800">Atenção !!</AlertTitle>
+          <AlertDescription className="font-bold text-neutral-800">{a.message}</AlertDescription>
+          <button
+            onClick={() => removeAlert(a.id)}
+            className="absolute top-0 right-0 p-2 text-xl text-gray-700 hover:text-gray-900"
+          >
+            X
+          </button>
+        </Alert>
+      ))}
+    </div>
   );
 }

@@ -4,18 +4,28 @@ import Calendar23 from "@/components/calendar-23"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import {
     DropdownMenu,
     DropdownMenuContent,
+    DropdownMenuItem,
     DropdownMenuLabel,
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { Settings2 } from "lucide-react"
+import { useAlert } from "@/hooks/use-alert"
+import { Check, ClipboardList, MoreVertical, Settings2 } from "lucide-react"
 
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
@@ -46,6 +56,10 @@ export default function LogsPage() {
     const [filterStatus, setFilterStatus] = useState("")
     const [filterCreatedFrom, setFilterCreatedFrom] = useState("")
     const [filterCreatedTo, setFilterCreatedTo] = useState("")
+    const [filterSeen, setFilterSeen] = useState<string>("all")
+
+    const [selectedLog, setSelectedLog] = useState<any | null>(null)
+    const [dialogOpen, setDialogOpen] = useState(false)
 
     const { getPermissions } = useAuth()
     const permissions = useMemo(() => getPermissions("log"), [getPermissions])
@@ -56,22 +70,27 @@ export default function LogsPage() {
         route: true,
         method: true,
         statusCode: true,
+        seen: true,
+        actions: true,
         userId: false,
         userName: true,
-        userEmail: true,
-        message: true,
-        stack: true,
+        userEmail: false,
+        message: false,
+        stack: false,
         file: false,
         line: false,
         column: false,
         metadata: false,
     })
 
+    const { setAlert } = useAlert()
+
     const fetchLogs = async (overrides?: {
         page?: number
         userId?: string
         route?: string
         statusCode?: string
+        seen?: string
         createdFrom?: string
         createdTo?: string
     }) => {
@@ -86,6 +105,7 @@ export default function LogsPage() {
             const status = overrides?.statusCode ?? filterStatus
             const createdFrom = overrides?.createdFrom ?? filterCreatedFrom
             const createdTo = overrides?.createdTo ?? filterCreatedTo
+            const seenFilter = overrides?.seen ?? filterSeen
 
             const params = new URLSearchParams()
             params.set("page", String(p))
@@ -95,6 +115,8 @@ export default function LogsPage() {
             if (status) params.set("statusCode", status)
             if (createdFrom) params.set("createdFrom", createdFrom)
             if (createdTo) params.set("createdTo", createdTo)
+            if (seenFilter === 'seen') params.set('seen', 'true')
+            else if (seenFilter === 'unseen') params.set('seen', 'false')
 
             const response = await api.get(`/logs?${params.toString()}`)
             const payload = response.data
@@ -109,6 +131,17 @@ export default function LogsPage() {
             setError("Erro ao buscar logs")
         } finally {
             setIsLoading(false)
+        }
+    }
+
+    const markSeen = async (id: string) => {
+        try {
+            await api.post(`/logs/${id}/seen`)
+            setAlert?.("Log marcado como visto", "success")
+            fetchLogs({ page })
+        } catch (err) {
+            console.error("Erro ao marcar como visto", err)
+            setAlert?.("Erro ao marcar como visto", "error")
         }
     }
 
@@ -190,7 +223,19 @@ export default function LogsPage() {
                         />
                     </div>
 
-                    <div className="col-span-1"/>
+                    <div className="col-span-1">
+                        <label className="text-xs text-muted-foreground">Visto</label>
+                        <Select value={filterSeen} onValueChange={(v) => setFilterSeen(v)}>
+                            <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Todos" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">Todos</SelectItem>
+                                <SelectItem value="seen">Vistos</SelectItem>
+                                <SelectItem value="unseen">Não vistos</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
 
                     <div className="col-span-1 flex gap-2 justify-end">
                         <Button
@@ -212,9 +257,10 @@ export default function LogsPage() {
                                 setFilterStatus("")
                                 setFilterCreatedFrom("")
                                 setFilterCreatedTo("")
+                                setFilterSeen("all")
                                 setPage(1)
                                 // Call fetchLogs with cleared overrides so it doesn't rely on state updates
-                                fetchLogs({ page: 1, userId: "", route: "", statusCode: "", createdFrom: "", createdTo: "" })
+                                fetchLogs({ page: 1, userId: "", route: "", statusCode: "", createdFrom: "", createdTo: "", seen: "all" })
                             }}
                         >
                             Limpar
@@ -330,6 +376,8 @@ export default function LogsPage() {
                             {columns.line && <TableHead>Linha</TableHead>}
                             {columns.column && <TableHead>Coluna</TableHead>}
                             {columns.metadata && <TableHead>Metadata</TableHead>}
+                            <TableHead className="min-w-24 text-center">Visto</TableHead>
+                            <TableHead className="min-w-28 text-center">Ações</TableHead>
                         </TableRow>
                     </TableHeader>
 
@@ -351,6 +399,8 @@ export default function LogsPage() {
                                     {columns.line && <TableCell><Skeleton className="h-4 w-12" /></TableCell>}
                                     {columns.column && <TableCell><Skeleton className="h-4 w-12" /></TableCell>}
                                     {columns.metadata && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
+                                    <TableCell><Skeleton className="h-4 w-12 mx-auto" /></TableCell>
+                                    <TableCell><Skeleton className="h-4 w-20 mx-auto" /></TableCell>
                                 </TableRow>
                             ))
                             : logs.map((l: any) => (
@@ -369,11 +419,106 @@ export default function LogsPage() {
                                     {columns.line && <TableCell>{l.line ?? '-'}</TableCell>}
                                     {columns.column && <TableCell>{l.column ?? '-'}</TableCell>}
                                     {columns.metadata && <TableCell className="max-w-[400px] truncate">{JSON.stringify(l.metadata || l.meta || l.data || {}).slice(0, 300)}</TableCell>}
+                                    <TableCell className="text-center">
+                                        <Badge className={"px-2 py-1 " + (l.seen ? 'bg-green-100 text-green-800 hover:bg-green-500 hover:text-green-100' : 'bg-gray-100 text-gray-600')}>
+                                            {l.seen ? 'Visto' : 'Desconhecido'}
+                                        </Badge>
+                                    </TableCell>
+                                    {columns.actions && (
+                                        <TableCell className="text-center p-0 justify-center items-center">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="rounded-full">
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem
+                                                        onSelect={() => {
+                                                            setSelectedLog(l)
+                                                            setDialogOpen(true)
+                                                        }}
+                                                    >
+                                                        <div className="flex items-center w-full">
+                                                            <ClipboardList className="mr-2 h-4 w-4" />
+                                                            <span>Ver detalhe</span>
+                                                        </div>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem
+                                                        className="hover:text-white"
+                                                        onSelect={() => {
+                                                            markSeen(l.id || l._id || l.logId)
+                                                        }}
+                                                    >
+                                                        <Check className="mr-2 h-4 w-4" />
+                                                        {l.seen ? "Marcar como não visto" : "Marcar como visto"}
+                                                    </DropdownMenuItem>
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>
+                                    )}
                                 </TableRow>
                             ))}
                     </TableBody>
                 </Table>
             </div>
+
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <DialogContent className="max-w-2xl p-2 sm:p-4 lg:p-6">
+                    <DialogHeader>
+                        <DialogTitle className="text-center flex w-full justify-center">
+                            Detalhes do Log
+                        </DialogTitle>
+                    </DialogHeader>
+
+                    {selectedLog ? (
+                        <div className="space-y-2 w-full">
+
+                            <div className="text-sm"><strong>ID:</strong> {selectedLog.id || selectedLog._id || selectedLog.logId || '-'}</div>
+                            <div className="text-sm"><strong>Data:</strong> {new Date(selectedLog.created || selectedLog.createdAt || selectedLog.timestamp || Date.now()).toLocaleString()}</div>
+                            <div className="text-sm"><strong>Rota:</strong> {selectedLog.route || selectedLog.url || selectedLog.path || '-'}</div>
+                            <div className="text-sm"><strong>Método:</strong> {selectedLog.method || selectedLog.httpMethod || '-'}</div>
+                            <div className="text-sm"><strong>Status:</strong> {selectedLog.statusCode ?? selectedLog.status ?? '-'}</div>
+                            <div className="text-sm"><strong>Usuário:</strong> {selectedLog.user?.name || selectedLog.userName || '-'}</div>
+
+                            <div className="w-full">
+                                <strong>Mensagem:</strong>
+                                <div className="max-h-60 overflow-scroll bg-muted p-2 rounded">
+                                    <pre className="whitespace-pre-wrap text-sm w-full">
+                                        {selectedLog.message || selectedLog.error || selectedLog.detail || '-'}
+                                    </pre>
+                                </div>
+                            </div>
+
+                            {selectedLog.stack && (
+                                <div className="w-full">
+                                    <strong>Stack:</strong>
+                                    <div className="max-h-60 overflow-scroll bg-muted p-2 rounded">
+                                        <pre className="whitespace-pre-wrap text-sm w-full">
+                                            {selectedLog.stack}
+                                        </pre>
+                                    </div>
+                                </div>
+                            )}
+
+                            {selectedLog.metadata && (
+                                <div className="w-full">
+                                    <strong>Metadata:</strong>
+                                    <div className="max-h-60 overflow-scroll bg-muted p-2 rounded">
+                                        <pre className="whitespace-pre-wrap text-sm w-full">
+                                            {JSON.stringify(selectedLog.metadata, null, 2)}
+                                        </pre>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
+                    ) : (
+                        <div>Nenhum log selecionado.</div>
+                    )}
+                </DialogContent>
+            </Dialog>
 
             <div className="flex justify-between items-center">
                 <span>

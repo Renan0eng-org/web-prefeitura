@@ -65,6 +65,13 @@ export const data = {
       isActive: false,
       nivel_acesso: "paciente",
     },
+    {
+      title: "Logs",
+      url: "/admin/logs",
+      icon: ClipboardList,
+      isActive: false,
+      nivel_acesso: "log",
+    },
   ],
   flow: [
     // {

@@ -3,6 +3,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from '@/hooks/use-auth'
 import AgendamentosTab from "@/views/form-builder/tabs/AgendamentosTab"
+import EncaminhamentosTab from "@/views/form-builder/tabs/EncaminhamentosTab"
 import EsteiraPacientesTab from "@/views/form-builder/tabs/EsteiraPacientesTab"
 import FormulariosTab from "@/views/form-builder/tabs/FormulariosTab"
 import { useEffect, useMemo, useState } from 'react'
@@ -15,6 +16,7 @@ type Props = {
 export default function FormCard({ storage = 'local', storageKey = 'formCard.activeTab' }: Props) {
   const { getPermissions } = useAuth()
   const formularioPerm = useMemo(() => getPermissions ? getPermissions('formulario') : null, [getPermissions])
+  const agendamentoPerm = useMemo(() => getPermissions ? getPermissions('agendamentos') : null, [getPermissions])
 
   const defaultTab = formularioPerm?.visualizar ? 'forms' : 'esteira-pacientes'
 
@@ -43,7 +45,8 @@ export default function FormCard({ storage = 'local', storageKey = 'formCard.act
       <TabsList>
         {formularioPerm?.visualizar && <TabsTrigger value="forms">Formulários</TabsTrigger>}
         <TabsTrigger value="esteira-pacientes">Esteira de Pacientes</TabsTrigger>
-        <TabsTrigger value="agendamentos">Agendamentos</TabsTrigger>
+        {agendamentoPerm?.visualizar && <TabsTrigger value="agendamentos">Agendamentos</TabsTrigger>}
+        {agendamentoPerm?.visualizar && <TabsTrigger value="encaminhamento">Encaminhamento</TabsTrigger>}
       </TabsList>
 
       {formularioPerm?.visualizar && <TabsContent value="forms" className="mt-4">
@@ -57,6 +60,9 @@ export default function FormCard({ storage = 'local', storageKey = 'formCard.act
       <TabsContent value="agendamentos" className="mt-4">
         <AgendamentosTab />
       </TabsContent>
+      {agendamentoPerm?.visualizar && <TabsContent value="encaminhamento" className="mt-4">
+        <EncaminhamentosTab />
+      </TabsContent>}
     </Tabs>
   )
 }

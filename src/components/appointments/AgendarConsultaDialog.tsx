@@ -29,9 +29,10 @@ interface AgendarConsultaDialogProps {
     response?: any // response object from EsteiraPacientesTab
     appointment?: any
     onScheduled?: () => void
+    ferrals?: boolean
 }
 
-export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, appointment, onScheduled, visibleOnly }: AgendarConsultaDialogProps) {
+export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, appointment, onScheduled, visibleOnly, ferrals }: AgendarConsultaDialogProps) {
     const [isSubmitting, setIsSubmitting] = React.useState(false)
     const [doctors, setDoctors] = React.useState<any[]>([])
     const [loadingDoctors, setLoadingDoctors] = React.useState(false)
@@ -54,7 +55,15 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
                 // endpoint returns users with access level info; filter by type 'USUARIO' (medicos)
                 const res = await api.get('/appointments/users/professional')
                 const list = res.data || []
-                setDoctors(list)
+
+                const doctor = list.filter((u: any) => u.type === 'MEDICO')
+                const ferral = list.filter((u: any) => u.type === 'USUARIO')
+
+                if (ferrals && ferrals === true) {
+                    setDoctors(ferral)
+                } else {
+                    setDoctors(doctor)
+                }
             } catch (err) {
                 console.error('Erro ao buscar médicos:', err)
                 setAlert('Não foi possível carregar lista de médicos.', 'error')
@@ -139,12 +148,19 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
     async function onSubmit(data: AgendamentoFormValues) {
         setIsSubmitting(true)
         try {
-            const payload = {
-                doctorId: data.doctorId,
+            const payload: any = {
                 patientId: response?.user?.idUser || appointment?.patientId || appointment?.patient?.idUser || null,
                 responseId: response?.idResponse || appointment?.responseId || appointment?.response?.idResponse || null,
                 scheduledAt: data.scheduledAt,
                 notes: data.notes || '',
+            }
+
+            
+                // doctorId: data.doctorId
+            if (ferrals && ferrals === true) {
+                payload['professionalId'] = data.doctorId
+            } else {
+                payload['doctorId'] = data.doctorId
             }
 
             // backend endpoint may vary; using /appointments as a reasonable default
@@ -169,9 +185,12 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
         <Dialog open={isOpen} onOpenChange={handleOpenChange}>
             <DialogContent className="max-h-[90vh] overflow-y-auto scrollable">
                 <DialogHeader>
-                    <DialogTitle>Agendar Consulta</DialogTitle>
+                    <DialogTitle>{ferrals ? "Encaminhar" : "Agendar Consulta"}</DialogTitle>
                     <DialogDescription>
-                        Crie um agendamento de consulta para o paciente relacionado à resposta selecionada.
+                        {
+                            ferrals ? "Crie um encaminhamento para o paciente relacionado à resposta selecionada." :
+                                "Crie um agendamento de consulta para o paciente relacionado à resposta selecionada."
+                        }
                     </DialogDescription>
                 </DialogHeader>
 

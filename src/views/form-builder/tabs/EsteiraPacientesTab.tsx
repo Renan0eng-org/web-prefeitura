@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAlert } from "@/hooks/use-alert"
 import api from "@/services/api"
 import axios, { AxiosError } from "axios"
-import { Calendar, Eye, MoreVertical } from "lucide-react"
+import { ArrowUpFromDot, Calendar, Eye, MoreVertical } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 
@@ -25,6 +25,7 @@ export default function EsteiraPacientesTab() {
     })
     const [isAgendarOpen, setIsAgendarOpen] = useState(false)
     const [selectedResponse, setSelectedResponse] = useState<any | null>(null)
+    const [ferrals, setFerrals] = useState(false)
 
     const { setAlert } = useAlert();
 
@@ -158,6 +159,16 @@ export default function EsteiraPacientesTab() {
                                                     <span>Agendar Consulta</span>
                                                 </button>
                                             </DropdownMenuItem>
+                                            <DropdownMenuItem onSelect={() => { 
+                                                setSelectedResponse(response); 
+                                                setIsAgendarOpen(true); 
+                                                setFerrals(true);
+                                                }}>
+                                                <button className="flex items-center w-full text-left">
+                                                    <ArrowUpFromDot className="mr-2 h-4 w-4" />
+                                                    <span>Encaminhar</span>
+                                                </button>
+                                            </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>
@@ -172,13 +183,17 @@ export default function EsteiraPacientesTab() {
                     isOpen={isAgendarOpen}
                     onOpenChange={(open) => {
                         setIsAgendarOpen(open)
-                        if (!open) setSelectedResponse(null)
+                        if (!open) {
+                            setSelectedResponse(null)
+                            setFerrals(false)
+                        }
                     }}
                     response={selectedResponse}
                     onScheduled={() => {
                         // refresh responses after scheduling if needed
                         fetchResponses()
                     }}
+                    ferrals={ferrals}
                 />
             )}
         </>

@@ -22,13 +22,16 @@ const agendamentoSchema = z.object({
 type AgendamentoFormValues = z.infer<typeof agendamentoSchema>
 
 interface AgendarConsultaDialogProps {
+    visibleOnly?: boolean
     isOpen: boolean
     onOpenChange: (open: boolean) => void
-    response: any // response object from EsteiraPacientesTab
+    // either pass a response (existing behavior) or an appointment to edit/view
+    response?: any // response object from EsteiraPacientesTab
+    appointment?: any
     onScheduled?: () => void
 }
 
-export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, onScheduled }: AgendarConsultaDialogProps) {
+export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, appointment, onScheduled, visibleOnly }: AgendarConsultaDialogProps) {
     const [isSubmitting, setIsSubmitting] = React.useState(false)
     const [doctors, setDoctors] = React.useState<any[]>([])
     const [loadingDoctors, setLoadingDoctors] = React.useState(false)
@@ -36,6 +39,7 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
     const [showDetails, setShowDetails] = React.useState(false)
     const [loadingResponseDetail, setLoadingResponseDetail] = React.useState(false)
     const { setAlert } = useAlert()
+
 
     const form = useForm<AgendamentoFormValues>({
         resolver: zodResolver(agendamentoSchema),
@@ -64,16 +68,25 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
     // Fetch response details on demand when user requests "Detalhes do formulário"
     const fetchResponseDetail = async () => {
         try {
-            if (!response) return
-            if (response.answers && response.answers.length > 0) {
-                setResponseDetail(response)
+            const provided = response || appointment?.response
+            console.log('fetchResponseDetail, provided:', provided);
+
+            if (provided && provided.answers && provided.answers.length > 0) {
+                setResponseDetail(provided)
                 return
             }
-            const formId = response.form?.idForm || response.formId || null
-            const responseId = response.idResponse
+
+            // try to infer formId/responseId from either response or appointment
+            const formId = provided?.form?.idForm || provided?.formId || appointment?.formId || appointment?.form?.idForm || null
+            const responseId = provided?.idResponse || provided?.responseId || appointment?.responseId || null
+
+            console.log('{ formId, responseId }', { formId, responseId });
+
+
             if (!formId || !responseId) return
             setLoadingResponseDetail(true)
             const res = await api.get(`/forms/${formId}/responses/${responseId}`)
+            console.log('Fetched response detail:', res.data);
             setResponseDetail(res.data)
         } catch (err) {
             console.warn('Não foi possível carregar detalhes da resposta:', err)
@@ -93,9 +106,30 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
 
 
     React.useEffect(() => {
-        // if dialog opened for a response, prefill patient and reset on close
-        if (!isOpen) form.reset()
-    }, [isOpen, form])
+        if (!isOpen) {
+            form.reset()
+            setResponseDetail(null)
+            setShowDetails(false)
+            return
+        }
+
+        // If opened with an appointment, prefill form for editing
+        if (appointment) {
+
+            console.log('appointment', appointment);
+            const initial = {
+                doctorId: appointment.doctor?.idUser || appointment.doctorId || appointment.doctor?.id || "",
+                scheduledAt: appointment.scheduledAt ? new Date(appointment.scheduledAt).toISOString().slice(0, 16) : "",
+                notes: appointment.notes || "",
+            }
+            form.reset(initial)
+            // if appointment contains response embedded, set it
+            fetchResponseDetail()
+        } else if (response) {
+            // if opened with a response directly, reset form defaults
+            form.reset({ doctorId: "", scheduledAt: "", notes: "" })
+        }
+    }, [isOpen, appointment])
 
     const handleOpenChange = (open: boolean) => {
         if (!open) form.reset()
@@ -107,15 +141,20 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
         try {
             const payload = {
                 doctorId: data.doctorId,
-                patientId: response?.user?.idUser || null,
-                responseId: response?.idResponse,
+                patientId: response?.user?.idUser || appointment?.patientId || appointment?.patient?.idUser || null,
+                responseId: response?.idResponse || appointment?.responseId || appointment?.response?.idResponse || null,
                 scheduledAt: data.scheduledAt,
                 notes: data.notes || '',
             }
 
             // backend endpoint may vary; using /appointments as a reasonable default
-            await api.post('/appointments', payload)
-            setAlert('Consulta agendada com sucesso!', 'success')
+            if (appointment?.id) {
+                await api.put(`/appointments/${appointment.id}`, payload)
+                setAlert('Consulta atualizada com sucesso!', 'success')
+            } else {
+                await api.post('/appointments', payload)
+                setAlert('Consulta agendada com sucesso!', 'success')
+            }
             if (onScheduled) onScheduled()
             handleOpenChange(false)
         } catch (err: any) {
@@ -181,7 +220,7 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
                                 <FormItem>
                                     <FormLabel>Profissional*</FormLabel>
                                     <FormControl>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value}>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} disabled={visibleOnly}>
                                             <SelectTrigger>
                                                 <SelectValue placeholder={loadingDoctors ? 'Carregando...' : 'Selecione um profissional'} />
                                             </SelectTrigger>
@@ -204,12 +243,13 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
                         <FormField
                             control={form.control}
                             name="scheduledAt"
+                            disabled={visibleOnly}
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Data e Hora*</FormLabel>
                                     <FormControl>
                                         {/* data minima hoje */}
-                                        <Input type="datetime-local" {...field} min={new Date().toISOString().slice(0,16)} />
+                                        <Input type="datetime-local" {...field} min={new Date().toISOString().slice(0, 16)} />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -219,6 +259,7 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
                         <FormField
                             control={form.control}
                             name="notes"
+                            disabled={visibleOnly}
                             render={({ field }) => (
                                 <FormItem>
                                     <FormLabel>Observações</FormLabel>
@@ -229,15 +270,20 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
                             )}
                         />
 
-                        <DialogFooter>
+                        {visibleOnly ? <DialogFooter>
+                            <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)} disabled={isSubmitting}>
+                                Fechar
+                            </Button>
+                        </DialogFooter> : <DialogFooter>
                             <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)} disabled={isSubmitting}>
                                 Cancelar
                             </Button>
                             <Button type="submit" disabled={isSubmitting}>
                                 {isSubmitting && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
-                                Agendar
+                                {/* se tiver o id coloca editar */}
+                                {appointment?.id ? 'Salvar Alterações' : 'Agendar'}
                             </Button>
-                        </DialogFooter>
+                        </DialogFooter>}
                     </form>
                 </Form>
             </DialogContent>

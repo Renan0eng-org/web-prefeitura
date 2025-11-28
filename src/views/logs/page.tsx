@@ -48,6 +48,7 @@ export default function LogsPage() {
     const [page, setPage] = useState(1)
     const [pageSize, setPageSize] = useState(5)
     const [logs, setLogs] = useState<any[]>([])
+    const [allLogs, setAllLogs] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
     const [totalPages, setTotalPages] = useState(1)
@@ -79,6 +80,9 @@ export default function LogsPage() {
         userEmail: false,
         message: false,
         stack: false,
+        ip: true,
+        forwardedFor: false,
+        userAgent: false,
         file: false,
         line: false,
         column: false,
@@ -131,8 +135,14 @@ export default function LogsPage() {
             // total: total rows in dataset (if provided by API)
             setTotal(typeof total === 'number' ? total : 0)
             setTotalPages(total && psize ? Math.ceil(total / psize) : (data?.totalPages || 1))
-            setLogs( data || [])
+            setLogs(data || [])
             setError(null)
+
+            params.set("pageSize", "10000")
+
+            const allResponse = await api.get(`/logs?${params.toString()}`)
+            setAllLogs(allResponse.data.data || [])
+
         } catch (err) {
             setError("Erro ao buscar logs")
         } finally {
@@ -158,30 +168,30 @@ export default function LogsPage() {
     const logsByDay = useMemo(() => {
         const map = new Map<string, number>()
 
-        for (const l of logs) {
+        for (const l of allLogs) {
             const created = l.created || l.createdAt || l.timestamp || Date.now()
             const d = new Date(created).toLocaleDateString()
             map.set(d, (map.get(d) || 0) + 1)
         }
 
         return [...map.entries()].map(([date, count]) => ({ date, count }))
-    }, [logs])
+    }, [allLogs])
 
     const statusDistribution = useMemo(() => {
         const map = new Map<number, number>()
 
-        for (const l of logs) {
+        for (const l of allLogs) {
             const s = Number(l.statusCode || l.status || 0)
             map.set(s, (map.get(s) || 0) + 1)
         }
 
         return [...map.entries()].map(([statusCode, value]) => ({ statusCode, value }))
-    }, [logs])
+    }, [allLogs])
 
     const CustomTooltip = ({ active, payload, label }: any) => {
         if (!active || !payload?.length) return null
 
-        const logsOfDay = logs.filter((l) => {
+        const logsOfDay = allLogs.filter((l) => {
             const created = l.created || l.createdAt || l.timestamp || Date.now()
             const d = new Date(created).toLocaleDateString()
             return d === label
@@ -192,7 +202,7 @@ export default function LogsPage() {
             const status = Number(log.statusCode || log.status || 0)
             statusCountMap.set(status, (statusCountMap.get(status) || 0) + 1)
         }
-        const statusCounts = [...statusCountMap.entries()].map(([statusCode, count]) => ({ statusCode, count }))        
+        const statusCounts = [...statusCountMap.entries()].map(([statusCode, count]) => ({ statusCode, count }))
 
         return (
             <div className="rounded-md bg-white shadow-md border px-3 py-2 text-sm">
@@ -389,6 +399,7 @@ export default function LogsPage() {
                             {columns.createdAt && <TableHead>Data</TableHead>}
                             {columns.route && <TableHead>Rota</TableHead>}
                             {columns.method && <TableHead>Método</TableHead>}
+                            {columns.ip && <TableHead>IP</TableHead>}
                             {columns.statusCode && <TableHead>Status</TableHead>}
                             {columns.userId && <TableHead>Usuário (ID)</TableHead>}
                             {columns.userName && <TableHead>Usuário</TableHead>}
@@ -399,6 +410,8 @@ export default function LogsPage() {
                             {columns.line && <TableHead>Linha</TableHead>}
                             {columns.column && <TableHead>Coluna</TableHead>}
                             {columns.metadata && <TableHead>Metadata</TableHead>}
+                            {columns.forwardedFor && <TableHead>Forwarded</TableHead>}
+                            {columns.userAgent && <TableHead>User Agent</TableHead>}
                             <TableHead className="min-w-24 text-center">Visto</TableHead>
                             <TableHead className="min-w-28 text-center">Ações</TableHead>
                         </TableRow>
@@ -412,6 +425,7 @@ export default function LogsPage() {
                                     {columns.createdAt && <TableCell><Skeleton className="h-4 w-24" /></TableCell>}
                                     {columns.route && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
                                     {columns.method && <TableCell><Skeleton className="h-4 w-20" /></TableCell>}
+                                    {columns.ip && <TableCell><Skeleton className="h-4 w-32" /></TableCell>}
                                     {columns.statusCode && <TableCell><Skeleton className="h-4 w-12" /></TableCell>}
                                     {columns.userId && <TableCell><Skeleton className="h-4 w-20" /></TableCell>}
                                     {columns.userName && <TableCell><Skeleton className="h-4 w-24" /></TableCell>}
@@ -422,6 +436,8 @@ export default function LogsPage() {
                                     {columns.line && <TableCell><Skeleton className="h-4 w-12" /></TableCell>}
                                     {columns.column && <TableCell><Skeleton className="h-4 w-12" /></TableCell>}
                                     {columns.metadata && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
+                                    {columns.forwardedFor && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
+                                    {columns.userAgent && <TableCell><Skeleton className="h-4 w-48" /></TableCell>}
                                     <TableCell><Skeleton className="h-4 w-12 mx-auto" /></TableCell>
                                     <TableCell><Skeleton className="h-4 w-20 mx-auto" /></TableCell>
                                 </TableRow>
@@ -432,6 +448,7 @@ export default function LogsPage() {
                                     {columns.createdAt && <TableCell className="min-w-[180px] text-center">{new Date(l.created || l.createdAt || l.timestamp || Date.now()).toLocaleString()}</TableCell>}
                                     {columns.route && <TableCell className="max-w-[240px] truncate">{l.route || l.url || l.path || '-'}</TableCell>}
                                     {columns.method && <TableCell>{l.method || l.httpMethod || '-'}</TableCell>}
+                                    {columns.ip && <TableCell>{l.ip || '-'}</TableCell>}
                                     {columns.statusCode && <TableCell><Badge>{l.statusCode ?? l.status ?? '-'}</Badge></TableCell>}
                                     {columns.userId && <TableCell>{l.userId || l.user?.idUser || l.user?.id || '-'}</TableCell>}
                                     {columns.userName && <TableCell>{l.user?.name || l.userName || '-'}</TableCell>}
@@ -442,6 +459,8 @@ export default function LogsPage() {
                                     {columns.line && <TableCell>{l.line ?? '-'}</TableCell>}
                                     {columns.column && <TableCell>{l.column ?? '-'}</TableCell>}
                                     {columns.metadata && <TableCell className="max-w-[400px] truncate">{JSON.stringify(l.metadata || l.meta || l.data || {}).slice(0, 300)}</TableCell>}
+                                    {columns.forwardedFor && <TableCell>{l.forwardedFor || l.forwarded || l.xForwardedFor || '-'}</TableCell>}
+                                    {columns.userAgent && <TableCell className="max-w-[300px] truncate">{l.userAgent || l.user_agent || l.ua || '-'}</TableCell>}
                                     <TableCell className="text-center">
                                         <Badge className={"px-2 py-1 " + (l.seen ? 'bg-green-100 text-green-800 hover:bg-green-500 hover:text-green-100' : 'bg-gray-100 text-gray-600')}>
                                             {l.seen ? 'Visto' : 'Desconhecido'}
@@ -483,104 +502,104 @@ export default function LogsPage() {
                                         </TableCell>
                                     )}
                                 </TableRow>
-                            )): <TableRow>
+                            )) : <TableRow>
                                 <TableCell colSpan={Object.values(columns).filter(Boolean).length} className="text-center py-6">
                                     Nenhum log encontrado.
                                 </TableCell>
-                                </TableRow>}
+                            </TableRow>}
 
                     </TableBody>
                 </Table>
                 <div className="flex items-center justify-between px-4 bg-muted rounded-b-md py-2">
-                <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-                    {0} of {total} row(s) selected.
+                    <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
+                        {0} of {total} row(s) selected.
+                    </div>
+                    <div className="flex w-full items-center gap-8 lg:w-fit bg-muted">
+                        <div className="hidden items-center gap-2 lg:flex">
+                            <Label htmlFor="rows-per-page" className="text-sm font-medium">
+                                Rows per page
+                            </Label>
+                            <Select
+                                value={`${pageSize}`}
+                                onValueChange={(value) => {
+                                    const size = Number(value)
+                                    setPageSize(size)
+                                    setPage(1)
+                                    fetchLogs({ page: 1, pageSize: size })
+                                }}
+                            >
+                                <SelectTrigger className="w-20" id="rows-per-page">
+                                    <SelectValue placeholder={`${pageSize}`} />
+                                </SelectTrigger>
+                                <SelectContent side="top">
+                                    {[5, 10, 20, 30, 40, 50].map((ps) => (
+                                        <SelectItem key={ps} value={`${ps}`}>
+                                            {ps}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="flex w-fit items-center justify-center text-sm font-medium">
+                            Page {page} of {totalPages}
+                        </div>
+                        <div className="ml-auto flex items-center gap-2 lg:ml-0">
+                            <Button
+                                variant="outline"
+                                className="hidden h-8 w-8 p-0 lg:flex"
+                                onClick={() => {
+                                    setPage(1)
+                                    fetchLogs({ page: 1 })
+                                }}
+                                disabled={page === 1}
+                            >
+                                <span className="sr-only">Go to first page</span>
+                                <ChevronsLeft />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="size-8"
+                                size="icon"
+                                onClick={() => {
+                                    const p = Math.max(1, page - 1)
+                                    setPage(p)
+                                    fetchLogs({ page: p })
+                                }}
+                                disabled={page === 1}
+                            >
+                                <span className="sr-only">Go to previous page</span>
+                                <ChevronLeft />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="size-8"
+                                size="icon"
+                                onClick={() => {
+                                    const p = Math.min(totalPages, page + 1)
+                                    setPage(p)
+                                    fetchLogs({ page: p })
+                                }}
+                                disabled={page === totalPages}
+                            >
+                                <span className="sr-only">Go to next page</span>
+                                <ChevronRight />
+                            </Button>
+                            <Button
+                                variant="outline"
+                                className="hidden size-8 lg:flex"
+                                size="icon"
+                                onClick={() => {
+                                    setPage(totalPages)
+                                    fetchLogs({ page: totalPages })
+                                }}
+                                disabled={page === totalPages}
+                            >
+                                <span className="sr-only">Go to last page</span>
+                                <ChevronsRight />
+                            </Button>
+                        </div>
+                    </div>
                 </div>
-                <div className="flex w-full items-center gap-8 lg:w-fit bg-muted">
-                    <div className="hidden items-center gap-2 lg:flex">
-                        <Label htmlFor="rows-per-page" className="text-sm font-medium">
-                            Rows per page
-                        </Label>
-                        <Select
-                            value={`${pageSize}`}
-                            onValueChange={(value) => {
-                                const size = Number(value)
-                                setPageSize(size)
-                                setPage(1)
-                                fetchLogs({ page: 1, pageSize: size })
-                            }}
-                        >
-                            <SelectTrigger className="w-20" id="rows-per-page">
-                                <SelectValue placeholder={`${pageSize}`} />
-                            </SelectTrigger>
-                            <SelectContent side="top">
-                                {[5, 10, 20, 30, 40, 50].map((ps) => (
-                                    <SelectItem key={ps} value={`${ps}`}>
-                                        {ps}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="flex w-fit items-center justify-center text-sm font-medium">
-                        Page {page} of {totalPages}
-                    </div>
-                    <div className="ml-auto flex items-center gap-2 lg:ml-0">
-                        <Button
-                            variant="outline"
-                            className="hidden h-8 w-8 p-0 lg:flex"
-                            onClick={() => {
-                                setPage(1)
-                                fetchLogs({ page: 1 })
-                            }}
-                            disabled={page === 1}
-                        >
-                            <span className="sr-only">Go to first page</span>
-                            <ChevronsLeft />
-                        </Button>
-                        <Button
-                            variant="outline"
-                            className="size-8"
-                            size="icon"
-                            onClick={() => {
-                                const p = Math.max(1, page - 1)
-                                setPage(p)
-                                fetchLogs({ page: p })
-                            }}
-                            disabled={page === 1}
-                        >
-                            <span className="sr-only">Go to previous page</span>
-                            <ChevronLeft />
-                        </Button>
-                        <Button
-                            variant="outline"
-                            className="size-8"
-                            size="icon"
-                            onClick={() => {
-                                const p = Math.min(totalPages, page + 1)
-                                setPage(p)
-                                fetchLogs({ page: p })
-                            }}
-                            disabled={page === totalPages}
-                        >
-                            <span className="sr-only">Go to next page</span>
-                            <ChevronRight />
-                        </Button>
-                        <Button
-                            variant="outline"
-                            className="hidden size-8 lg:flex"
-                            size="icon"
-                            onClick={() => {
-                                setPage(totalPages)
-                                fetchLogs({ page: totalPages })
-                            }}
-                            disabled={page === totalPages}
-                        >
-                            <span className="sr-only">Go to last page</span>
-                            <ChevronsRight />
-                        </Button>
-                    </div>
-                </div>
-            </div>
             </div>
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
@@ -638,7 +657,7 @@ export default function LogsPage() {
                 </DialogContent>
             </Dialog>
 
-            
+
         </div>
     )
 }

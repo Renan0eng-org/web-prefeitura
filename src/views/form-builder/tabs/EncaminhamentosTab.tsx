@@ -7,10 +7,11 @@ import { DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuS
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAlert } from "@/hooks/use-alert"
+import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
 import { DropdownMenu, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu"
 import { Edit, Eye, MoreVertical, Trash } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 export default function EncaminhamentosTab() {
     const [items, setItems] = useState<any[]>([])
@@ -51,20 +52,39 @@ export default function EncaminhamentosTab() {
         }
     }
 
+    const { getPermissions } = useAuth()
+
+    const agendamentoPerm = useMemo(() => {
+        if (!getPermissions) return null
+        return getPermissions('agendamentos') ?? getPermissions('agendamento') ?? null
+    }, [getPermissions])
+
+    const didFetchRef = useRef(false)
+
     useEffect(() => {
-        fetchItems()
-    }, [])
+        if (agendamentoPerm?.visualizar && !didFetchRef.current) {
+            didFetchRef.current = true
+            fetchItems()
+        }
+    }, [agendamentoPerm])
 
     return (
         <div>
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-semibold">Encaminhamentos</h2>
                 <div>
-                    <Button variant="outline" size="sm" onClick={fetchItems}>Atualizar</Button>
+                    {agendamentoPerm?.visualizar && (
+                        <Button variant="outline" size="sm" onClick={fetchItems}>Atualizar</Button>
+                    )}
                 </div>
             </div>
 
             {error && <p className="text-red-500">{error}</p>}
+            {!agendamentoPerm?.visualizar && (
+                <p className="text-muted-foreground">Você não tem permissão para visualizar encaminhamentos.</p>
+            )}
+            {agendamentoPerm?.visualizar && (
+            <>
             <Table className="overflow-hidden rounded-lg border">
                 <TableHeader className="sticky top-0 z-10 bg-muted">
                     <TableRow>
@@ -110,6 +130,7 @@ export default function EncaminhamentosTab() {
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                             <DropdownMenuSeparator />
+                                            {agendamentoPerm?.visualizar && (
                                             <DropdownMenuItem onClick={() => {
                                                 setSelectedItem(a)
                                                 setVisibleOnly(true)
@@ -118,7 +139,9 @@ export default function EncaminhamentosTab() {
                                                     <Eye className="mr-2 h-4 w-4" />
                                                     <span>Visualizar Encaminhamento</span>
                                             </DropdownMenuItem>
+                                            )}
                                             {/* editar */}
+                                            {agendamentoPerm?.editar && (
                                             <DropdownMenuItem onClick={() => {
                                                 setSelectedItem(a)
                                                 setIsDialogOpen(true)
@@ -126,11 +149,16 @@ export default function EncaminhamentosTab() {
                                                 <Edit className="mr-2 h-4 w-4" />
                                                 <span>Editar Encaminhamento</span>
                                             </DropdownMenuItem>
+                                            )}
+                                            {agendamentoPerm?.excluir && (
+                                            <>
                                             <DropdownMenuSeparator />
                                             <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(a.id)}>
                                                 <Trash className="mr-2 h-4 w-4" />
                                                 <span>Excluir Encaminhamento</span>
                                             </DropdownMenuItem>
+                                            </>
+                                            )}
         
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -161,7 +189,10 @@ export default function EncaminhamentosTab() {
                         // refresh after scheduling/edit
                         fetchItems()
                     }}
+                    ferrals={true}
                 />
+            )}
+            </>
             )}
         </div>
     )

@@ -78,7 +78,6 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
     const fetchResponseDetail = async () => {
         try {
             const provided = response || appointment?.response
-            console.log('fetchResponseDetail, provided:', provided);
 
             if (provided && provided.answers && provided.answers.length > 0) {
                 setResponseDetail(provided)
@@ -89,13 +88,9 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
             const formId = provided?.form?.idForm || provided?.formId || appointment?.formId || appointment?.form?.idForm || null
             const responseId = provided?.idResponse || provided?.responseId || appointment?.responseId || null
 
-            console.log('{ formId, responseId }', { formId, responseId });
-
-
             if (!formId || !responseId) return
             setLoadingResponseDetail(true)
             const res = await api.get(`/forms/${formId}/responses/${responseId}`)
-            console.log('Fetched response detail:', res.data);
             setResponseDetail(res.data)
         } catch (err) {
             console.warn('Não foi possível carregar detalhes da resposta:', err)
@@ -125,12 +120,23 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
         // If opened with an appointment, prefill form for editing
         if (appointment) {
 
-            console.log('appointment', appointment);
+            console.log("appointment", appointment);
+
+            let doctorId = appointment.doctorId || ""
+            
+            if (ferrals && ferrals === true && appointment.professional) {
+                doctorId = appointment.professionalId || ""
+            }
+
+            console.log(doctorId);
+
             const initial = {
-                doctorId: appointment.doctor?.idUser || appointment.doctorId || appointment.doctor?.id || "",
+                doctorId,
                 scheduledAt: appointment.scheduledAt ? new Date(appointment.scheduledAt).toISOString().slice(0, 16) : "",
                 notes: appointment.notes || "",
             }
+            console.log("Initial: ", initial);
+            
             form.reset(initial)
             // if appointment contains response embedded, set it
             fetchResponseDetail()

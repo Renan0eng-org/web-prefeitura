@@ -7,10 +7,11 @@ import { DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuS
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAlert } from "@/hooks/use-alert"
+import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
 import { DropdownMenu, DropdownMenuTrigger } from "@radix-ui/react-dropdown-menu"
 import { Edit, Eye, MoreVertical, Trash } from "lucide-react"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useRef, useState } from "react"
 
 export default function AgendamentosTab() {
     const [appointments, setAppointments] = useState<any[]>([])
@@ -19,6 +20,17 @@ export default function AgendamentosTab() {
     const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null)
     const [isAgendarOpen, setIsAgendarOpen] = useState(false)
     const [visibleOnly, setVisibleOnly] = useState(false)
+    const { setAlert } = useAlert()
+
+    const { getPermissions } = useAuth()
+
+        const agendamentoPerm = useMemo(() => {
+                if (!getPermissions) return null
+                // try both plural and singular keys to be tolerant
+                return getPermissions('agendamentos') ?? getPermissions('agendamento') ?? null
+        }, [getPermissions])
+
+    const didFetchRef = useRef(false)
 
     const fetchAppointments = async () => {
         try {
@@ -27,13 +39,11 @@ export default function AgendamentosTab() {
             setAppointments(res.data || [])
         } catch (err) {
             console.error('Erro ao buscar agendamentos:', err)
-            setError('Não foi possível carregar os agendamentos.')
+            setAlert('Não foi possível carregar os agendamentos.', 'error')
         } finally {
             setIsLoading(false)
         }
     }
-
-    const { setAlert } = useAlert()
 
     const handleDelete = async (id: string) => {
         const ok = confirm('Tem certeza que deseja excluir este agendamento?')
@@ -52,19 +62,28 @@ export default function AgendamentosTab() {
     }
 
     useEffect(() => {
-        fetchAppointments()
-    }, [])
+        if (agendamentoPerm?.visualizar && !didFetchRef.current) {
+            didFetchRef.current = true
+            fetchAppointments()
+        }
+    }, [agendamentoPerm])
 
     return (
         <div>
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-semibold">Agendamentos</h2>
                 <div>
-                    <Button variant="outline" size="sm" onClick={fetchAppointments}>Atualizar</Button>
+                    {agendamentoPerm?.visualizar && (
+                        <Button variant="outline" size="sm" onClick={fetchAppointments}>Atualizar</Button>
+                    )}
                 </div>
             </div>
-
-            {error && <p className="text-red-500">{error}</p>}
+            
+            {!agendamentoPerm?.visualizar && (
+                <p className="text-muted-foreground">Você não tem permissão para visualizar agendamentos.</p>
+            )}
+            {agendamentoPerm?.visualizar && (
+            <>
             <Table className="overflow-hidden rounded-lg border">
                 <TableHeader className="sticky top-0 z-10 bg-muted">
                     <TableRow>
@@ -110,27 +129,35 @@ export default function AgendamentosTab() {
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem onClick={() => {
-                                                setSelectedAppointment(a)
-                                                setVisibleOnly(true)
-                                                setIsAgendarOpen(true)
-                                            }}>
-                                                    <Eye className="mr-2 h-4 w-4" />
-                                                    <span>Visualizar Agendamento</span>
-                                            </DropdownMenuItem>
-                                            {/* editar */}
-                                            <DropdownMenuItem onClick={() => {
-                                                setSelectedAppointment(a)
-                                                setIsAgendarOpen(true)
-                                            }}>
-                                                <Edit className="mr-2 h-4 w-4" />
-                                                <span>Editar Agendamento</span>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(a.id)}>
-                                                <Trash className="mr-2 h-4 w-4" />
-                                                <span>Excluir Agendamento</span>
-                                            </DropdownMenuItem>
+                                                    {agendamentoPerm?.visualizar && (
+                                                    <DropdownMenuItem onClick={() => {
+                                                        setSelectedAppointment(a)
+                                                        setVisibleOnly(true)
+                                                        setIsAgendarOpen(true)
+                                                    }}>
+                                                            <Eye className="mr-2 h-4 w-4" />
+                                                            <span>Visualizar Agendamento</span>
+                                                    </DropdownMenuItem>
+                                                    )}
+                                                    {/* editar */}
+                                                    {agendamentoPerm?.editar && (
+                                                    <DropdownMenuItem onClick={() => {
+                                                        setSelectedAppointment(a)
+                                                        setIsAgendarOpen(true)
+                                                    }}>
+                                                        <Edit className="mr-2 h-4 w-4" />
+                                                        <span>Editar Agendamento</span>
+                                                    </DropdownMenuItem>
+                                                    )}
+                                                    {agendamentoPerm?.excluir && (
+                                                    <>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(a.id)}>
+                                                        <Trash className="mr-2 h-4 w-4" />
+                                                        <span>Excluir Agendamento</span>
+                                                    </DropdownMenuItem>
+                                                    </>
+                                                    )}
         
                                         </DropdownMenuContent>
                                     </DropdownMenu>
@@ -162,6 +189,8 @@ export default function AgendamentosTab() {
                         fetchAppointments()
                     }}
                 />
+            )}
+            </>
             )}
         </div>
     )

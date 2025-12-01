@@ -16,7 +16,8 @@ type Props = {
 export default function FormCard({ storage = 'local', storageKey = 'formCard.activeTab' }: Props) {
   const { getPermissions } = useAuth()
   const formularioPerm = useMemo(() => getPermissions ? getPermissions('formulario') : null, [getPermissions])
-  const agendamentoPerm = useMemo(() => getPermissions ? getPermissions('agendamentos') : null, [getPermissions])
+  const agendamentoPerm = useMemo(() => getPermissions ? getPermissions('agendamento') : null, [getPermissions])
+  const encaminhamentoPerm = useMemo(() => getPermissions ? getPermissions('encaminhamento') : null, [getPermissions])
 
   const defaultTab = formularioPerm?.visualizar ? 'forms' : 'esteira-pacientes'
 
@@ -46,7 +47,7 @@ export default function FormCard({ storage = 'local', storageKey = 'formCard.act
         {formularioPerm?.visualizar && <TabsTrigger value="forms">Formulários</TabsTrigger>}
         <TabsTrigger value="esteira-pacientes">Esteira de Pacientes</TabsTrigger>
         {agendamentoPerm?.visualizar && <TabsTrigger value="agendamentos">Agendamentos</TabsTrigger>}
-        {agendamentoPerm?.visualizar && <TabsTrigger value="encaminhamento">Encaminhamento</TabsTrigger>}
+        {encaminhamentoPerm?.visualizar && <TabsTrigger value="encaminhamento">Encaminhamentos</TabsTrigger>}
       </TabsList>
 
       {formularioPerm?.visualizar && <TabsContent value="forms" className="mt-4">
@@ -57,10 +58,11 @@ export default function FormCard({ storage = 'local', storageKey = 'formCard.act
         <EsteiraPacientesTab />
       </TabsContent>
 
-      <TabsContent value="agendamentos" className="mt-4">
+      {agendamentoPerm?.visualizar && <TabsContent value="agendamentos" className="mt-4">
         <AgendamentosTab />
-      </TabsContent>
-      {agendamentoPerm?.visualizar && <TabsContent value="encaminhamento" className="mt-4">
+      </TabsContent>}
+
+      {encaminhamentoPerm?.visualizar && <TabsContent value="encaminhamento" className="mt-4">
         <EncaminhamentosTab />
       </TabsContent>}
     </Tabs>

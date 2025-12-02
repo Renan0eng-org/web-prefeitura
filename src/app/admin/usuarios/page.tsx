@@ -4,6 +4,7 @@ import { UserFormDialog } from "@/components/forms/usuarios/user-form-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import ConfirmDialog from "@/components/ui/confirm-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAlert } from "@/hooks/use-alert"
@@ -63,7 +64,14 @@ export default function UsuariosPage() {
     }
 
     const handleDelete = async (user: UserComNivel) => {
-        if (!confirm(`Tem certeza que deseja excluir o usuário "${user.name}"?`)) return
+        setPendingUser(user)
+        setConfirmOpen(true)
+    }
+
+    const [confirmOpen, setConfirmOpen] = React.useState(false)
+    const [pendingUser, setPendingUser] = React.useState<UserComNivel | null>(null)
+
+    const performDelete = async (user: UserComNivel) => {
         try {
             await api.delete(`/admin/users/${user.idUser}`) // Rota do UserController
             setAlert("Usuário excluído com sucesso!", "success")
@@ -71,6 +79,13 @@ export default function UsuariosPage() {
         } catch (err: any) {
             setAlert(err.response?.data?.message || "Erro ao excluir usuário.", "error")
         }
+    }
+
+    const handleConfirmDelete = () => {
+        if (!pendingUser) return
+        performDelete(pendingUser)
+        setPendingUser(null)
+        setConfirmOpen(false)
     }
 
     // Callback para fechar o diálogo e recarregar dados após salvar
@@ -170,21 +185,21 @@ export default function UsuariosPage() {
                                                         </Button>
                                                     </DropdownMenuTrigger>
                                                     <DropdownMenuContent align="end">
-                                                        <DropdownMenuItem
-                                                            onClick={() => {
-                                                                setTimeout(() => handleEdit(user), 50) // força fechamento do dropdown antes
-                                                            }}
-                                                        >
-                                                            Editar
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem
-                                                            onClick={() => {
-                                                                setTimeout(() => handleDelete(user), 50)
-                                                            }}
-                                                            className="text-destructive"
-                                                        >
-                                                            Excluir
-                                                        </DropdownMenuItem>
+                                                                    <DropdownMenuItem
+                                                                        onClick={() => {
+                                                                            setTimeout(() => handleEdit(user), 50) // força fechamento do dropdown antes
+                                                                        }}
+                                                                    >
+                                                                        Editar
+                                                                    </DropdownMenuItem>
+                                                                    <DropdownMenuItem
+                                                                        onClick={() => {
+                                                                            setTimeout(() => { setPendingUser(user); setConfirmOpen(true) }, 50)
+                                                                        }}
+                                                                        className="text-destructive"
+                                                                    >
+                                                                        Excluir
+                                                                    </DropdownMenuItem>
                                                     </DropdownMenuContent>
                                                 </DropdownMenu>
 
@@ -205,6 +220,16 @@ export default function UsuariosPage() {
                 userToEdit={editingUser}
                 niveisAcesso={niveis}
                 onUserSaved={onDataChanged}
+            />
+            <ConfirmDialog
+                open={confirmOpen}
+                title="Excluir Usuário"
+                description={pendingUser ? `Tem certeza que deseja excluir o usuário "${pendingUser.name}"?` : 'Tem certeza?' }
+                intent="destructive"
+                confirmLabel="Excluir"
+                cancelLabel="Cancelar"
+                onConfirm={handleConfirmDelete}
+                onCancel={() => { setConfirmOpen(false); setPendingUser(null) }}
             />
         </div>
     )

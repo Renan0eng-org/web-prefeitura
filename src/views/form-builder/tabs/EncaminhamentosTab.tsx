@@ -3,6 +3,7 @@
 import AgendarConsultaDialog from "@/components/appointments/AgendarConsultaDialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import ConfirmDialog from "@/components/ui/confirm-dialog"
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -36,9 +37,10 @@ export default function EncaminhamentosTab() {
 
     const { setAlert } = useAlert()
 
-    const handleDelete = async (id: string) => {
-        const ok = confirm('Tem certeza que deseja excluir este encaminhamento?')
-        if (!ok) return
+    const [confirmOpen, setConfirmOpen] = useState(false)
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+
+    const performDelete = async (id: string) => {
         try {
             setIsLoading(true)
             await api.delete(`/appointments/${id}`)
@@ -50,6 +52,13 @@ export default function EncaminhamentosTab() {
         } finally {
             setIsLoading(false)
         }
+    }
+
+    const handleConfirmDelete = () => {
+        if (!pendingDeleteId) return
+        performDelete(pendingDeleteId)
+        setPendingDeleteId(null)
+        setConfirmOpen(false)
     }
 
     const { getPermissions } = useAuth()
@@ -153,7 +162,7 @@ export default function EncaminhamentosTab() {
                                             {agendamentoPerm?.excluir && (
                                             <>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(a.id)}>
+                                            <DropdownMenuItem className="text-destructive" onClick={() => setTimeout(() => { setPendingDeleteId(a.id); setConfirmOpen(true) }, 50)}>
                                                 <Trash className="mr-2 h-4 w-4" />
                                                 <span>Excluir Encaminhamento</span>
                                             </DropdownMenuItem>
@@ -192,6 +201,16 @@ export default function EncaminhamentosTab() {
                     ferrals={true}
                 />
             )}
+            <ConfirmDialog
+                open={confirmOpen}
+                title="Excluir Encaminhamento"
+                description="Tem certeza que deseja excluir este encaminhamento?"
+                intent="destructive"
+                confirmLabel="Excluir"
+                cancelLabel="Cancelar"
+                onConfirm={handleConfirmDelete}
+                onCancel={() => { setConfirmOpen(false); setPendingDeleteId(null) }}
+            />
             </>
             )}
         </div>

@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import ConfirmDialog from "@/components/ui/confirm-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
@@ -86,7 +87,14 @@ export default function PatientsPage() {
 
 
     const handleDelete = async (user: any) => {
-        if (!confirm(`Tem certeza que deseja excluir o paciente "${user.name}"?`)) return
+        setPendingPatient(user)
+        setConfirmOpen(true)
+    }
+
+    const [confirmOpen, setConfirmOpen] = React.useState(false)
+    const [pendingPatient, setPendingPatient] = React.useState<any | null>(null)
+
+    const performDelete = async (user: any) => {
         try {
             await api.delete(`/patients/${user.idUser}`)
             setAlert('Paciente excluído com sucesso!', 'success')
@@ -95,6 +103,13 @@ export default function PatientsPage() {
             console.error('Erro ao excluir paciente', err)
             setAlert(err.response?.data?.message || 'Erro ao excluir paciente', 'error')
         }
+    }
+
+    const handleConfirmDelete = () => {
+        if (!pendingPatient) return
+        performDelete(pendingPatient)
+        setPendingPatient(null)
+        setConfirmOpen(false)
     }
 
     // client-side pagination slice
@@ -131,6 +146,17 @@ export default function PatientsPage() {
                     )}
                 </div>
             </div>
+
+            <ConfirmDialog
+                open={confirmOpen}
+                title="Excluir Paciente"
+                description={pendingPatient ? `Tem certeza que deseja excluir o paciente "${pendingPatient.name}"?` : 'Tem certeza?' }
+                intent="destructive"
+                confirmLabel="Excluir"
+                cancelLabel="Cancelar"
+                onConfirm={handleConfirmDelete}
+                onCancel={() => { setConfirmOpen(false); setPendingPatient(null) }}
+            />
 
             {error && <p className="text-red-500">{error}</p>}
 
@@ -203,9 +229,9 @@ export default function PatientsPage() {
                                                         <DropdownMenuItem>Editar</DropdownMenuItem>
                                                     </Link>
                                                 )}
-                                                {permissions?.excluir && (
-                                                    <DropdownMenuItem className="text-destructive" onSelect={() => setTimeout(() => handleDelete(u), 50)}>Excluir</DropdownMenuItem>
-                                                )}
+                                                    {permissions?.excluir && (
+                                                    <DropdownMenuItem className="text-destructive" onSelect={() => setTimeout(() => { setPendingPatient(u); setConfirmOpen(true) }, 50)}>Excluir</DropdownMenuItem>
+                                                    )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>}

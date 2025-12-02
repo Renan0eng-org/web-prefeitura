@@ -2,6 +2,7 @@
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
@@ -44,13 +45,23 @@ export default function FormulariosTab() {
             setIsLoading(false)
         }
     }
-    const handleDelete = async (id: string) => {
+    const [confirmOpen, setConfirmOpen] = useState(false)
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+
+    const performDelete = async (id: string) => {
         try {
             await api.delete(`/forms/${id}`)
             fetchForms()
         } catch (err) {
             console.error("Erro ao excluir:", err)
         }
+    }
+
+    const handleConfirmDelete = () => {
+        if (!pendingDeleteId) return
+        performDelete(pendingDeleteId)
+        setPendingDeleteId(null)
+        setConfirmOpen(false)
     }
 
     const handleToggleScreening = async (id: string) => {
@@ -218,7 +229,7 @@ export default function FormulariosTab() {
                                                     {permissions?.excluir && (
                                                         <DropdownMenuItem
                                                             className="text-destructive focus:bg-destructive focus:text-destructive-foreground cursor-pointer"
-                                                            onSelect={() => handleDelete(form.idForm)}
+                                                            onSelect={() => setTimeout(() => { setPendingDeleteId(form.idForm); setConfirmOpen(true) }, 50)}
                                                         >
                                                             <Trash2 className="mr-2 h-4 w-4" />
                                                             Excluir
@@ -251,6 +262,15 @@ export default function FormulariosTab() {
                     Próxima
                 </Button>
             </div>
+
+            <ConfirmDialog
+                open={confirmOpen}
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setConfirmOpen(false)}
+                title="Excluir formulário"
+                description="Tem certeza que deseja excluir este formulário? Esta ação não pode ser desfeita."
+                confirmLabel="Excluir"
+            />
         </>
     )
 }

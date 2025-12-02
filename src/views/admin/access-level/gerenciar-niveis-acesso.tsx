@@ -4,6 +4,7 @@ import { NivelAcessoDialog } from "@/components/access-level/nivel-acesso-dialog
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import ConfirmDialog from "@/components/ui/confirm-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -72,8 +73,10 @@ export function GerenciarNiveisAcesso() {
     setIsMenuDialogOpen(true)
   }
 
-  const handleDelete = async (id: number) => {
-    if (!confirm("Tem certeza que deseja excluir este nível?")) return
+  const [confirmOpen, setConfirmOpen] = React.useState(false)
+  const [pendingNivelId, setPendingNivelId] = React.useState<number | null>(null)
+
+  const performDelete = async (id: number) => {
     try {
       await api.delete(`/admin/acesso/niveis/${id}`)
       setAlert("Nível excluído com sucesso!", "success")
@@ -81,6 +84,13 @@ export function GerenciarNiveisAcesso() {
     } catch (err: any) {
       setAlert(err.response?.data?.message || "Erro ao excluir nível.", "error")
     }
+  }
+
+  const handleConfirmDelete = () => {
+    if (!pendingNivelId) return
+    performDelete(pendingNivelId)
+    setPendingNivelId(null)
+    setConfirmOpen(false)
   }
 
   const onDataChanged = () => {
@@ -197,7 +207,7 @@ export function GerenciarNiveisAcesso() {
                           </DropdownMenuItem>
                         )}
                         {permissions?.excluir && (
-                          <DropdownMenuItem onClick={() => handleDelete(nivel.idNivelAcesso)} className="text-destructive">
+                          <DropdownMenuItem onClick={() => { setPendingNivelId(nivel.idNivelAcesso); setConfirmOpen(true) }} className="text-destructive">
                             Excluir
                           </DropdownMenuItem>
                         )}
@@ -227,6 +237,16 @@ export function GerenciarNiveisAcesso() {
           onDataChanged={onDataChanged}
         />
       )}
+      <ConfirmDialog
+        open={confirmOpen}
+        title="Excluir Nível"
+        description="Tem certeza que deseja excluir este nível?"
+        intent="destructive"
+        confirmLabel="Excluir"
+        cancelLabel="Cancelar"
+        onConfirm={handleConfirmDelete}
+        onCancel={() => { setConfirmOpen(false); setPendingNivelId(null) }}
+      />
     </Card>
   )
 }

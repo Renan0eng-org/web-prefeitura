@@ -4,6 +4,7 @@ import { MenuAcessoDialog } from "@/components/access-level/menu-acesso-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import ConfirmDialog from "@/components/ui/confirm-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -56,8 +57,10 @@ export function GerenciarMenusSistema() {
         setIsDialogOpen(true)
     }
 
-    const handleDelete = async (id: number) => {
-        if (!confirm("Tem certeza que deseja excluir este menu?")) return
+    const [confirmOpen, setConfirmOpen] = React.useState(false)
+    const [pendingMenuId, setPendingMenuId] = React.useState<number | null>(null)
+
+    const performDelete = async (id: number) => {
         try {
             await api.delete(`/admin/acesso/menus/${id}`)
             setAlert("Menu excluído com sucesso!", "success")
@@ -65,6 +68,13 @@ export function GerenciarMenusSistema() {
         } catch (err: any) {
             setAlert(err.response?.data?.message || "Erro ao excluir menu.", "error")
         }
+    }
+
+    const handleConfirmDelete = () => {
+        if (!pendingMenuId) return
+        performDelete(pendingMenuId)
+        setPendingMenuId(null)
+        setConfirmOpen(false)
     }
 
     // Bloqueia a tela inteira se não tiver permissão de visualizar
@@ -166,7 +176,7 @@ export function GerenciarMenusSistema() {
                                                     </DropdownMenuItem>
                                                 )}
                                                 {permissions?.excluir && (
-                                                    <DropdownMenuItem onClick={() => handleDelete(menu.idMenuAcesso)} className="text-destructive">
+                                                    <DropdownMenuItem onClick={() => { setPendingMenuId(menu.idMenuAcesso); setConfirmOpen(true) }} className="text-destructive">
                                                         Excluir
                                                     </DropdownMenuItem>
                                                 )}
@@ -186,6 +196,16 @@ export function GerenciarMenusSistema() {
                 onOpenChange={setIsDialogOpen}
                 menu={editingMenu}
                 onDataChanged={fetchData} // Apenas recarrega os menus
+            />
+            <ConfirmDialog
+                open={confirmOpen}
+                title="Excluir Menu"
+                description="Tem certeza que deseja excluir este menu?"
+                intent="destructive"
+                confirmLabel="Excluir"
+                cancelLabel="Cancelar"
+                onConfirm={handleConfirmDelete}
+                onCancel={() => { setConfirmOpen(false); setPendingMenuId(null) }}
             />
         </Card>
     )

@@ -46,8 +46,8 @@ export default function FormCard({ storage = 'local', storageKey = 'formCard.act
       <TabsList>
         {formularioPerm?.visualizar && <TabsTrigger value="forms">Formulários</TabsTrigger>}
         <TabsTrigger value="esteira-pacientes">Esteira de Pacientes</TabsTrigger>
-        {agendamentoPerm?.visualizar && <TabsTrigger value="agendamentos">Agendamentos</TabsTrigger>}
         {encaminhamentoPerm?.visualizar && <TabsTrigger value="encaminhamento">Encaminhamentos</TabsTrigger>}
+        {agendamentoPerm?.visualizar && <TabsTrigger value="agendamentos">Agendamentos</TabsTrigger>}
       </TabsList>
 
       {formularioPerm?.visualizar && <TabsContent value="forms" className="mt-4">

@@ -1,5 +1,6 @@
 'use client';
 
+import ConfirmDialog from '@/components/ui/confirm-dialog';
 import { useAuth } from '@/hooks/use-auth';
 import api from '@/services/api';
 import {
@@ -78,14 +79,24 @@ export default function FormListPage() {
         if (permissions?.visualizar) fetchForms();
     }, [permissions?.visualizar]); // Roda quando permissões estiverem disponíveis
 
-    const handleDelete = async (id: string) => {
+    const [confirmOpen, setConfirmOpen] = useState(false);
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
+
+    const performDelete = async (id: string) => {
         try {
-            await api.delete(`/forms/${id}`)
-            fetchForms()
+            await api.delete(`/forms/${id}`);
+            fetchForms();
         } catch (err) {
-            console.error("Erro ao excluir:", err)
+            console.error("Erro ao excluir:", err);
         }
-    }
+    };
+
+    const handleConfirmDelete = () => {
+        if (!pendingDeleteId) return;
+        performDelete(pendingDeleteId);
+        setPendingDeleteId(null);
+        setConfirmOpen(false);
+    };
 
     // Componente de Skeleton para o loading
     const renderSkeletons = () => (
@@ -179,7 +190,7 @@ export default function FormListPage() {
                                     {/* 3. Corrigido para "destructive" semântico */}
                                     <DropdownMenuItem
                                         className="text-destructive focus:bg-destructive focus:text-destructive-foreground cursor-pointer"
-                                        onSelect={() => handleDelete(form.idForm)}
+                                        onSelect={() => setTimeout(() => { setPendingDeleteId(form.idForm); setConfirmOpen(true); }, 50)}
                                     >
                                         <Trash2 className="mr-2 h-4 w-4" />
                                         <span>Excluir</span>
@@ -226,6 +237,15 @@ export default function FormListPage() {
             </div>
 
             {renderContent()}
+
+            <ConfirmDialog
+                open={confirmOpen}
+                onConfirm={handleConfirmDelete}
+                onCancel={() => setConfirmOpen(false)}
+                title="Excluir formulário"
+                description="Tem certeza que deseja excluir este formulário? Esta ação não pode ser desfeita."
+                confirmLabel="Excluir"
+            />
         </div>
     );
 }

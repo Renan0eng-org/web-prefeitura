@@ -3,6 +3,7 @@
 import AgendarConsultaDialog from "@/components/appointments/AgendarConsultaDialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import ConfirmDialog from "@/components/ui/confirm-dialog"
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -45,9 +46,10 @@ export default function AgendamentosTab() {
         }
     }
 
-    const handleDelete = async (id: string) => {
-        const ok = confirm('Tem certeza que deseja excluir este agendamento?')
-        if (!ok) return
+    const [confirmOpen, setConfirmOpen] = useState(false)
+    const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
+
+    const performDelete = async (id: string) => {
         try {
             setIsLoading(true)
             await api.delete(`/appointments/${id}`)
@@ -59,6 +61,13 @@ export default function AgendamentosTab() {
         } finally {
             setIsLoading(false)
         }
+    }
+
+    const handleConfirmDelete = () => {
+        if (!pendingDeleteId) return
+        performDelete(pendingDeleteId)
+        setPendingDeleteId(null)
+        setConfirmOpen(false)
     }
 
     useEffect(() => {
@@ -152,7 +161,7 @@ export default function AgendamentosTab() {
                                                     {agendamentoPerm?.excluir && (
                                                     <>
                                                     <DropdownMenuSeparator />
-                                                    <DropdownMenuItem className="text-destructive" onClick={() => handleDelete(a.id)}>
+                                                    <DropdownMenuItem className="text-destructive" onClick={() => setTimeout(() => { setPendingDeleteId(a.id); setConfirmOpen(true) }, 50)}>
                                                         <Trash className="mr-2 h-4 w-4" />
                                                         <span>Excluir Agendamento</span>
                                                     </DropdownMenuItem>
@@ -190,6 +199,16 @@ export default function AgendamentosTab() {
                     }}
                 />
             )}
+            <ConfirmDialog
+                open={confirmOpen}
+                title="Excluir Agendamento"
+                description="Tem certeza que deseja excluir este agendamento?"
+                intent="destructive"
+                confirmLabel="Excluir"
+                cancelLabel="Cancelar"
+                onConfirm={handleConfirmDelete}
+                onCancel={() => { setConfirmOpen(false); setPendingDeleteId(null) }}
+            />
             </>
             )}
         </div>

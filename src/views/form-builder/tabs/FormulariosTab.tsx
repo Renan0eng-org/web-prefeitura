@@ -128,7 +128,7 @@ export default function FormulariosTab() {
             </div>
 
             {error && <p className="text-red-500">{error}</p>}
-            <div className="rounded-lg border overflow-hidden">
+            <div className="rounded-t-lg overflow-hidden">
                 <Table className="scrollable overflow-auto">
                     <TableHeader className="sticky top-0 z-10 bg-muted">
                         <TableRow>

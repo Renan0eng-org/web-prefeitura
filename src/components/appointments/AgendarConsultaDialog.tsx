@@ -120,7 +120,6 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
         // If opened with an appointment, prefill form for editing
         if (appointment) {
 
-            console.log("appointment", appointment);
 
             let doctorId = appointment.doctorId || ""
             
@@ -128,14 +127,15 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
                 doctorId = appointment.professionalId || ""
             }
 
-            console.log(doctorId);
 
             const initial = {
                 doctorId,
                 scheduledAt: appointment.scheduledAt ? new Date(appointment.scheduledAt).toISOString().slice(0, 16) : "",
                 notes: appointment.notes || "",
             }
-            console.log("Initial: ", initial);
+            
+            
+            
             
             form.reset(initial)
             // if appointment contains response embedded, set it

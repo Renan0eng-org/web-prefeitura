@@ -38,7 +38,6 @@ export default function FormulariosTab() {
             const p = overrides?.page ?? page
             const psize = overrides?.pageSize ?? pageSize
             const response = await api.get(`/forms?page=${p}&pageSize=${psize}`)
-            console.log("Fetched forms:", response.data)
             const payload = response.data
             const items = payload.forms || payload.data || payload || []
             setForms(items)

@@ -71,7 +71,7 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
       try {
         setIsLoadingForms(true)
         const res = await api.get('/forms/screenings')
-        console.log("screenings: ",res.data);
+        
         setScreeningForms(res.data.forms || res.data || [])
       } catch (err) {
         console.error('Erro ao buscar formulários de screening', err)
@@ -92,7 +92,7 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
       try {
         setIsFetchingPatient(true)
         const res = await api.get(`/patients/${idUser}`)
-        console.log(res.data);
+        
         
         const data = res.data || res
 

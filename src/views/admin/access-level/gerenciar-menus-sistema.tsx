@@ -36,7 +36,7 @@ export function GerenciarMenusSistema() {
             const response = await api.get('/admin/acesso/menus')
             setMenus(response.data)
         } catch (err: any) {
-            console.log(err);
+            
             setAlert(err.response?.data?.message || "Erro ao carregar menus.", "error")
         } finally {
             setIsLoading(false)

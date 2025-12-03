@@ -43,7 +43,7 @@ export default function AssignUser({idForm}: {idForm: string}) {
                     api.get(`/forms/${idForm}/assigned`)
                 ])
 
-                console.log(assignedRes.data);                
+                
 
                 setUsers(usersRes.data)
                 setSelectedUsers(assignedRes.data.map((u: User) => u.idUser))

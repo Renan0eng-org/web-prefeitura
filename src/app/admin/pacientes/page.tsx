@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import ConfirmDialog from "@/components/ui/confirm-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import Pagination from '@/components/ui/pagination'
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -18,8 +19,9 @@ export default function PatientsPage() {
     const [patients, setPatients] = React.useState<any[]>([])
     const [isLoading, setIsLoading] = React.useState(true)
     const [page, setPage] = React.useState(1)
-    const [limit] = React.useState(10)
-    const [totalPages, setTotalPages] = React.useState(1)
+    const [pageSize, setPageSize] = React.useState(10)
+    const [total, setTotal] = React.useState(0)
+    const totalPages = Math.max(1, Math.ceil(total / pageSize))
     const [error, setError] = React.useState<string | null>(null)
 
     const [columns, setColumns] = React.useState({
@@ -63,15 +65,19 @@ export default function PatientsPage() {
 
     const permissions = React.useMemo(() => getPermissions("paciente"), [getPermissions])
 
-    const fetchPatients = React.useCallback(async () => {
+    const fetchPatients = async (opts?: { page?: number; pageSize?: number }) => {
         try {
             setIsLoading(true)
-            const res = await api.get('/patients')
-            const list = res.data || []
-            // filter patients by type field
-            const patientsOnly = list.filter((u: any) => u.type === 'PACIENTE')
+            const p = opts?.page ?? page
+            const ps = opts?.pageSize ?? pageSize
+            const res = await api.get('/patients', { params: { page: p, pageSize: ps } })
+            const payload = res.data
+            // API may return paged shape { data: [], total } or full array
+            const list = Array.isArray(payload) ? payload : (payload?.data ?? payload?.patients ?? payload)
+            const patientsOnly = Array.isArray(list) ? list.filter((u: any) => u.type === 'PACIENTE') : []
             setPatients(patientsOnly)
-            setTotalPages(Math.max(1, Math.ceil(patientsOnly.length / limit)))
+            const totalVal = payload?.total ?? payload?.totalItems ?? (Array.isArray(list) ? list.length : 0)
+            setTotal(Number(totalVal ?? 0))
             setError(null)
         } catch (err: any) {
             console.error('Erro ao carregar pacientes', err)
@@ -79,11 +85,11 @@ export default function PatientsPage() {
         } finally {
             setIsLoading(false)
         }
-    }, [limit])
+    }
 
     React.useEffect(() => {
-        if (permissions?.visualizar) fetchPatients()
-    }, [permissions?.visualizar, fetchPatients])
+        if (permissions?.visualizar) fetchPatients({ page, pageSize })
+    }, [permissions?.visualizar, page, pageSize])
 
 
     const handleDelete = async (user: any) => {
@@ -98,7 +104,7 @@ export default function PatientsPage() {
         try {
             await api.delete(`/patients/${user.idUser}`)
             setAlert('Paciente excluído com sucesso!', 'success')
-            fetchPatients()
+            fetchPatients({ page, pageSize })
         } catch (err: any) {
             console.error('Erro ao excluir paciente', err)
             setAlert(err.response?.data?.message || 'Erro ao excluir paciente', 'error')
@@ -114,9 +120,9 @@ export default function PatientsPage() {
 
     // client-side pagination slice
     const paged = React.useMemo(() => {
-        const start = (page - 1) * limit
-        return patients.slice(start, start + limit)
-    }, [patients, page, limit])
+        const start = (page - 1) * pageSize
+        return patients.slice(start, start + pageSize)
+    }, [patients, page, pageSize])
 
     return (
         <div className="p-4 md:p-6">
@@ -160,7 +166,7 @@ export default function PatientsPage() {
 
             {error && <p className="text-red-500">{error}</p>}
 
-            <div className="rounded-lg border overflow-hidden">
+            <div className="rounded-t-lg overflow-hidden">
                 <Table className="scrollable overflow-auto">
                     <TableHeader className="sticky top-0 z-10 bg-muted">
                         <TableRow>
@@ -221,9 +227,9 @@ export default function PatientsPage() {
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                                <DropdownMenuItem asChild>
+                                                {/* <DropdownMenuItem asChild>
                                                     <Link href={`/admin/patients/${u.idUser}`}>Visualizar</Link>
-                                                </DropdownMenuItem>
+                                                </DropdownMenuItem> */}
                                                 {permissions?.editar && (
                                                     <Link href={`/admin/editar-paciente/${u.idUser}`}>
                                                         <DropdownMenuItem>Editar</DropdownMenuItem>
@@ -242,11 +248,14 @@ export default function PatientsPage() {
                 </Table>
             </div>
 
-            <div className="flex justify-end items-center mt-4 space-x-2">
-                <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage(p => p - 1)}>Anterior</Button>
-                <span> Página {page} de {totalPages} </span>
-                <Button variant="outline" size="sm" disabled={page === totalPages} onClick={() => setPage(p => p + 1)}>Próxima</Button>
-            </div>
+            <Pagination
+                page={page}
+                pageSize={pageSize}
+                total={total}
+                totalPages={totalPages}
+                onPageChange={(p) => setPage(p)}
+                onPageSizeChange={(ps) => { setPageSize(ps); setPage(1) }}
+            />
         </div>
     )
 }

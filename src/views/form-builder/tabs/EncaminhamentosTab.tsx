@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import ConfirmDialog from "@/components/ui/confirm-dialog"
 import { DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator } from "@/components/ui/dropdown-menu"
+import Pagination from "@/components/ui/pagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAlert } from "@/hooks/use-alert"
@@ -18,15 +19,24 @@ export default function EncaminhamentosTab() {
     const [items, setItems] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [page, setPage] = useState(1)
+    const [pageSize, setPageSize] = useState(10)
+    const [total, setTotal] = useState(0)
+    const totalPages = Math.max(1, Math.ceil(total / pageSize))
     const [selectedItem, setSelectedItem] = useState<any | null>(null)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [visibleOnly, setVisibleOnly] = useState(false)
 
-    const fetchItems = async () => {
+    const fetchItems = async (opts?: { page?: number; pageSize?: number }) => {
         try {
             setIsLoading(true)
-            const res = await api.get('/appointments/referrals')
-            setItems(res.data || [])
+            const p = opts?.page ?? page
+            const ps = opts?.pageSize ?? pageSize
+            const res = await api.get('/appointments/referrals', { params: { page: p, pageSize: ps } })
+            const data = res.data?.data ?? res.data ?? []
+            setItems(Array.isArray(data) ? data : [])
+            const t = res.data?.total ?? res.data?.totalItems ?? res.data?.totalCount ?? (Array.isArray(data) ? data.length : 0)
+            setTotal(Number(t ?? 0))
         } catch (err) {
             console.error('Erro ao buscar encaminhamentos:', err)
             setError('Não foi possível carregar os encaminhamentos.')
@@ -45,7 +55,7 @@ export default function EncaminhamentosTab() {
             setIsLoading(true)
             await api.delete(`/appointments/${id}`)
             setAlert('Encaminhamento excluído com sucesso.', 'success')
-            await fetchItems()
+            await fetchItems({ page, pageSize })
         } catch (err) {
             console.error('Erro ao excluir encaminhamento:', err)
             setAlert('Erro ao excluir encaminhamento.', 'error')
@@ -77,13 +87,20 @@ export default function EncaminhamentosTab() {
         }
     }, [agendamentoPerm])
 
+    useEffect(() => {
+        if (agendamentoPerm?.visualizar) {
+            fetchItems({ page, pageSize })
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page, pageSize])
+
     return (
         <div>
             <div className="flex items-center justify-between mb-4">
                 <h2 className="text-2xl font-semibold">Encaminhamentos</h2>
                 <div>
                     {agendamentoPerm?.visualizar && (
-                        <Button variant="outline" size="sm" onClick={fetchItems}>Atualizar</Button>
+                        <Button variant="outline" size="sm" onClick={() => fetchItems()}>Atualizar</Button>
                     )}
                 </div>
             </div>
@@ -94,7 +111,7 @@ export default function EncaminhamentosTab() {
             )}
             {agendamentoPerm?.visualizar && (
             <>
-            <Table className="overflow-hidden rounded-lg border">
+            <Table className="overflow-hidden rounded-t-lg">
                 <TableHeader className="sticky top-0 z-10 bg-muted">
                     <TableRow>
                         <TableHead>Paciente</TableHead>
@@ -182,6 +199,14 @@ export default function EncaminhamentosTab() {
                     )}
                 </TableBody>
             </Table>
+            <Pagination
+                page={page}
+                pageSize={pageSize}
+                total={total}
+                totalPages={totalPages}
+                onPageChange={(p) => setPage(p)}
+                onPageSizeChange={(ps) => { setPageSize(ps); setPage(1) }}
+            />
             {selectedItem && (
                 <AgendarConsultaDialog
                     visibleOnly={visibleOnly}

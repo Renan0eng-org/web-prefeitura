@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Checkbox } from '@/components/ui/checkbox'
 import { Input } from '@/components/ui/input'
+import Pagination from '@/components/ui/pagination'
 import { Skeleton } from '@/components/ui/skeleton'
 import {
     Table, TableBody, TableCell, TableHead, TableHeader, TableRow
@@ -29,7 +30,7 @@ export default function AssignUser({idForm}: {idForm: string}) {
     const [saving, setSaving] = useState(false)
     const [search, setSearch] = useState('')
     const [page, setPage] = useState(1)
-    const pageSize = 10
+    const [pageSize, setPageSize] = useState(10)
 
     const router = useRouter()
 
@@ -62,7 +63,8 @@ export default function AssignUser({idForm}: {idForm: string}) {
         )
     }, [users, search])
 
-    const totalPages = Math.ceil(filteredUsers.length / pageSize)
+    const total = filteredUsers.length
+    const totalPages = Math.ceil(total / pageSize)
     const paginatedUsers = filteredUsers.slice((page - 1) * pageSize, page * pageSize)
 
     const handleToggle = (userId: string) => {
@@ -182,25 +184,15 @@ export default function AssignUser({idForm}: {idForm: string}) {
                         </TableBody>
                     </Table>
 
-                    <div className="flex justify-between items-center pt-4">
-                        <Button
-                            variant="outline"
-                            onClick={() => setPage(p => Math.max(1, p - 1))}
-                            disabled={page === 1}
-                        >
-                            Anterior
-                        </Button>
-                        <span className="text-sm">
-                            Página {page} de {totalPages || 1}
-                        </span>
-                        <Button
-                            variant="outline"
-                            onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                            disabled={page === totalPages || totalPages === 0}
-                        >
-                            Próxima
-                        </Button>
-                    </div>
+                    <Pagination
+                        page={page}
+                        pageSize={pageSize}
+                        total={total}
+                        totalPages={totalPages || 1}
+                        onPageChange={(p) => setPage(p)}
+                        onPageSizeChange={(ps) => { setPageSize(ps); setPage(1) }}
+                        selectedCount={selectedUsers.length}
+                    />
                 </CardContent>
 
                 <CardFooter className="flex justify-end">

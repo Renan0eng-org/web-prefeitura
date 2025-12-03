@@ -4,6 +4,7 @@ import AgendarConsultaDialog from "@/components/appointments/AgendarConsultaDial
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import Pagination from "@/components/ui/pagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAlert } from "@/hooks/use-alert"
@@ -17,6 +18,10 @@ export default function EsteiraPacientesTab() {
     const [formsResponses, setFormsResponses] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(false)
     const [error, setError] = useState<string | null>(null)
+    const [page, setPage] = useState(1)
+    const [pageSize, setPageSize] = useState(10)
+    const [total, setTotal] = useState(0)
+    const totalPages = Math.max(1, Math.ceil(total / pageSize))
     const [visibleColumnsEsteira, setVisibleColumnsEsteira] = useState({
         form: true,
         paciente: true,
@@ -29,11 +34,16 @@ export default function EsteiraPacientesTab() {
 
     const { setAlert } = useAlert();
 
-    const fetchResponses = async () => {
+    const fetchResponses = async (opts?: { page?: number; pageSize?: number }) => {
         try {
             setIsLoading(true)
-            const res = await api.get("/forms/responses/list")
-            setFormsResponses(res.data || [])
+            const p = opts?.page ?? page
+            const ps = opts?.pageSize ?? pageSize
+            const res = await api.get("/forms/responses/list", { params: { page: p, pageSize: ps } })
+            const data = res.data?.data ?? res.data ?? []
+            setFormsResponses(Array.isArray(data) ? data : [])
+            const t = res.data?.total ?? res.data?.totalItems ?? res.data?.totalCount ?? (Array.isArray(data) ? data.length : 0)
+            setTotal(Number(t ?? 0))
             setIsLoading(false)
         } catch (error: unknown) {
             if (axios.isAxiosError(error)) {
@@ -52,6 +62,11 @@ export default function EsteiraPacientesTab() {
     useEffect(() => {
         fetchResponses()
     }, [])
+
+    useEffect(() => {
+        fetchResponses({ page, pageSize })
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page, pageSize])
 
     return (
         <>
@@ -84,7 +99,7 @@ export default function EsteiraPacientesTab() {
             </div>
 
             {error && <p className="text-red-500">{error}</p>}
-            <Table className="overflow-hidden rounded-lg border">
+            <Table className="overflow-hidden rounded-t-lg">
                 <TableHeader className="sticky top-0 z-10 bg-muted">
                     <TableRow>
                         {visibleColumnsEsteira.form && <TableHead>Formulário</TableHead>}
@@ -177,6 +192,15 @@ export default function EsteiraPacientesTab() {
                     )}
                 </TableBody>
             </Table>
+            <Pagination
+                page={page}
+                pageSize={pageSize}
+                total={total}
+                totalPages={totalPages}
+                onPageChange={(p) => setPage(p)}
+                onPageSizeChange={(ps) => { setPageSize(ps); setPage(1) }}
+                selectedCount={0}
+            />
             {/* Agendamento dialog */}
             {selectedResponse && (
                 <AgendarConsultaDialog

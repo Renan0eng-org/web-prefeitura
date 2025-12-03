@@ -4,6 +4,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import Pagination from '@/components/ui/pagination'
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -18,8 +19,9 @@ export default function FormulariosTab() {
     const [forms, setForms] = useState<any[]>([])
     const [isLoading, setIsLoading] = useState(true)
     const [error, setError] = useState<string | null>(null)
-    const [limit] = useState(10)
+    const [pageSize, setPageSize] = useState(10)
     const [totalPages, setTotalPages] = useState(1)
+    const [total, setTotal] = useState(0)
 
     const [columns, setColumns] = useState({
         title: true,
@@ -30,13 +32,20 @@ export default function FormulariosTab() {
         actions: true
     })
 
-    const fetchForms = async () => {
+    const fetchForms = async (overrides?: { page?: number; pageSize?: number }) => {
         try {
             setIsLoading(true)
-            const response = await api.get(`/forms?page=${page}&limit=${limit}`)
-            console.log("Fetched forms:", response.data);
-            setForms(response.data.forms || response.data)
-            setTotalPages(response.data.totalPages || 1)
+            const p = overrides?.page ?? page
+            const psize = overrides?.pageSize ?? pageSize
+            const response = await api.get(`/forms?page=${p}&pageSize=${psize}`)
+            console.log("Fetched forms:", response.data)
+            const payload = response.data
+            const items = payload.forms || payload.data || payload || []
+            setForms(items)
+            const totalVal = payload.total ?? payload.totalItems ?? (payload.totalPages ? payload.totalPages * psize : (Array.isArray(payload) ? payload.length : 0))
+            setTotal(typeof totalVal === 'number' ? totalVal : 0)
+            const tPages = payload.totalPages ?? (psize ? Math.max(1, Math.ceil((totalVal || 0) / psize)) : 1)
+            setTotalPages(tPages)
             setError(null)
         } catch (err) {
             console.error("Erro ao buscar formulários:", err)
@@ -51,7 +60,7 @@ export default function FormulariosTab() {
     const performDelete = async (id: string) => {
         try {
             await api.delete(`/forms/${id}`)
-            fetchForms()
+            fetchForms({ page, pageSize })
         } catch (err) {
             console.error("Erro ao excluir:", err)
         }
@@ -78,7 +87,7 @@ export default function FormulariosTab() {
 
     useEffect(() => {
         if (permissions?.visualizar) fetchForms()
-    }, [page, permissions?.visualizar])
+    }, [page, pageSize, permissions?.visualizar])
 
     return (
         <>
@@ -246,22 +255,22 @@ export default function FormulariosTab() {
                 </Table>
             </div>
 
-            <div className="flex justify-end items-center mt-4 space-x-2">
-                <Button variant="outline" size="sm" disabled={page === 1} onClick={() => setPage((p) => p - 1)}>
-                    Anterior
-                </Button>
-                <span>
-                    Página {page} de {totalPages}
-                </span>
-                <Button
-                    variant="outline"
-                    size="sm"
-                    disabled={page === totalPages}
-                    onClick={() => setPage((p) => p + 1)}
-                >
-                    Próxima
-                </Button>
-            </div>
+            <Pagination
+                page={page}
+                pageSize={pageSize}
+                total={total}
+                totalPages={totalPages}
+                onPageChange={(p) => {
+                    setPage(p)
+                    fetchForms({ page: p, pageSize })
+                }}
+                onPageSizeChange={(size) => {
+                    setPageSize(size)
+                    setPage(1)
+                    fetchForms({ page: 1, pageSize: size })
+                }}
+                selectedCount={0}
+            />
 
             <ConfirmDialog
                 open={confirmOpen}

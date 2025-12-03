@@ -14,7 +14,7 @@ import {
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import Pagination from '@/components/ui/pagination'
 import {
     Select,
     SelectContent,
@@ -26,7 +26,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAlert } from "@/hooks/use-alert"
-import { Check, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight, ClipboardList, MoreVertical, Settings2 } from "lucide-react"
+import { Check, ClipboardList, MoreVertical, Settings2 } from "lucide-react"
 
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
@@ -138,9 +138,12 @@ export default function LogsPage() {
             setLogs(data || [])
             setError(null)
 
-            params.set("pageSize", "10000")
+            
+            const paramsAll = new URLSearchParams()
+            
+            paramsAll.set("pageSize", "10000")
 
-            const allResponse = await api.get(`/logs?${params.toString()}`)
+            const allResponse = await api.get(`/logs?${paramsAll.toString()}`)
             setAllLogs(allResponse.data.data || [])
 
         } catch (err) {
@@ -168,9 +171,9 @@ export default function LogsPage() {
     const logsByDay = useMemo(() => {
         const map = new Map<string, number>()
 
-        for (const l of allLogs) {
-            const created = l.created || l.createdAt || l.timestamp || Date.now()
-            const d = new Date(created).toLocaleDateString()
+            for (const l of allLogs) {
+                const created = l.created || l.createdAt || l.timestamp || null
+                const d = created ? new Date(created).toLocaleDateString('pt-BR') : ''
             map.set(d, (map.get(d) || 0) + 1)
         }
 
@@ -419,33 +422,33 @@ export default function LogsPage() {
 
                     <TableBody className="bg-white/40">
                         {isLoading
-                            ? [...Array(8)].map((_, i) => (
+                            ? [...Array(pageSize)].map((_, i) => (
                                 <TableRow key={i}>
-                                    {columns.id && <TableCell><Skeleton className="h-4 w-32" /></TableCell>}
-                                    {columns.createdAt && <TableCell><Skeleton className="h-4 w-24" /></TableCell>}
-                                    {columns.route && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
-                                    {columns.method && <TableCell><Skeleton className="h-4 w-20" /></TableCell>}
-                                    {columns.ip && <TableCell><Skeleton className="h-4 w-32" /></TableCell>}
-                                    {columns.statusCode && <TableCell><Skeleton className="h-4 w-12" /></TableCell>}
-                                    {columns.userId && <TableCell><Skeleton className="h-4 w-20" /></TableCell>}
-                                    {columns.userName && <TableCell><Skeleton className="h-4 w-24" /></TableCell>}
-                                    {columns.userEmail && <TableCell><Skeleton className="h-4 w-32" /></TableCell>}
-                                    {columns.message && <TableCell><Skeleton className="h-4 w-60" /></TableCell>}
-                                    {columns.stack && <TableCell><Skeleton className="h-4 w-48" /></TableCell>}
-                                    {columns.file && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
-                                    {columns.line && <TableCell><Skeleton className="h-4 w-12" /></TableCell>}
-                                    {columns.column && <TableCell><Skeleton className="h-4 w-12" /></TableCell>}
-                                    {columns.metadata && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
-                                    {columns.forwardedFor && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
-                                    {columns.userAgent && <TableCell><Skeleton className="h-4 w-48" /></TableCell>}
-                                    <TableCell><Skeleton className="h-4 w-12 mx-auto" /></TableCell>
-                                    <TableCell><Skeleton className="h-4 w-20 mx-auto" /></TableCell>
+                                    {columns.id && <TableCell><Skeleton className="h-7 w-32" /></TableCell>}
+                                    {columns.createdAt && <TableCell><Skeleton className="h-7 w-24" /></TableCell>}
+                                    {columns.route && <TableCell><Skeleton className="h-7 w-40" /></TableCell>}
+                                    {columns.method && <TableCell><Skeleton className="h-7 w-20" /></TableCell>}
+                                    {columns.ip && <TableCell><Skeleton className="h-7 w-32" /></TableCell>}
+                                    {columns.statusCode && <TableCell><Skeleton className="h-7 w-12" /></TableCell>}
+                                    {columns.userId && <TableCell><Skeleton className="h-7 w-20" /></TableCell>}
+                                    {columns.userName && <TableCell><Skeleton className="h-7 w-24" /></TableCell>}
+                                    {columns.userEmail && <TableCell><Skeleton className="h-7 w-32" /></TableCell>}
+                                    {columns.message && <TableCell><Skeleton className="h-7 w-60" /></TableCell>}
+                                    {columns.stack && <TableCell><Skeleton className="h-7 w-48" /></TableCell>}
+                                    {columns.file && <TableCell><Skeleton className="h-7 w-40" /></TableCell>}
+                                    {columns.line && <TableCell><Skeleton className="h-7 w-12" /></TableCell>}
+                                    {columns.column && <TableCell><Skeleton className="h-7 w-12" /></TableCell>}
+                                    {columns.metadata && <TableCell><Skeleton className="h-7 w-40" /></TableCell>}
+                                    {columns.forwardedFor && <TableCell><Skeleton className="h-7 w-40" /></TableCell>}
+                                    {columns.userAgent && <TableCell><Skeleton className="h-7 w-48" /></TableCell>}
+                                    <TableCell><Skeleton className="h-7 w-12 mx-auto" /></TableCell>
+                                    <TableCell><Skeleton className="h-7 w-20 mx-auto" /></TableCell>
                                 </TableRow>
                             ))
                             : logs.length > 0 ? logs.map((l: any) => (
                                 <TableRow key={l.id || l._id || l.logId}>
                                     {columns.id && <TableCell className="max-w-[220px] truncate">{l.id || l._id || l.logId || '-'}</TableCell>}
-                                    {columns.createdAt && <TableCell className="min-w-[180px] text-center">{new Date(l.created || l.createdAt || l.timestamp || Date.now()).toLocaleString()}</TableCell>}
+                                    {columns.createdAt && <TableCell className="min-w-[180px] text-center">{(l.created || l.createdAt || l.timestamp) ? new Date(l.created || l.createdAt || l.timestamp).toLocaleString('pt-BR') : '-'}</TableCell>}
                                     {columns.route && <TableCell className="max-w-[240px] truncate">{l.route || l.url || l.path || '-'}</TableCell>}
                                     {columns.method && <TableCell>{l.method || l.httpMethod || '-'}</TableCell>}
                                     {columns.ip && <TableCell>{l.ip || '-'}</TableCell>}
@@ -510,97 +513,24 @@ export default function LogsPage() {
 
                     </TableBody>
                 </Table>
-                <div className="flex items-center justify-between px-4 bg-muted rounded-b-md py-2">
-                    <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-                        {0} of {total} row(s) selected.
-                    </div>
-                    <div className="flex w-full items-center gap-8 lg:w-fit bg-muted">
-                        <div className="hidden items-center gap-2 lg:flex">
-                            <Label htmlFor="rows-per-page" className="text-sm font-medium">
-                                Rows per page
-                            </Label>
-                            <Select
-                                value={`${pageSize}`}
-                                onValueChange={(value) => {
-                                    const size = Number(value)
-                                    setPageSize(size)
-                                    setPage(1)
-                                    fetchLogs({ page: 1, pageSize: size })
-                                }}
-                            >
-                                <SelectTrigger className="w-20" id="rows-per-page">
-                                    <SelectValue placeholder={`${pageSize}`} />
-                                </SelectTrigger>
-                                <SelectContent side="top">
-                                    {[5, 10, 20, 30, 40, 50].map((ps) => (
-                                        <SelectItem key={ps} value={`${ps}`}>
-                                            {ps}
-                                        </SelectItem>
-                                    ))}
-                                </SelectContent>
-                            </Select>
-                        </div>
-                        <div className="flex w-fit items-center justify-center text-sm font-medium">
-                            Page {page} of {totalPages}
-                        </div>
-                        <div className="ml-auto flex items-center gap-2 lg:ml-0">
-                            <Button
-                                variant="outline"
-                                className="hidden h-8 w-8 p-0 lg:flex"
-                                onClick={() => {
-                                    setPage(1)
-                                    fetchLogs({ page: 1 })
-                                }}
-                                disabled={page === 1}
-                            >
-                                <span className="sr-only">Go to first page</span>
-                                <ChevronsLeft />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="size-8"
-                                size="icon"
-                                onClick={() => {
-                                    const p = Math.max(1, page - 1)
-                                    setPage(p)
-                                    fetchLogs({ page: p })
-                                }}
-                                disabled={page === 1}
-                            >
-                                <span className="sr-only">Go to previous page</span>
-                                <ChevronLeft />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="size-8"
-                                size="icon"
-                                onClick={() => {
-                                    const p = Math.min(totalPages, page + 1)
-                                    setPage(p)
-                                    fetchLogs({ page: p })
-                                }}
-                                disabled={page === totalPages}
-                            >
-                                <span className="sr-only">Go to next page</span>
-                                <ChevronRight />
-                            </Button>
-                            <Button
-                                variant="outline"
-                                className="hidden size-8 lg:flex"
-                                size="icon"
-                                onClick={() => {
-                                    setPage(totalPages)
-                                    fetchLogs({ page: totalPages })
-                                }}
-                                disabled={page === totalPages}
-                            >
-                                <span className="sr-only">Go to last page</span>
-                                <ChevronsRight />
-                            </Button>
-                        </div>
-                    </div>
+                <Pagination
+                    page={page}
+                    pageSize={pageSize}
+                    total={total}
+                    totalPages={totalPages}
+                    onPageChange={(p) => {
+                        setPage(p)
+                        fetchLogs({ page: p })
+                    }}
+                    onPageSizeChange={(size) => {
+                        setPageSize(size)
+                        setPage(1)
+                        fetchLogs({ page: 1, pageSize: size })
+                    }}
+                    selectedCount={0}
+                />
+
                 </div>
-            </div>
 
             <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
                 <DialogContent className="max-w-2xl p-2 sm:p-4 lg:p-6">
@@ -614,7 +544,7 @@ export default function LogsPage() {
                         <div className="space-y-2 w-full">
 
                             <div className="text-sm"><strong>ID:</strong> {selectedLog.id || selectedLog._id || selectedLog.logId || '-'}</div>
-                            <div className="text-sm"><strong>Data:</strong> {new Date(selectedLog.created || selectedLog.createdAt || selectedLog.timestamp || Date.now()).toLocaleString()}</div>
+                            <div className="text-sm"><strong>Data:</strong> {(selectedLog.created || selectedLog.createdAt || selectedLog.timestamp) ? new Date(selectedLog.created || selectedLog.createdAt || selectedLog.timestamp).toLocaleString('pt-BR') : '-'}</div>
                             <div className="text-sm"><strong>Rota:</strong> {selectedLog.route || selectedLog.url || selectedLog.path || '-'}</div>
                             <div className="text-sm"><strong>Método:</strong> {selectedLog.method || selectedLog.httpMethod || '-'}</div>
                             <div className="text-sm"><strong>Status:</strong> {selectedLog.statusCode ?? selectedLog.status ?? '-'}</div>

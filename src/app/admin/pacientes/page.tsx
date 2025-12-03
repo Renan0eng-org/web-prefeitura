@@ -23,6 +23,7 @@ export default function PatientsPage() {
     const [total, setTotal] = React.useState(0)
     const totalPages = Math.max(1, Math.ceil(total / pageSize))
     const [error, setError] = React.useState<string | null>(null)
+    const [serverPaged, setServerPaged] = React.useState(false)
 
     const [columns, setColumns] = React.useState({
         name: true,
@@ -70,12 +71,16 @@ export default function PatientsPage() {
             setIsLoading(true)
             const p = opts?.page ?? page
             const ps = opts?.pageSize ?? pageSize
-            const res = await api.get('/patients', { params: { page: p, pageSize: ps } })
+            
+            const res = await api.get('/patients', { params: { page: p, pageSize: ps, limit: ps, offset: (p - 1) * ps, skip: (p - 1) * ps } })
             const payload = res.data
+            
             // API may return paged shape { data: [], total } or full array
-            const list = Array.isArray(payload) ? payload : (payload?.data ?? payload?.patients ?? payload)
-            const patientsOnly = Array.isArray(list) ? list.filter((u: any) => u.type === 'PACIENTE') : []
-            setPatients(patientsOnly)
+            const list = Array.isArray(payload?.data) ? payload.data : (Array.isArray(payload) ? payload : [])
+            const isServerPaged = !!(payload && !Array.isArray(payload) && (Array.isArray(payload.data) || payload.total != null || payload.page != null))
+            setServerPaged(isServerPaged)
+
+            setPatients(list)
             const totalVal = payload?.total ?? payload?.totalItems ?? (Array.isArray(list) ? list.length : 0)
             setTotal(Number(totalVal ?? 0))
             setError(null)
@@ -118,11 +123,13 @@ export default function PatientsPage() {
         setConfirmOpen(false)
     }
 
-    // client-side pagination slice
+    // pagination: if server returns paged data we display it directly,
+    // otherwise fall back to client-side slicing of the full list
     const paged = React.useMemo(() => {
+        if (serverPaged) return patients
         const start = (page - 1) * pageSize
         return patients.slice(start, start + pageSize)
-    }, [patients, page, pageSize])
+    }, [patients, page, pageSize, serverPaged])
 
     return (
         <div className="p-4 md:p-6">

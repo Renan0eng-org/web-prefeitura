@@ -20,6 +20,7 @@ export default function UsuariosPage() {
     const [isLoading, setIsLoading] = React.useState(true)
     const [isDialogOpen, setIsDialogOpen] = React.useState(false)
     const [editingUser, setEditingUser] = React.useState<UserComNivel | null>(null)
+    const [visibleColumns, setVisibleColumns] = React.useState({ usuario: true, nivel: true, tipo: true, status: true, acoes: true })
 
     const { setAlert } = useAlert()
     const { getPermissions } = useAuth()
@@ -131,12 +132,51 @@ export default function UsuariosPage() {
                             Crie, edite ou exclua usuários do sistema.
                         </CardDescription>
                     </div>
-                    {permissions?.criar && (
-                        <Button onClick={handleAddNew}>
-                            <PlusCircle className="w-4 h-4 mr-2" />
-                            Novo Usuário
-                        </Button>
-                    )}
+                    <div className="flex items-center gap-2">
+                        <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                                <Button variant="outline" size="sm">Colunas</Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                                <DropdownMenuItem asChild>
+                                    <div className="flex items-center justify-between w-full">
+                                        <span>Usuário</span>
+                                        <input type="checkbox" checked={visibleColumns.usuario} onChange={() => setVisibleColumns(v => ({ ...v, usuario: !v.usuario }))} />
+                                    </div>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <div className="flex items-center justify-between w-full">
+                                        <span>Nível</span>
+                                        <input type="checkbox" checked={visibleColumns.nivel} onChange={() => setVisibleColumns(v => ({ ...v, nivel: !v.nivel }))} />
+                                    </div>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <div className="flex items-center justify-between w-full">
+                                        <span>Tipo</span>
+                                        <input type="checkbox" checked={visibleColumns.tipo} onChange={() => setVisibleColumns(v => ({ ...v, tipo: !v.tipo }))} />
+                                    </div>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <div className="flex items-center justify-between w-full">
+                                        <span>Status</span>
+                                        <input type="checkbox" checked={visibleColumns.status} onChange={() => setVisibleColumns(v => ({ ...v, status: !v.status }))} />
+                                    </div>
+                                </DropdownMenuItem>
+                                <DropdownMenuItem asChild>
+                                    <div className="flex items-center justify-between w-full">
+                                        <span>Ações</span>
+                                        <input type="checkbox" checked={visibleColumns.acoes} onChange={() => setVisibleColumns(v => ({ ...v, acoes: !v.acoes }))} />
+                                    </div>
+                                </DropdownMenuItem>
+                            </DropdownMenuContent>
+                        </DropdownMenu>
+                        {permissions?.criar && (
+                            <Button onClick={handleAddNew}>
+                                <PlusCircle className="w-4 h-4 mr-2" />
+                                Novo Usuário
+                            </Button>
+                        )}
+                    </div>
                 </CardHeader>
                 <CardContent>
                     {isLoading ? (
@@ -147,11 +187,11 @@ export default function UsuariosPage() {
                         <Table>
                             <TableHeader>
                                 <TableRow>
-                                    <TableHead>Usuário</TableHead>
-                                    <TableHead>Nível</TableHead>
-                                    <TableHead>Tipo</TableHead>
-                                    <TableHead>Status</TableHead>
-                                    {(permissions?.editar || permissions?.excluir) && (
+                                    {visibleColumns.usuario && <TableHead>Usuário</TableHead>}
+                                    {visibleColumns.nivel && <TableHead>Nível</TableHead>}
+                                    {visibleColumns.tipo && <TableHead>Tipo</TableHead>}
+                                    {visibleColumns.status && <TableHead>Status</TableHead>}
+                                    {visibleColumns.acoes && (permissions?.editar || permissions?.excluir) && (
                                         <TableHead className="w-[64px] text-right">Ações</TableHead>
                                     )}
                                 </TableRow>
@@ -159,24 +199,32 @@ export default function UsuariosPage() {
                             <TableBody>
                                 {users.map((user) => (
                                     <TableRow key={user.idUser}>
-                                        <TableCell>
-                                            <div className="font-medium">{user.name}</div>
-                                            <div className="text-xs text-muted-foreground">{user.email}</div>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="secondary">{user.nivel_acesso.nome}</Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            <Badge variant="outline">{user.type}</Badge>
-                                        </TableCell>
-                                        <TableCell>
-                                            {user.active ? (
-                                                <Badge variant="outline" className="border-green-500 text-green-600">Ativo</Badge>
-                                            ) : (
-                                                <Badge variant="destructive">Inativo</Badge>
-                                            )}
-                                        </TableCell>
-                                        {(permissions?.editar || permissions?.excluir) && (
+                                        {visibleColumns.usuario && (
+                                            <TableCell>
+                                                <div className="font-medium">{user.name}</div>
+                                                <div className="text-xs text-muted-foreground">{user.email}</div>
+                                            </TableCell>
+                                        )}
+                                        {visibleColumns.nivel && (
+                                            <TableCell>
+                                                <Badge variant="secondary">{user.nivel_acesso.nome}</Badge>
+                                            </TableCell>
+                                        )}
+                                        {visibleColumns.tipo && (
+                                            <TableCell>
+                                                <Badge variant="outline">{user.type}</Badge>
+                                            </TableCell>
+                                        )}
+                                        {visibleColumns.status && (
+                                            <TableCell>
+                                                {user.active ? (
+                                                    <Badge variant="outline" className="border-green-500 text-green-600">Ativo</Badge>
+                                                ) : (
+                                                    <Badge variant="destructive">Inativo</Badge>
+                                                )}
+                                            </TableCell>
+                                        )}
+                                        {visibleColumns.acoes && (permissions?.editar || permissions?.excluir) && (
                                             <TableCell className="text-right">
                                                 <DropdownMenu>
                                                     <DropdownMenuTrigger asChild>

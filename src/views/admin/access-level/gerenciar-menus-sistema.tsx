@@ -4,6 +4,7 @@ import { MenuAcessoDialog } from "@/components/access-level/menu-acesso-dialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import ColumnsDropdown from '@/components/ui/columns-dropdown'
 import ConfirmDialog from "@/components/ui/confirm-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -20,6 +21,7 @@ export function GerenciarMenusSistema() {
     const [isLoading, setIsLoading] = React.useState(true)
     const [isDialogOpen, setIsDialogOpen] = React.useState(false)
     const [editingMenu, setEditingMenu] = React.useState<MenuAcesso | null>(null)
+    const [visibleColumns, setVisibleColumns] = React.useState<Record<string, boolean>>({ menu: true, permissoes: true, acoes: true })
 
     const { setAlert } = useAlert()
     const { getPermissions } = useAuth() // Pega a função
@@ -123,67 +125,78 @@ export function GerenciarMenusSistema() {
                         Crie os menus e defina suas permissões base.
                     </CardDescription>
                 </div>
-                {/* Controla o botão "Novo" */}
-                {permissions?.criar && (
-                    <Button onClick={handleAddNew}>
-                        <PlusCircle className="w-4 h-4 mr-2" />
-                        Novo Menu
-                    </Button>
-                )}
+                                <div className="flex items-center gap-2">
+                                    <ColumnsDropdown
+                                        columns={visibleColumns}
+                                        onChange={(c: Record<string, boolean>) => setVisibleColumns(c as Record<string, boolean>)}
+                                        labels={{ menu: 'Menu (Slug)', permissoes: 'Permissões Base', acoes: 'Ações' }}
+                                        contentClassName="p-2"
+                                    />
+                                    {permissions?.criar && (
+                                        <Button onClick={handleAddNew}>
+                                                <PlusCircle className="w-4 h-4 mr-2" />
+                                                Novo Menu
+                                        </Button>
+                                    )}
+                                </div>
             </CardHeader>
             <CardContent>
                 <Table>
                     <TableHeader>
                         <TableRow>
-                            <TableHead>Menu (Slug)</TableHead>
-                            <TableHead>Permissões Base</TableHead>
-                            {/* Controla a coluna de "Ações" */}
-                            {(permissions?.editar || permissions?.excluir) && (
-                                <TableHead className="w-[64px] text-right">Ações</TableHead>
-                            )}
+                                                        {visibleColumns.menu && <TableHead>Menu (Slug)</TableHead>}
+                                                        {visibleColumns.permissoes && <TableHead>Permissões Base</TableHead>}
+                                                        {/* Controla a coluna de "Ações" */}
+                                                        {visibleColumns.acoes && (permissions?.editar || permissions?.excluir) && (
+                                                                <TableHead className="w-[64px] text-right">Ações</TableHead>
+                                                        )}
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {menus.map((menu) => (
                             <TableRow key={menu.idMenuAcesso}>
-                                <TableCell>
-                                    <div className="font-medium">{menu.nome}</div>
-                                    <div className="text-xs text-muted-foreground">{menu.slug}</div>
-                                </TableCell>
-                                <TableCell>
-                                    <div className="flex flex-wrap gap-1">
-                                        {menu.visualizar && <Badge variant="outline">Ver</Badge>}
-                                        {menu.criar && <Badge variant="outline">Criar</Badge>}
-                                        {menu.relatorio && <Badge variant="outline">Relatório</Badge>}
-                                        {menu.editar && <Badge variant="outline" className="border-blue-500 text-blue-600">Editar</Badge>}
-                                        {menu.excluir && <Badge variant="outline" className="border-red-500 text-red-500">Excluir</Badge>}
-                                    </div>
-                                </TableCell>
-                                {/* Controla a célula de "Ações" */}
-                                {(permissions?.editar || permissions?.excluir) && (
-                                    <TableCell className="text-right">
-                                        <DropdownMenu>
-                                            <DropdownMenuTrigger asChild>
-                                                <Button variant="ghost" size="icon">
-                                                    <MoreHorizontal className="h-4 w-4" />
-                                                </Button>
-                                            </DropdownMenuTrigger>
-                                            <DropdownMenuContent align="end">
-                                                {/* Controla cada item */}
-                                                {permissions?.editar && (
-                                                    <DropdownMenuItem onClick={() => handleEdit(menu)}>
-                                                        Editar Permissões
-                                                    </DropdownMenuItem>
-                                                )}
-                                                {permissions?.excluir && (
-                                                    <DropdownMenuItem onClick={() => { setPendingMenuId(menu.idMenuAcesso); setConfirmOpen(true) }} className="text-destructive">
-                                                        Excluir
-                                                    </DropdownMenuItem>
-                                                )}
-                                            </DropdownMenuContent>
-                                        </DropdownMenu>
-                                    </TableCell>
-                                )}
+                                                                {visibleColumns.menu && (
+                                                                    <TableCell>
+                                                                        <div className="font-medium">{menu.nome}</div>
+                                                                        <div className="text-xs text-muted-foreground">{menu.slug}</div>
+                                                                    </TableCell>
+                                                                )}
+                                                                {visibleColumns.permissoes && (
+                                                                    <TableCell>
+                                                                        <div className="flex flex-wrap gap-1">
+                                                                                {menu.visualizar && <Badge variant="outline">Ver</Badge>}
+                                                                                {menu.criar && <Badge variant="outline">Criar</Badge>}
+                                                                                {menu.relatorio && <Badge variant="outline">Relatório</Badge>}
+                                                                                {menu.editar && <Badge variant="outline" className="border-blue-500 text-blue-600">Editar</Badge>}
+                                                                                {menu.excluir && <Badge variant="outline" className="border-red-500 text-red-500">Excluir</Badge>}
+                                                                        </div>
+                                                                    </TableCell>
+                                                                )}
+                                                                {/* Controla a célula de "Ações" */}
+                                                                {visibleColumns.acoes && (permissions?.editar || permissions?.excluir) && (
+                                                                    <TableCell className="text-right">
+                                                                        <DropdownMenu>
+                                                                            <DropdownMenuTrigger asChild>
+                                                                                <Button variant="ghost" size="icon">
+                                                                                    <MoreHorizontal className="h-4 w-4" />
+                                                                                </Button>
+                                                                            </DropdownMenuTrigger>
+                                                                            <DropdownMenuContent align="end">
+                                                                                {/* Controla cada item */}
+                                                                                {permissions?.editar && (
+                                                                                    <DropdownMenuItem onClick={() => handleEdit(menu)}>
+                                                                                        Editar Permissões
+                                                                                    </DropdownMenuItem>
+                                                                                )}
+                                                                                {permissions?.excluir && (
+                                                                                    <DropdownMenuItem onClick={() => { setPendingMenuId(menu.idMenuAcesso); setConfirmOpen(true) }} className="text-destructive">
+                                                                                        Excluir
+                                                                                    </DropdownMenuItem>
+                                                                                )}
+                                                                            </DropdownMenuContent>
+                                                                        </DropdownMenu>
+                                                                    </TableCell>
+                                                                )}
                             </TableRow>
                         ))}
                     </TableBody>

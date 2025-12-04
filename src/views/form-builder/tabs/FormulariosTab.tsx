@@ -2,11 +2,11 @@
 
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import ColumnsDropdown from '@/components/ui/columns-dropdown'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import Pagination from '@/components/ui/pagination'
 import { Skeleton } from "@/components/ui/skeleton"
-import { Switch } from "@/components/ui/switch"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAuth } from '@/hooks/use-auth'
 import api from "@/services/api"
@@ -23,14 +23,32 @@ export default function FormulariosTab() {
     const [totalPages, setTotalPages] = useState(1)
     const [total, setTotal] = useState(0)
 
-    const [columns, setColumns] = useState({
-        title: true,
-        description: true,
-        isScreening: true,
-        updatedAt: true,
-        responses: true,
-        actions: true
+    const [columns, setColumns] = useState<Record<string, boolean>>(() => {
+        try {
+            const raw = localStorage.getItem('formularios_visible_columns')
+            return raw ? JSON.parse(raw) : {
+                title: true,
+                description: true,
+                isScreening: true,
+                updatedAt: true,
+                responses: true,
+                actions: true
+            }
+        } catch (e) {
+            return {
+                title: true,
+                description: true,
+                isScreening: true,
+                updatedAt: true,
+                responses: true,
+                actions: true
+            }
+        }
     })
+
+    useEffect(() => {
+        try { localStorage.setItem('formularios_visible_columns', JSON.stringify(columns)) } catch (e) { }
+    }, [columns])
 
     const fetchForms = async (overrides?: { page?: number; pageSize?: number }) => {
         try {
@@ -93,28 +111,15 @@ export default function FormulariosTab() {
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
 
                 <h1 className="text-3xl font-bold tracking-tight">Meus Formulários</h1>
-                <div className="flex flex-wrap gap-4 items-center">
-                    <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                            <Button variant="outline" size="sm">
-                                <Settings2 className="h-4 w-4" />
-                                Colunas
-                            </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end" className="p-2">
-                            {Object.entries(columns).map(([key, value]) => (
-                                <div key={key} className="flex items-center justify-between px-2 py-1">
-                                    <span className="capitalize">{key}</span>
-                                    <Switch
-                                        checked={value}
-                                        onCheckedChange={() =>
-                                            setColumns((prev) => ({ ...prev, [key]: !prev[key as keyof typeof prev] }))
-                                        }
-                                    />
-                                </div>
-                            ))}
-                        </DropdownMenuContent>
-                    </DropdownMenu>
+                <div className="flex flex-wrap gap-2 items-center">
+                    <ColumnsDropdown
+                        columns={columns}
+                        onChange={(c: Record<string, boolean>) => setColumns(c)}
+                        labels={{ title: 'Título', description: 'Descrição', isScreening: 'Triagem', updatedAt: 'Atualizado em', responses: 'Respostas', actions: 'Ações' }}
+                        buttonLabel={<><Settings2 className="h-4 w-4" /> Colunas</>}
+                        contentClassName="p-2"
+                    />
+                    <Button variant="outline" size="sm" onClick={() => fetchForms()}>Atualizar</Button>
                     {permissions?.criar && (
                         <Link href={'/admin/criar-formulario'} >
                             <Button className="text-white">
@@ -243,7 +248,7 @@ export default function FormulariosTab() {
                                                             Excluir
                                                         </DropdownMenuItem>
                                                     )}
-                                                    </DropdownMenuContent>
+                                                </DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>
                                     )}

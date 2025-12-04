@@ -3,7 +3,8 @@
 import AgendarConsultaDialog from "@/components/appointments/AgendarConsultaDialog"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { DropdownMenu, DropdownMenuCheckboxItem, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import ColumnsDropdown from '@/components/ui/columns-dropdown'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import Pagination from "@/components/ui/pagination"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
@@ -22,12 +23,19 @@ export default function EsteiraPacientesTab() {
     const [pageSize, setPageSize] = useState(10)
     const [total, setTotal] = useState(0)
     const totalPages = Math.max(1, Math.ceil(total / pageSize))
-    const [visibleColumnsEsteira, setVisibleColumnsEsteira] = useState({
-        form: true,
-        paciente: true,
-        dataEnvio: true,
-        pontuacao: true,
+    const [visibleColumnsEsteira, setVisibleColumnsEsteira] = useState(() => {
+        try {
+            const raw = localStorage.getItem('esteira_visible_columns')
+            return raw ? JSON.parse(raw) : { form: true, paciente: true, dataEnvio: true, pontuacao: true, actions: true }
+        } catch (e) {
+            return { form: true, paciente: true, dataEnvio: true, pontuacao: true, actions: true }
+        }
     })
+    const visibleCount = Object.values(visibleColumnsEsteira).filter(Boolean).length || 1
+
+    useEffect(() => {
+        try { localStorage.setItem('esteira_visible_columns', JSON.stringify(visibleColumnsEsteira)) } catch (e) { }
+    }, [visibleColumnsEsteira])
     const [isAgendarOpen, setIsAgendarOpen] = useState(false)
     const [selectedResponse, setSelectedResponse] = useState<any | null>(null)
     const [ferrals, setFerrals] = useState(false)
@@ -72,30 +80,15 @@ export default function EsteiraPacientesTab() {
         <>
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                 <h2 className="text-3xl font-bold tracking-tight">Esteira de Pacientes</h2>
-                <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                        <Button variant="outline" size="sm">Colunas</Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent align="end">
-                        {Object.keys(visibleColumnsEsteira).map((key) => (
-                            <DropdownMenuCheckboxItem
-                                key={key}
-                                checked={visibleColumnsEsteira[key as keyof typeof visibleColumnsEsteira]}
-                                onCheckedChange={(checked) =>
-                                    setVisibleColumnsEsteira((prev) => ({
-                                        ...prev,
-                                        [key]: checked,
-                                    }))
-                                }
-                            >
-                                {key === "form" && "Formulário"}
-                                {key === "paciente" && "Paciente"}
-                                {key === "dataEnvio" && "Data de Envio"}
-                                {key === "pontuacao" && "Pontuação Total"}
-                            </DropdownMenuCheckboxItem>
-                        ))}
-                    </DropdownMenuContent>
-                </DropdownMenu>
+                <div className="flex space-x-2">
+                    <ColumnsDropdown
+                        columns={visibleColumnsEsteira}
+                        onChange={(c: Record<string, boolean>) => setVisibleColumnsEsteira(c)}
+                        labels={{ form: 'Formulário', paciente: 'Paciente', dataEnvio: 'Data de Envio', pontuacao: 'Pontuação Total', actions: 'Ações' }}
+                        contentClassName="p-2"
+                    />
+                    <Button variant="outline" size="sm" onClick={() => fetchResponses()}>Atualizar</Button>
+                </div>
             </div>
 
             {error && <p className="text-red-500">{error}</p>}
@@ -106,7 +99,7 @@ export default function EsteiraPacientesTab() {
                         {visibleColumnsEsteira.paciente && <TableHead>Paciente</TableHead>}
                         {visibleColumnsEsteira.dataEnvio && <TableHead>Data de Envio</TableHead>}
                         {visibleColumnsEsteira.pontuacao && <TableHead>Pontuação Total</TableHead>}
-                        <TableHead className="max-w-12 text-center">Ações</TableHead>
+                        {visibleColumnsEsteira.actions && <TableHead className="max-w-12 text-center">Ações</TableHead>}
                     </TableRow>
                 </TableHeader>
                 <TableBody className="bg-white/40">
@@ -117,7 +110,7 @@ export default function EsteiraPacientesTab() {
                                 {visibleColumnsEsteira.paciente && <TableCell><Skeleton className="h-4 w-32" /></TableCell>}
                                 {visibleColumnsEsteira.dataEnvio && <TableCell><Skeleton className="h-4 w-36" /></TableCell>}
                                 {visibleColumnsEsteira.pontuacao && <TableCell><Skeleton className="h-4 w-20" /></TableCell>}
-                                <TableCell className="text-center"><Skeleton className="h-4 w-12 mx-auto" /></TableCell>
+                                {visibleColumnsEsteira.actions && <TableCell className="text-center"><Skeleton className="h-4 w-12 mx-auto" /></TableCell>}
                             </TableRow>
                         ))
                     ) : (
@@ -149,7 +142,7 @@ export default function EsteiraPacientesTab() {
                                         <Badge className="items-center w-fit min-w-20 justify-center flex">Score: {response.totalScore ?? 0}</Badge>
                                     </TableCell>
                                 )}
-                                <TableCell className="text-center p-0 justify-center items-center">
+                                {visibleColumnsEsteira.actions && <TableCell className="text-center p-0 justify-center items-center">
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="ghost" size="icon" className="rounded-full">
@@ -174,11 +167,11 @@ export default function EsteiraPacientesTab() {
                                                     <span>Agendar Consulta</span>
                                                 </button>
                                             </DropdownMenuItem>
-                                            <DropdownMenuItem onSelect={() => { 
-                                                setSelectedResponse(response); 
-                                                setIsAgendarOpen(true); 
+                                            <DropdownMenuItem onSelect={() => {
+                                                setSelectedResponse(response);
+                                                setIsAgendarOpen(true);
                                                 setFerrals(true);
-                                                }}>
+                                            }}>
                                                 <button className="flex items-center w-full text-left">
                                                     <ArrowUpFromDot className="mr-2 h-4 w-4" />
                                                     <span>Encaminhar</span>
@@ -186,7 +179,7 @@ export default function EsteiraPacientesTab() {
                                             </DropdownMenuItem>
                                         </DropdownMenuContent>
                                     </DropdownMenu>
-                                </TableCell>
+                                </TableCell>}
                             </TableRow>
                         ))
                     )}
@@ -198,7 +191,10 @@ export default function EsteiraPacientesTab() {
                 total={total}
                 totalPages={totalPages}
                 onPageChange={(p) => setPage(p)}
-                onPageSizeChange={(ps) => { setPageSize(ps); setPage(1) }}
+                onPageSizeChange={(size) => {
+                    setPageSize(size)
+                    setPage(1)
+                }}
                 selectedCount={0}
             />
             {/* Agendamento dialog */}

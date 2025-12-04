@@ -4,6 +4,7 @@ import { NivelAcessoDialog } from "@/components/access-level/nivel-acesso-dialog
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
+import ColumnsDropdown from '@/components/ui/columns-dropdown'
 import ConfirmDialog from "@/components/ui/confirm-dialog"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -26,6 +27,7 @@ export function GerenciarNiveisAcesso() {
   const [isNivelDialogOpen, setIsNivelDialogOpen] = React.useState(false)
   const [isMenuDialogOpen, setIsMenuDialogOpen] = React.useState(false)
   const [editingNivel, setEditingNivel] = React.useState<NivelAcessoComMenus | null>(null)
+  const [visibleColumns, setVisibleColumns] = React.useState<Record<string, boolean>>({ nome: true, menus: true, acoes: true })
 
   const { setAlert } = useAlert()
   const { getPermissions } = useAuth() // Pega a função de permissão
@@ -150,22 +152,30 @@ export function GerenciarNiveisAcesso() {
             Crie os níveis (cargos) e gerencie quais menus eles podem acessar.
           </CardDescription>
         </div>
-        {/* Controla o botão "Novo" */}
-        {permissions?.criar && (
-          <Button onClick={handleAddNew}>
-            <PlusCircle className="w-4 h-4 mr-2" />
-            Novo Nível
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+            <ColumnsDropdown
+              columns={visibleColumns}
+              onChange={(c: Record<string, boolean>) => setVisibleColumns(c as Record<string, boolean>)}
+              labels={{ nome: 'Nome', menus: 'Menus Vinculados', acoes: 'Ações' }}
+              contentClassName="p-2"
+            />
+          {/* Controla o botão "Novo" */}
+          {permissions?.criar && (
+            <Button onClick={handleAddNew}>
+              <PlusCircle className="w-4 h-4 mr-2" />
+              Novo Nível
+            </Button>
+          )}
+        </div>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Nome</TableHead>
-              <TableHead>Menus Vinculados</TableHead>
+              {visibleColumns.nome && <TableHead>Nome</TableHead>}
+              {visibleColumns.menus && <TableHead>Menus Vinculados</TableHead>}
               {/* Controla a coluna de "Ações" */}
-              {(permissions?.editar || permissions?.excluir) && (
+              {visibleColumns.acoes && (permissions?.editar || permissions?.excluir) && (
                 <TableHead className="w-[64px] text-right">Ações</TableHead>
               )}
             </TableRow>
@@ -173,20 +183,24 @@ export function GerenciarNiveisAcesso() {
           <TableBody>
             {niveis.map((nivel) => (
               <TableRow key={nivel.idNivelAcesso}>
-                <TableCell>
-                  <div className="font-medium">{nivel.nome}</div>
-                  <div className="text-xs text-muted-foreground">{nivel.descricao}</div>
-                </TableCell>
-                <TableCell>
-                  <div className="flex flex-wrap gap-1">
-                    {nivel.menus?.length === 0 && <span className="text-xs text-muted-foreground">Nenhum</span>}
-                    {nivel.menus?.map(menu => (
-                      <Badge key={menu.idMenuAcesso} variant="secondary">{menu.nome}</Badge>
-                    ))}
-                  </div>
-                </TableCell>
+                {visibleColumns.nome && (
+                  <TableCell>
+                    <div className="font-medium">{nivel.nome}</div>
+                    <div className="text-xs text-muted-foreground">{nivel.descricao}</div>
+                  </TableCell>
+                )}
+                {visibleColumns.menus && (
+                  <TableCell>
+                    <div className="flex flex-wrap gap-1">
+                      {nivel.menus?.length === 0 && <span className="text-xs text-muted-foreground">Nenhum</span>}
+                      {nivel.menus?.map(menu => (
+                        <Badge key={menu.idMenuAcesso} variant="secondary">{menu.nome}</Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+                )}
                 {/* Controla a célula de "Ações" */}
-                {(permissions?.editar || permissions?.excluir) && (
+                {visibleColumns.acoes && (permissions?.editar || permissions?.excluir) && (
                   <TableCell className="text-right">
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>

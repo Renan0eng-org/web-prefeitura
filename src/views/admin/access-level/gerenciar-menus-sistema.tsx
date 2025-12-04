@@ -13,7 +13,7 @@ import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"; // Importa
 import api from "@/services/api"
 import { MenuAcesso } from "@/types/access-level"
-import { MoreHorizontal, PlusCircle } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Settings2 } from "lucide-react"
 import * as React from "react"
 
 export function GerenciarMenusSistema() {
@@ -131,6 +131,7 @@ export function GerenciarMenusSistema() {
                                         onChange={(c: Record<string, boolean>) => setVisibleColumns(c as Record<string, boolean>)}
                                         labels={{ menu: 'Menu (Slug)', permissoes: 'Permissões Base', acoes: 'Ações' }}
                                         contentClassName="p-2"
+                                        buttonLabel={<><Settings2 className="h-4 w-4" /> Colunas</>}
                                     />
                                     {permissions?.criar && (
                                         <Button onClick={handleAddNew}>

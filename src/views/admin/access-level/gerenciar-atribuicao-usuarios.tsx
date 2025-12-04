@@ -12,7 +12,7 @@ import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"; // Importa
 import api from "@/services/api"
 import { NivelAcesso, UserComNivel } from "@/types/access-level"
-import { Edit } from "lucide-react"
+import { Edit, Settings2 } from "lucide-react"
 import * as React from "react"
 
 export function GerenciarAtribuicaoUsuarios() {
@@ -116,6 +116,7 @@ export function GerenciarAtribuicaoUsuarios() {
                         onChange={(c: Record<string, boolean>) => setVisibleColumns(c as Record<string, boolean>)}
                         labels={{ usuario: 'Usuário', nivel: 'Nível', status: 'Status', acoes: 'Ações' }}
                         contentClassName="p-2"
+                        buttonLabel={<><Settings2 className="h-4 w-4" /> Colunas</>}
                     />
                 </div>
             </CardHeader>

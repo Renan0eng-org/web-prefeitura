@@ -13,7 +13,7 @@ import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"; // Importa o useAuth
 import api from "@/services/api"
 import { MenuAcesso, NivelAcesso } from "@/types/access-level"
-import { MoreHorizontal, PlusCircle } from "lucide-react"
+import { MoreHorizontal, PlusCircle, Settings2 } from "lucide-react"
 import * as React from "react"
 import { GerenciarMenusNivelDialog } from "../../../components/access-level/gerenciar-menus-nivel-dialog"
 
@@ -158,6 +158,7 @@ export function GerenciarNiveisAcesso() {
               onChange={(c: Record<string, boolean>) => setVisibleColumns(c as Record<string, boolean>)}
               labels={{ nome: 'Nome', menus: 'Menus Vinculados', acoes: 'Ações' }}
               contentClassName="p-2"
+              buttonLabel={<><Settings2 className="h-4 w-4" /> Colunas</>}
             />
           {/* Controla o botão "Novo" */}
           {permissions?.criar && (

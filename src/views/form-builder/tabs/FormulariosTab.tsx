@@ -4,15 +4,20 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import ColumnsDropdown from '@/components/ui/columns-dropdown'
 import ConfirmDialog from '@/components/ui/confirm-dialog'
+import { DateRangePicker } from '@/components/ui/date-range-piker'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import Pagination from '@/components/ui/pagination'
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAuth } from '@/hooks/use-auth'
 import api from "@/services/api"
-import { Edit, List, ListChecks, MoreVertical, Plus, Settings2, Trash2, UserPlus } from "lucide-react"
+import { Edit, FilePlus, Filter, List, ListChecks, MoreVertical, RefreshCcw, Settings2, Trash2, UserPlus } from "lucide-react"
 import Link from "next/link"
-import { useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
+import { DateRange } from 'react-day-picker'
 
 export default function FormulariosTab() {
     const [page, setPage] = useState(1)
@@ -50,12 +55,40 @@ export default function FormulariosTab() {
         try { localStorage.setItem('formularios_visible_columns', JSON.stringify(columns)) } catch (e) { }
     }, [columns])
 
-    const fetchForms = async (overrides?: { page?: number; pageSize?: number }) => {
+    // Filters
+    const [showFilters, setShowFilters] = useState(false)
+    const [filterTitle, setFilterTitle] = useState<string>('')
+    const [filterDescription, setFilterDescription] = useState<string>('')
+    const [filterDateRange, setFilterDateRange] = useState<DateRange | undefined>(undefined)
+    const [filterScreening, setFilterScreening] = useState<boolean | undefined>(undefined)
+    const [filterResponsesMin, setFilterResponsesMin] = useState<number | undefined>(undefined)
+    const [filterResponsesMax, setFilterResponsesMax] = useState<number | undefined>(undefined)
+
+
+    const fetchForms = async (overrides?: { page?: number; pageSize?: number }, filters?: {
+        title?: string
+        description?: string
+        from?: string
+        to?: string
+        isScreening?: boolean
+        responsesMin?: number
+        responsesMax?: number
+    }) => {
         try {
             setIsLoading(true)
             const p = overrides?.page ?? page
             const psize = overrides?.pageSize ?? pageSize
-            const response = await api.get(`/forms?page=${p}&pageSize=${psize}`)
+            const params: any = { page: p, pageSize: psize }
+            if (filters) {
+                if (filters.title) params.title = filters.title
+                if (filters.description) params.description = filters.description
+                if (filters.from) params.from = filters.from
+                if (filters.to) params.to = filters.to
+                if (typeof filters.isScreening === 'boolean') params.isScreening = filters.isScreening
+                if (typeof filters.responsesMin === 'number') params.responsesMin = filters.responsesMin
+                if (typeof filters.responsesMax === 'number') params.responsesMax = filters.responsesMax
+            }
+            const response = await api.get(`/forms`, { params })
             const payload = response.data
             const items = payload.forms || payload.data || payload || []
             setForms(items)
@@ -103,8 +136,33 @@ export default function FormulariosTab() {
     const permissions = useMemo(() => getPermissions('formulario'), [getPermissions])
 
     useEffect(() => {
-        if (permissions?.visualizar) fetchForms()
-    }, [page, pageSize, permissions?.visualizar])
+        if (permissions?.visualizar) {
+            const filters = {
+                title: filterTitle || undefined,
+                description: filterDescription || undefined,
+                from: filterDateRange?.from ? filterDateRange.from.toISOString() : undefined,
+                to: filterDateRange?.to ? filterDateRange.to.toISOString() : undefined,
+                isScreening: typeof filterScreening === 'boolean' ? filterScreening : undefined,
+                responsesMin: typeof filterResponsesMin === 'number' ? filterResponsesMin : undefined,
+                responsesMax: typeof filterResponsesMax === 'number' ? filterResponsesMax : undefined,
+            }
+            fetchForms({ page, pageSize }, filters)
+        }
+    }, [page, pageSize, permissions?.visualizar, filterTitle, filterDescription, filterDateRange, filterScreening, filterResponsesMin, filterResponsesMax])
+    const applyFilters = useCallback(() => {
+        setPage(1)
+        // fetch will be triggered by useEffect
+    }, [])
+
+    const clearFilters = useCallback(() => {
+        setFilterTitle('')
+        setFilterDescription('')
+        setFilterDateRange(undefined)
+        setFilterScreening(undefined)
+        setFilterResponsesMin(undefined)
+        setFilterResponsesMax(undefined)
+        setPage(1)
+    }, [])
 
     return (
         <>
@@ -119,17 +177,87 @@ export default function FormulariosTab() {
                         buttonLabel={<><Settings2 className="h-4 w-4" /> Colunas</>}
                         contentClassName="p-2"
                     />
-                    <Button variant="outline" size="sm" onClick={() => fetchForms()}>Atualizar</Button>
+                    <Button variant="outline" size="sm" onClick={() => fetchForms()}>
+                        <RefreshCcw className="h-4 w-4" />
+                        Atualizar
+                    </Button>
+                    <Button variant="outline" size="sm" onClick={() => setShowFilters(v => !v)}>
+                        <Filter className="h-4 w-4" />
+                        Filtros
+                    </Button>
                     {permissions?.criar && (
                         <Link href={'/admin/criar-formulario'} >
                             <Button className="text-white">
-                                <Plus size={18} className="mr-2" />
+                                <FilePlus className="h-4 w-4" />
                                 Criar Novo Formulário
                             </Button>
                         </Link>
                     )}
                 </div>
             </div>
+
+            {/* filtros aqui entre a tabela e o header */}
+            {showFilters && (
+                <div className="mb-4 rounded-md bg-muted p-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-3 items-end">
+                        <div>
+                            <Label htmlFor="filter-title">Título</Label>
+                            <Input id="filter-title" value={filterTitle} onChange={(e) => setFilterTitle(e.target.value)} placeholder="Título" />
+                        </div>
+                        <div>
+                            <Label htmlFor="filter-description">Descrição</Label>
+                            <Input id="filter-description" value={filterDescription} onChange={(e) => setFilterDescription(e.target.value)} placeholder="Descrição" />
+                        </div>
+                        <div>
+                            <Label>Atualizado em</Label>
+                            <DateRangePicker value={filterDateRange} onChange={(r) => setFilterDateRange(r)} />
+                        </div>
+                        <div>
+                            <Label>Triagem</Label>
+                            <div className="mt-2">
+                                {/* <Switch checked={Boolean(filterScreening)} onCheckedChange={(v) => setFilterScreening(v ? true : undefined)} />
+                                <Button variant="ghost" size="sm" className="ml-2" onClick={() => setFilterScreening(undefined)}>Todos</Button> */}
+                                {/* Radigrup */}
+                                <RadioGroup
+                                    className="flex flex-wrap gap-2"
+                                    value={filterScreening === true ? 'ATIVA' : filterScreening === false ? 'INATIVA' : 'TODOS'}
+                                    onValueChange={(value) => {
+                                        if (value === 'ATIVA') setFilterScreening(true)
+                                        else if (value === 'INATIVA') setFilterScreening(false)
+                                        else setFilterScreening(undefined)
+                                    }}
+                                >
+
+                                    <div className="flex items-center gap-2">
+                                        <RadioGroupItem value="ATIVA" id="screening-ativa" onClick={() => setFilterScreening(true)} />
+                                        <Label htmlFor="screening-ativa">Ativa</Label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <RadioGroupItem value="INATIVA" id="screening-inativa" onClick={() => setFilterScreening(false)} />
+                                        <Label htmlFor="screening-inativa">Inativa</Label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <RadioGroupItem value="TODOS" id="screening-todos" onClick={() => setFilterScreening(undefined)} />
+                                        <Label htmlFor="screening-todos">Todos</Label>
+                                    </div>
+
+                                </RadioGroup>
+                            </div>
+                        </div>
+                        <div>
+                            <Label htmlFor="filter-responses">Respostas (mín / max)</Label>
+                            <div className="flex space-x-2">
+                                <Input id="filter-responses-min" type="number" value={filterResponsesMin ?? ''} onChange={(e) => setFilterResponsesMin(e.target.value ? Number(e.target.value) : undefined)} placeholder="0" />
+                                <Input id="filter-responses-max" type="number" value={filterResponsesMax ?? ''} onChange={(e) => setFilterResponsesMax(e.target.value ? Number(e.target.value) : undefined)} placeholder="0" />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button onClick={() => { applyFilters(); }}>Aplicar</Button>
+                            <Button variant="ghost" onClick={() => { clearFilters(); }}>Limpar</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {error && <p className="text-red-500">{error}</p>}
             <div className="rounded-t-lg overflow-hidden">
@@ -264,15 +392,8 @@ export default function FormulariosTab() {
                 pageSize={pageSize}
                 total={total}
                 totalPages={totalPages}
-                onPageChange={(p) => {
-                    setPage(p)
-                    fetchForms({ page: p, pageSize })
-                }}
-                onPageSizeChange={(size) => {
-                    setPageSize(size)
-                    setPage(1)
-                    fetchForms({ page: 1, pageSize: size })
-                }}
+                onPageChange={(p) => setPage(p)}
+                onPageSizeChange={(size) => { setPageSize(size); setPage(1); }}
                 selectedCount={0}
             />
 

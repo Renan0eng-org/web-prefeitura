@@ -11,7 +11,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAlert } from "@/hooks/use-alert"
 import api from "@/services/api"
 import axios, { AxiosError } from "axios"
-import { ArrowUpFromDot, Calendar, Eye, MoreVertical } from "lucide-react"
+import { ArrowUpFromDot, Calendar, Eye, MoreVertical, RefreshCcw, Settings2 } from "lucide-react"
 import Link from "next/link"
 import { useEffect, useState } from "react"
 
@@ -86,8 +86,12 @@ export default function EsteiraPacientesTab() {
                         onChange={(c: Record<string, boolean>) => setVisibleColumnsEsteira(c)}
                         labels={{ form: 'Formulário', paciente: 'Paciente', dataEnvio: 'Data de Envio', pontuacao: 'Pontuação Total', actions: 'Ações' }}
                         contentClassName="p-2"
+                        buttonLabel={<><Settings2 className="h-4 w-4" /> Colunas</>}
                     />
-                    <Button variant="outline" size="sm" onClick={() => fetchResponses()}>Atualizar</Button>
+                    <Button variant="outline" size="sm" onClick={() => fetchResponses()}>
+                        <RefreshCcw className="w-4 h-4" />
+                        Atualizar
+                    </Button>
                 </div>
             </div>
 

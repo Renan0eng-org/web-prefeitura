@@ -13,7 +13,7 @@ import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
  
-import { Edit, Eye, MoreVertical, Trash } from "lucide-react"
+import { Edit, Eye, MoreVertical, RefreshCcw, Settings2, Trash } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 
 export default function AgendamentosTab() {
@@ -138,9 +138,13 @@ export default function AgendamentosTab() {
                         onChange={(c: Record<string, boolean>) => setVisibleColumns(c)}
                         labels={{ paciente: 'Paciente', medico: 'Médico', agendamento: 'Agendamento', criacao: 'Criação', status: 'Status', actions: 'Ações' }}
                         contentClassName="p-2"
+                        buttonLabel={<><Settings2 className="h-4 w-4" /> Colunas</>}
                     />
                     {agendamentoPerm?.visualizar && (
-                        <Button variant="outline" size="sm" onClick={() => fetchAppointments()}>Atualizar</Button>
+                        <Button variant="outline" size="sm" onClick={() => fetchAppointments()}>
+                            <RefreshCcw className="w-4 h-4" />
+                            Atualizar
+                        </Button>
                     )}
                 </div>
             </div>

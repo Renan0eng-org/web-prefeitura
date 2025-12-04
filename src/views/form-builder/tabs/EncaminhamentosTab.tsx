@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
-import { Edit, Eye, MoreVertical, Trash } from "lucide-react"
+import { Edit, Eye, MoreVertical, RefreshCcw, Settings2, Trash } from "lucide-react"
 import { useEffect, useMemo, useRef, useState } from "react"
 
 export default function EncaminhamentosTab() {
@@ -53,7 +53,7 @@ export default function EncaminhamentosTab() {
     useEffect(() => {
         try {
             localStorage.setItem('encaminhamentos_visible_columns', JSON.stringify(visibleColumns))
-        } catch (e) {}
+        } catch (e) { }
     }, [visibleColumns])
 
     const fetchItems = async (opts?: { page?: number; pageSize?: number }) => {
@@ -133,9 +133,13 @@ export default function EncaminhamentosTab() {
                         onChange={(c: Record<string, boolean>) => setVisibleColumns(c)}
                         labels={{ paciente: 'Paciente', profissional: 'Profissional', agendamento: 'Agendamento', criacao: 'Criação', status: 'Status', actions: 'Ações' }}
                         contentClassName="p-2"
+                        buttonLabel={<><Settings2 className="h-4 w-4" /> Colunas</>}
                     />
                     {agendamentoPerm?.visualizar && (
-                        <Button variant="outline" size="sm" onClick={() => fetchItems()}>Atualizar</Button>
+                        <Button variant="outline" size="sm" onClick={() => fetchItems()}>
+                            <RefreshCcw className="w-4 h-4" />
+                            Atualizar
+                        </Button>
                     )}
                 </div>
             </div>
@@ -144,122 +148,122 @@ export default function EncaminhamentosTab() {
                 <p className="text-muted-foreground">Você não tem permissão para visualizar encaminhamentos.</p>
             )}
             {agendamentoPerm?.visualizar && (
-            <>
-            <Table className="overflow-hidden rounded-t-lg">
-                <TableHeader className="sticky top-0 z-10 bg-muted">
-                    <TableRow>
-                        {visibleColumns.paciente && <TableHead>Paciente</TableHead>}
-                        {visibleColumns.profissional && <TableHead>Profissional</TableHead>}
-                        {visibleColumns.agendamento && <TableHead>Agendamento</TableHead>}
-                        {visibleColumns.criacao && <TableHead>Criação</TableHead>}
-                        {visibleColumns.status && <TableHead>Status</TableHead>}
-                        {visibleColumns.actions && <TableHead className="text-center">Ações</TableHead>}
-                    </TableRow>
-                </TableHeader>
-                <TableBody className="bg-white/40">
-                    {isLoading ? (
-                        Array.from({ length: 5 }).map((_, i) => (
-                            <TableRow key={`sk-${i}`}>
-                                {visibleColumns.paciente && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
-                                {visibleColumns.profissional && <TableCell><Skeleton className="h-4 w-32" /></TableCell>}
-                                {visibleColumns.agendamento && <TableCell><Skeleton className="h-4 w-36" /></TableCell>}
-                                {visibleColumns.criacao && <TableCell><Skeleton className="h-4 w-36" /></TableCell>}
-                                {visibleColumns.status && <TableCell><Skeleton className="h-4 w-20" /></TableCell>}
-                                {visibleColumns.actions && <TableCell className="text-center"><Skeleton className="h-4 w-12 mx-auto" /></TableCell>}
+                <>
+                    <Table className="overflow-hidden rounded-t-lg">
+                        <TableHeader className="sticky top-0 z-10 bg-muted">
+                            <TableRow>
+                                {visibleColumns.paciente && <TableHead>Paciente</TableHead>}
+                                {visibleColumns.profissional && <TableHead>Profissional</TableHead>}
+                                {visibleColumns.agendamento && <TableHead>Agendamento</TableHead>}
+                                {visibleColumns.criacao && <TableHead>Criação</TableHead>}
+                                {visibleColumns.status && <TableHead>Status</TableHead>}
+                                {visibleColumns.actions && <TableHead className="text-center">Ações</TableHead>}
                             </TableRow>
-                        ))
-                    ) : (
-                        items.map((a) => (
-                            <TableRow key={a.id}>
-                                {visibleColumns.paciente && <TableCell>{a.patient?.name || a.patientName || 'Anônimo'}</TableCell>}
-                                {visibleColumns.profissional && <TableCell>{a.professional?.name || a.professionalName || '—'}</TableCell>}
-                                {visibleColumns.agendamento && <TableCell>{a.scheduledAt ? new Date(a.scheduledAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</TableCell>}
-                                {visibleColumns.criacao && <TableCell>{a.createdAt ? new Date(a.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</TableCell>}
-                                {visibleColumns.status && <TableCell>
-                                    <Badge variant={a.status === 'CONFIRMED' ? 'secondary' : a.status === 'CANCELLED' ? 'destructive' : 'outline'}>
-                                        {a.status ?? 'PENDENTE'}
-                                    </Badge>
-                                </TableCell>}
-                                {visibleColumns.actions && <TableCell className="text-center p-0 justify-center items-center">
-                                    <DropdownMenu>
-                                        <DropdownMenuTrigger asChild>
-                                            <Button variant="ghost" size="icon" className="rounded-full">
-                                                <MoreVertical className="h-4 w-4" />
-                                            </Button>
-                                        </DropdownMenuTrigger>
-                                        <DropdownMenuContent align="end">
-                                            <DropdownMenuLabel>Ações</DropdownMenuLabel>
-                                            <DropdownMenuSeparator />
-                                            {agendamentoPerm?.visualizar && (
-                                            <DropdownMenuItem onClick={() => {
-                                                setSelectedItem(a)
-                                                setVisibleOnly(true)
-                                                setIsDialogOpen(true)
-                                            }}>
-                                                    <Eye className="mr-2 h-4 w-4" />
-                                                    <span>Visualizar Encaminhamento</span>
-                                            </DropdownMenuItem>
-                                            )}
-                                            {agendamentoPerm?.editar && (
-                                            <DropdownMenuItem onClick={() => {
-                                                setSelectedItem(a)
-                                                setIsDialogOpen(true)
-                                            }}>
-                                                <Edit className="mr-2 h-4 w-4" />
-                                                <span>Editar Encaminhamento</span>
-                                            </DropdownMenuItem>
-                                            )}
-                                            {agendamentoPerm?.excluir && (
-                                            <>
-                                            <DropdownMenuSeparator />
-                                            <DropdownMenuItem className="text-destructive" onClick={() => setTimeout(() => { setPendingDeleteId(a.id); setConfirmOpen(true) }, 50)}>
-                                                <Trash className="mr-2 h-4 w-4" />
-                                                <span>Excluir Encaminhamento</span>
-                                            </DropdownMenuItem>
-                                            </>
-                                            )}
-                                        </DropdownMenuContent>
-                                    </DropdownMenu>
-                                </TableCell>}
-                            </TableRow>
-                        ))
+                        </TableHeader>
+                        <TableBody className="bg-white/40">
+                            {isLoading ? (
+                                Array.from({ length: 5 }).map((_, i) => (
+                                    <TableRow key={`sk-${i}`}>
+                                        {visibleColumns.paciente && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
+                                        {visibleColumns.profissional && <TableCell><Skeleton className="h-4 w-32" /></TableCell>}
+                                        {visibleColumns.agendamento && <TableCell><Skeleton className="h-4 w-36" /></TableCell>}
+                                        {visibleColumns.criacao && <TableCell><Skeleton className="h-4 w-36" /></TableCell>}
+                                        {visibleColumns.status && <TableCell><Skeleton className="h-4 w-20" /></TableCell>}
+                                        {visibleColumns.actions && <TableCell className="text-center"><Skeleton className="h-4 w-12 mx-auto" /></TableCell>}
+                                    </TableRow>
+                                ))
+                            ) : (
+                                items.map((a) => (
+                                    <TableRow key={a.id}>
+                                        {visibleColumns.paciente && <TableCell>{a.patient?.name || a.patientName || 'Anônimo'}</TableCell>}
+                                        {visibleColumns.profissional && <TableCell>{a.professional?.name || a.professionalName || '—'}</TableCell>}
+                                        {visibleColumns.agendamento && <TableCell>{a.scheduledAt ? new Date(a.scheduledAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</TableCell>}
+                                        {visibleColumns.criacao && <TableCell>{a.createdAt ? new Date(a.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</TableCell>}
+                                        {visibleColumns.status && <TableCell>
+                                            <Badge variant={a.status === 'CONFIRMED' ? 'secondary' : a.status === 'CANCELLED' ? 'destructive' : 'outline'}>
+                                                {a.status ?? 'PENDENTE'}
+                                            </Badge>
+                                        </TableCell>}
+                                        {visibleColumns.actions && <TableCell className="text-center p-0 justify-center items-center">
+                                            <DropdownMenu>
+                                                <DropdownMenuTrigger asChild>
+                                                    <Button variant="ghost" size="icon" className="rounded-full">
+                                                        <MoreVertical className="h-4 w-4" />
+                                                    </Button>
+                                                </DropdownMenuTrigger>
+                                                <DropdownMenuContent align="end">
+                                                    <DropdownMenuLabel>Ações</DropdownMenuLabel>
+                                                    <DropdownMenuSeparator />
+                                                    {agendamentoPerm?.visualizar && (
+                                                        <DropdownMenuItem onClick={() => {
+                                                            setSelectedItem(a)
+                                                            setVisibleOnly(true)
+                                                            setIsDialogOpen(true)
+                                                        }}>
+                                                            <Eye className="mr-2 h-4 w-4" />
+                                                            <span>Visualizar Encaminhamento</span>
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    {agendamentoPerm?.editar && (
+                                                        <DropdownMenuItem onClick={() => {
+                                                            setSelectedItem(a)
+                                                            setIsDialogOpen(true)
+                                                        }}>
+                                                            <Edit className="mr-2 h-4 w-4" />
+                                                            <span>Editar Encaminhamento</span>
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    {agendamentoPerm?.excluir && (
+                                                        <>
+                                                            <DropdownMenuSeparator />
+                                                            <DropdownMenuItem className="text-destructive" onClick={() => setTimeout(() => { setPendingDeleteId(a.id); setConfirmOpen(true) }, 50)}>
+                                                                <Trash className="mr-2 h-4 w-4" />
+                                                                <span>Excluir Encaminhamento</span>
+                                                            </DropdownMenuItem>
+                                                        </>
+                                                    )}
+                                                </DropdownMenuContent>
+                                            </DropdownMenu>
+                                        </TableCell>}
+                                    </TableRow>
+                                ))
+                            )}
+                            {items.length === 0 && !isLoading && (
+                                <TableRow>
+                                    <TableCell colSpan={visibleCount} className="text-center text-muted-foreground">Nenhum encaminhamento encontrado.</TableCell>
+                                </TableRow>
+                            )}
+                        </TableBody>
+                    </Table>
+                    {selectedItem && (
+                        <AgendarConsultaDialog
+                            visibleOnly={visibleOnly}
+                            isOpen={isDialogOpen}
+                            onOpenChange={(open) => {
+                                setIsDialogOpen(open)
+                                if (!open) {
+                                    setSelectedItem(null)
+                                    setVisibleOnly(false)
+                                }
+                            }}
+                            appointment={selectedItem}
+                            onScheduled={() => {
+                                fetchItems()
+                            }}
+                            ferrals={true}
+                        />
                     )}
-                    {items.length === 0 && !isLoading && (
-                        <TableRow>
-                            <TableCell colSpan={visibleCount} className="text-center text-muted-foreground">Nenhum encaminhamento encontrado.</TableCell>
-                        </TableRow>
-                    )}
-                </TableBody>
-            </Table>
-            {selectedItem && (
-                <AgendarConsultaDialog
-                    visibleOnly={visibleOnly}
-                    isOpen={isDialogOpen}
-                    onOpenChange={(open) => {
-                        setIsDialogOpen(open)
-                        if (!open) {
-                            setSelectedItem(null)
-                            setVisibleOnly(false)
-                        }
-                    }}
-                    appointment={selectedItem}
-                    onScheduled={() => {
-                        fetchItems()
-                    }}
-                    ferrals={true}
-                />
-            )}
-            <ConfirmDialog
-                open={confirmOpen}
-                title="Excluir Encaminhamento"
-                description="Tem certeza que deseja excluir este encaminhamento?"
-                intent="destructive"
-                confirmLabel="Excluir"
-                cancelLabel="Cancelar"
-                onConfirm={handleConfirmDelete}
-                onCancel={() => { setConfirmOpen(false); setPendingDeleteId(null) }}
-            />
-            </>
+                    <ConfirmDialog
+                        open={confirmOpen}
+                        title="Excluir Encaminhamento"
+                        description="Tem certeza que deseja excluir este encaminhamento?"
+                        intent="destructive"
+                        confirmLabel="Excluir"
+                        cancelLabel="Cancelar"
+                        onConfirm={handleConfirmDelete}
+                        onCancel={() => { setConfirmOpen(false); setPendingDeleteId(null) }}
+                    />
+                </>
             )}
             <Pagination
                 page={page}

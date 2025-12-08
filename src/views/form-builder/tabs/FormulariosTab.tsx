@@ -36,6 +36,7 @@ export default function FormulariosTab() {
                 description: true,
                 isScreening: true,
                 updatedAt: true,
+                createdAt: true,
                 responses: true,
                 actions: true
             }
@@ -45,6 +46,7 @@ export default function FormulariosTab() {
                 description: true,
                 isScreening: true,
                 updatedAt: true,
+                createdAt: true,
                 responses: true,
                 actions: true
             }
@@ -60,6 +62,7 @@ export default function FormulariosTab() {
     const [filterTitle, setFilterTitle] = useState<string>('')
     const [filterDescription, setFilterDescription] = useState<string>('')
     const [filterDateRange, setFilterDateRange] = useState<DateRange | undefined>(undefined)
+        const [filterCreatedDateRange, setFilterCreatedDateRange] = useState<DateRange | undefined>(undefined)
     const [filterScreening, setFilterScreening] = useState<boolean | undefined>(undefined)
     const [filterResponsesMin, setFilterResponsesMin] = useState<number | undefined>(undefined)
     const [filterResponsesMax, setFilterResponsesMax] = useState<number | undefined>(undefined)
@@ -70,6 +73,8 @@ export default function FormulariosTab() {
         description?: string
         from?: string
         to?: string
+            createdFrom?: string
+            createdTo?: string
         isScreening?: boolean
         responsesMin?: number
         responsesMax?: number
@@ -84,6 +89,8 @@ export default function FormulariosTab() {
                 if (filters.description) params.description = filters.description
                 if (filters.from) params.from = filters.from
                 if (filters.to) params.to = filters.to
+                    if (filters.createdFrom) params.createdFrom = filters.createdFrom
+                    if (filters.createdTo) params.createdTo = filters.createdTo
                 if (typeof filters.isScreening === 'boolean') params.isScreening = filters.isScreening
                 if (typeof filters.responsesMin === 'number') params.responsesMin = filters.responsesMin
                 if (typeof filters.responsesMax === 'number') params.responsesMax = filters.responsesMax
@@ -126,7 +133,16 @@ export default function FormulariosTab() {
     const handleToggleScreening = async (id: string) => {
         try {
             await api.post(`/forms/${id}/toggle-screening`)
-            fetchForms()
+            const filters = {
+                title: filterTitle || undefined,
+                description: filterDescription || undefined,
+                from: filterDateRange?.from ? filterDateRange.from.toISOString() : undefined,
+                to: filterDateRange?.to ? filterDateRange.to.toISOString() : undefined,
+                isScreening: typeof filterScreening === 'boolean' ? filterScreening : undefined,
+                responsesMin: typeof filterResponsesMin === 'number' ? filterResponsesMin : undefined,
+                responsesMax: typeof filterResponsesMax === 'number' ? filterResponsesMax : undefined,
+            }
+            fetchForms({ page, pageSize }, filters)
         } catch (err) {
             console.error("Erro ao alternar screening:", err)
         }
@@ -142,13 +158,15 @@ export default function FormulariosTab() {
                 description: filterDescription || undefined,
                 from: filterDateRange?.from ? filterDateRange.from.toISOString() : undefined,
                 to: filterDateRange?.to ? filterDateRange.to.toISOString() : undefined,
+                createdFrom: filterCreatedDateRange?.from ? filterCreatedDateRange.from.toISOString() : undefined,
+                createdTo: filterCreatedDateRange?.to ? filterCreatedDateRange.to.toISOString() : undefined,
                 isScreening: typeof filterScreening === 'boolean' ? filterScreening : undefined,
                 responsesMin: typeof filterResponsesMin === 'number' ? filterResponsesMin : undefined,
                 responsesMax: typeof filterResponsesMax === 'number' ? filterResponsesMax : undefined,
             }
             fetchForms({ page, pageSize }, filters)
         }
-    }, [page, pageSize, permissions?.visualizar, filterTitle, filterDescription, filterDateRange, filterScreening, filterResponsesMin, filterResponsesMax])
+    }, [page, pageSize, permissions?.visualizar, filterTitle, filterDescription, filterDateRange, filterCreatedDateRange, filterScreening, filterResponsesMin, filterResponsesMax])
     const applyFilters = useCallback(() => {
         setPage(1)
         // fetch will be triggered by useEffect
@@ -158,6 +176,7 @@ export default function FormulariosTab() {
         setFilterTitle('')
         setFilterDescription('')
         setFilterDateRange(undefined)
+        setFilterCreatedDateRange(undefined)
         setFilterScreening(undefined)
         setFilterResponsesMin(undefined)
         setFilterResponsesMax(undefined)
@@ -173,7 +192,15 @@ export default function FormulariosTab() {
                     <ColumnsDropdown
                         columns={columns}
                         onChange={(c: Record<string, boolean>) => setColumns(c)}
-                        labels={{ title: 'Título', description: 'Descrição', isScreening: 'Triagem', updatedAt: 'Atualizado em', responses: 'Respostas', actions: 'Ações' }}
+                        labels={{ 
+                            title: 'Título', 
+                            description: 'Descrição', 
+                            isScreening: 'Triagem', 
+                            updatedAt: 'Atualizado em', 
+                            createdAt: 'Criado em',
+                            responses: 'Respostas', 
+                            actions: 'Ações' 
+                        }}
                         buttonLabel={<><Settings2 className="h-4 w-4" /> Colunas</>}
                         contentClassName="p-2"
                     />
@@ -211,6 +238,10 @@ export default function FormulariosTab() {
                         <div>
                             <Label>Atualizado em</Label>
                             <DateRangePicker value={filterDateRange} onChange={(r) => setFilterDateRange(r)} />
+                        </div>
+                        <div>
+                            <Label>Criado em</Label>
+                            <DateRangePicker value={filterCreatedDateRange} onChange={(r) => setFilterCreatedDateRange(r)} />
                         </div>
                         <div>
                             <Label>Triagem</Label>
@@ -253,7 +284,7 @@ export default function FormulariosTab() {
                         </div>
                         <div className="flex items-center gap-2">
                             <Button onClick={() => { applyFilters(); }}>Aplicar</Button>
-                            <Button variant="ghost" onClick={() => { clearFilters(); }}>Limpar</Button>
+                            <Button variant="outline" onClick={() => { clearFilters(); }}>Limpar</Button>
                         </div>
                     </div>
                 </div>
@@ -267,6 +298,7 @@ export default function FormulariosTab() {
                             {columns.title && <TableHead className="min-w-52">Título</TableHead>}
                             {columns.description && <TableHead>Descrição</TableHead>}
                             {columns.updatedAt && <TableHead className="min-w-32">Atualizado em</TableHead>}
+                            {columns.createdAt && <TableHead className="min-w-32">Criado em</TableHead>}
                             {columns.isScreening && <TableHead className="min-w-20">Triagem</TableHead>}
                             {columns.responses && <TableHead>Respostas</TableHead>}
                             {columns.actions && <TableHead className="min-w-20 flex justify-center items-center">Ações</TableHead>}
@@ -279,6 +311,7 @@ export default function FormulariosTab() {
                                 <TableRow key={`skeleton-${i}`}>
                                     {columns.title && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
                                     {columns.description && <TableCell><Skeleton className="h-4 w-60" /></TableCell>}
+                                    {columns.updatedAt && <TableCell><Skeleton className="h-4 w-32" /></TableCell>}
                                     {columns.updatedAt && <TableCell><Skeleton className="h-4 w-32" /></TableCell>}
                                     {columns.isScreening && <TableCell><Skeleton className="h-4 w-16" /></TableCell>}
                                     {columns.responses && <TableCell><Skeleton className="h-4 w-24" /></TableCell>}
@@ -295,6 +328,17 @@ export default function FormulariosTab() {
                                     {columns.updatedAt && (
                                         <TableCell>
                                             {new Date(form.updatedAt).toLocaleString("pt-BR", {
+                                                day: "2-digit",
+                                                month: "2-digit",
+                                                year: "numeric",
+                                                hour: "2-digit",
+                                                minute: "2-digit"
+                                            })}
+                                        </TableCell>
+                                    )}
+                                    {columns.createdAt && (
+                                        <TableCell>
+                                            {new Date(form.createdAt).toLocaleString("pt-BR", {
                                                 day: "2-digit",
                                                 month: "2-digit",
                                                 year: "numeric",

@@ -9,11 +9,13 @@ import { useAuth } from '@/hooks/use-auth';
 import api from '@/services/api';
 import { FormQuestion, FormState } from '@/types/form-builder';
 import { DragDropContext, Droppable, DropResult } from '@hello-pangea/dnd';
+import clsx from 'clsx';
 import { PlusCircle, Save } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { v4 as uuidv4 } from 'uuid';
 import { QuestionCard } from './QuestionCard';
+import { ScoreRulesEditor } from './ScoreRulesEditor';
 
 interface FormBuilderPageProps {
     formId?: string;
@@ -23,6 +25,7 @@ const EMPTY_STATE: FormState = {
     title: '',
     description: '',
     questions: [],
+    scoreRules: [],
 };
 
 
@@ -248,7 +251,7 @@ export const FormBuilderPage = ({ formId }: FormBuilderPageProps) => {
 
     return (
         <div className="min-h-screen px-2 sm:px-8 relative max-w-4xl mx-auto xxl:pt-2 pt-12" onClick={() => setActiveQuestionId(null)}>
-            <BtnVoltar/>
+            <BtnVoltar />
 
             <div className="fixed sm:right-10 right-3 bottom-10 rounded-lg shadow-lg border z-50">
                 <Button onClick={(e) => { e.stopPropagation(); addQuestion(); }} className=" bg-primary hover:bg-primary-600 [&_svg]:text-white [&_svg]:size-6 w-14 h-14 ">
@@ -266,7 +269,16 @@ export const FormBuilderPage = ({ formId }: FormBuilderPageProps) => {
                 </Button>
             </div>
             <div className="mx-auto pt-16 sm:pt-0 pb-20">
-                <div className="bg-background-foreground p-6 rounded-lg shadow-md border-t-8 border-primary mb-6">
+                <div
+                    className={clsx("bg-background-foreground p-6 rounded-lg shadow-md border-t-8 border-primary mb-6", {
+                        "border-2 border-t-8 border-primary": activeQuestionId === "header",
+                    })}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setActiveQuestionId("header")}
+                    }
+
+                >
                     <input
                         type="text"
                         placeholder="Título do formulário"
@@ -279,6 +291,12 @@ export const FormBuilderPage = ({ formId }: FormBuilderPageProps) => {
                         onChange={(e) => setFormState({ ...formState, description: e.target.value })}
                         className="w-full mt-4 text-gray-600 border-b border-gray-200 focus:border-primary outline-none bg-transparent"
                         placeholder="Descrição do formulário"
+                    />
+
+                    <ScoreRulesEditor
+                        isActive={activeQuestionId === "header"}
+                        scoreRules={formState.scoreRules || []}
+                        onScoreRulesChange={(rules) => setFormState({ ...formState, scoreRules: rules })}
                     />
                 </div>
 

@@ -17,10 +17,20 @@ export interface FormQuestion {
   options: FormQuestionOption[];
 }
 
+export interface ScoreRule {
+  minScore: number;
+  maxScore: number;
+  classification: string;
+  conduct: string;
+  targetUserId: string;
+  order: number;
+}
+
 export interface FormState {
   title: string;
   description: string;
   questions: FormQuestion[];
+  scoreRules?: ScoreRule[];
 }
 
 // Tipo para o usuário que respondeu

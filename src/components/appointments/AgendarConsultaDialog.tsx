@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
 import { useAlert } from "@/hooks/use-alert"
 import api from "@/services/api"
@@ -13,6 +12,7 @@ import { Loader2 } from "lucide-react"
 import * as React from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
+import { ProfessionalSelect } from "./ProfessionalSelect"
 
 const agendamentoSchema = z.object({
     doctorId: z.string().min(1, "Selecione um médico."),
@@ -34,12 +34,18 @@ interface AgendarConsultaDialogProps {
 
 export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, appointment, onScheduled, visibleOnly, ferrals }: AgendarConsultaDialogProps) {
     const [isSubmitting, setIsSubmitting] = React.useState(false)
-    const [doctors, setDoctors] = React.useState<any[]>([])
-    const [loadingDoctors, setLoadingDoctors] = React.useState(false)
     const [responseDetail, setResponseDetail] = React.useState<any | null>(null)
     const [showDetails, setShowDetails] = React.useState(false)
     const [loadingResponseDetail, setLoadingResponseDetail] = React.useState(false)
     const { setAlert } = useAlert()
+
+    // Função de filtro para profissionais
+    const filterProfessionals = React.useCallback((professionals: any[]) => {
+        const doctors = professionals.filter((u: any) => u.type === 'MEDICO')
+        const referrals = professionals.filter((u: any) => u.type === 'USUARIO')
+        
+        return ferrals ? referrals : doctors
+    }, [ferrals])
 
 
     const form = useForm<AgendamentoFormValues>({
@@ -49,29 +55,6 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
 
     React.useEffect(() => {
         if (!isOpen) return
-        const fetchDoctors = async () => {
-            try {
-                setLoadingDoctors(true)
-                // endpoint returns users with access level info; filter by type 'USUARIO' (medicos)
-                const res = await api.get('/appointments/users/professional')
-                const list = res.data || []
-
-                const doctor = list.filter((u: any) => u.type === 'MEDICO')
-                const ferral = list.filter((u: any) => u.type === 'USUARIO')
-
-                if (ferrals && ferrals === true) {
-                    setDoctors(ferral)
-                } else {
-                    setDoctors(doctor)
-                }
-            } catch (err) {
-                console.error('Erro ao buscar médicos:', err)
-                setAlert('Não foi possível carregar lista de médicos.', 'error')
-            } finally {
-                setLoadingDoctors(false)
-            }
-        }
-        fetchDoctors()
     }, [isOpen, setAlert])
 
     // Fetch response details on demand when user requests "Detalhes do formulário"
@@ -243,20 +226,13 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
                                 <FormItem>
                                     <FormLabel>Profissional*</FormLabel>
                                     <FormControl>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value} value={field.value} disabled={visibleOnly}>
-                                            <SelectTrigger>
-                                                <SelectValue placeholder={loadingDoctors ? 'Carregando...' : 'Selecione um profissional'} />
-                                            </SelectTrigger>
-                                            <SelectContent>
-                                                {doctors.length === 0 && !loadingDoctors && (
-                                                    // Radix Select requires non-empty value on items. Use a sentinel value and disable the item.
-                                                    <SelectItem value="__no_doctor" disabled>Nenhum profissional disponível</SelectItem>
-                                                )}
-                                                {doctors?.map((d: any) => (
-                                                    <SelectItem key={d.idUser} value={d.idUser}>{d.name} - {d.email}</SelectItem>
-                                                ))}
-                                            </SelectContent>
-                                        </Select>
+                                        <ProfessionalSelect
+                                            value={field.value}
+                                            onChange={field.onChange}
+                                            disabled={visibleOnly}
+                                            filterFn={filterProfessionals}
+                                            placeholder="Selecione um profissional"
+                                        />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>

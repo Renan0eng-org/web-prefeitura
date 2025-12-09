@@ -214,12 +214,13 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
                             <div className="bg-muted p-3 rounded-md border mb-4 overflow-auto scrollable">
                                 <div className="mb-2">
                                     <div className="font-medium">{responseDetail.form?.title || response.form?.title || 'Formulário'}</div>
+                                    <div className="font-small">{responseDetail.form?.description || response.form?.description || ''}</div>
                                     <div className="text-xs text-muted-foreground">Enviado em: {new Date(responseDetail.submittedAt || response.submittedAt).toLocaleString('pt-BR')}</div>
                                     <div className="text-xs text-muted-foreground">Paciente: {responseDetail.user?.name || response.user?.name || 'Anônimo'}</div>
                                     <div className="text-xs text-primary-500 font-bold">Pontuação Total: {responseDetail.totalScore ?? response.totalScore ?? 0}</div>
                                 </div>
                                 <div className="space-y-2">
-                                    {responseDetail.answers?.slice(0, 8).map((ans: any) => (
+                                    {responseDetail.answers?.map((ans: any) => (
                                         <div key={ans.question?.idQuestion || ans.idQuestion} className="text-sm">
                                             <div className="flex justify-between items-start">
                                                 <div className="font-semibold">{ans.question?.text || 'Pergunta sem título'}</div>
@@ -228,9 +229,6 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
                                             <div className="text-[13px] text-muted-foreground">{(ans.value ?? (ans.values && ans.values.join(', ')) ?? '').toString()}</div>
                                         </div>
                                     ))}
-                                    {responseDetail.answers && responseDetail.answers.length > 8 && (
-                                        <div className="text-xs text-muted-foreground">...mais respostas ocultas</div>
-                                    )}
                                 </div>
                             </div>
                         ) : (

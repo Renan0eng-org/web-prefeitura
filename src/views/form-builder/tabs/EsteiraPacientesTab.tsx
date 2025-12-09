@@ -26,9 +26,9 @@ export default function EsteiraPacientesTab() {
     const [visibleColumnsEsteira, setVisibleColumnsEsteira] = useState(() => {
         try {
             const raw = localStorage.getItem('esteira_visible_columns')
-            return raw ? JSON.parse(raw) : { form: true, paciente: true, dataEnvio: true, pontuacao: true, actions: true }
+            return raw ? JSON.parse(raw) : { form: true, paciente: true, dataEnvio: true, isScreening: true, pontuacao: true, actions: true }
         } catch (e) {
-            return { form: true, paciente: true, dataEnvio: true, pontuacao: true, actions: true }
+            return { form: true, paciente: true, dataEnvio: true, isScreening: true, pontuacao: true, actions: true }
         }
     })
     const visibleCount = Object.values(visibleColumnsEsteira).filter(Boolean).length || 1
@@ -84,7 +84,7 @@ export default function EsteiraPacientesTab() {
                     <ColumnsDropdown
                         columns={visibleColumnsEsteira}
                         onChange={(c: Record<string, boolean>) => setVisibleColumnsEsteira(c)}
-                        labels={{ form: 'Formulário', paciente: 'Paciente', dataEnvio: 'Data de Envio', pontuacao: 'Pontuação Total', actions: 'Ações' }}
+                        labels={{ form: 'Formulário', paciente: 'Paciente', dataEnvio: 'Data de Envio', isScreening: 'Triagem', pontuacao: 'Pontuação Total', actions: 'Ações' }}
                         contentClassName="p-2"
                         buttonLabel={<><Settings2 className="h-4 w-4" /> Colunas</>}
                     />
@@ -98,21 +98,23 @@ export default function EsteiraPacientesTab() {
             {error && <p className="text-red-500">{error}</p>}
             <Table className="overflow-hidden rounded-t-lg">
                 <TableHeader className="sticky top-0 z-10 bg-muted">
-                    <TableRow>
+                        <TableRow>
                         {visibleColumnsEsteira.form && <TableHead>Formulário</TableHead>}
                         {visibleColumnsEsteira.paciente && <TableHead>Paciente</TableHead>}
                         {visibleColumnsEsteira.dataEnvio && <TableHead>Data de Envio</TableHead>}
+                        {visibleColumnsEsteira.isScreening && <TableHead className="min-w-20">Origen</TableHead>}
                         {visibleColumnsEsteira.pontuacao && <TableHead>Pontuação Total</TableHead>}
                         {visibleColumnsEsteira.actions && <TableHead className="max-w-12 text-center">Ações</TableHead>}
                     </TableRow>
                 </TableHeader>
                 <TableBody className="bg-white/40">
                     {isLoading ? (
-                        Array.from({ length: 5 }).map((_, i) => (
+                            Array.from({ length: 5 }).map((_, i) => (
                             <TableRow key={`skel-${i}`}>
                                 {visibleColumnsEsteira.form && <TableCell><Skeleton className="h-4 w-48" /></TableCell>}
                                 {visibleColumnsEsteira.paciente && <TableCell><Skeleton className="h-4 w-32" /></TableCell>}
                                 {visibleColumnsEsteira.dataEnvio && <TableCell><Skeleton className="h-4 w-36" /></TableCell>}
+                                {visibleColumnsEsteira.isScreening && <TableCell><Skeleton className="h-4 w-20" /></TableCell>}
                                 {visibleColumnsEsteira.pontuacao && <TableCell><Skeleton className="h-4 w-20" /></TableCell>}
                                 {visibleColumnsEsteira.actions && <TableCell className="text-center"><Skeleton className="h-4 w-12 mx-auto" /></TableCell>}
                             </TableRow>
@@ -139,6 +141,13 @@ export default function EsteiraPacientesTab() {
                                             hour: "2-digit",
                                             minute: "2-digit",
                                         })}
+                                    </TableCell>
+                                )}
+                                {visibleColumnsEsteira.isScreening && (
+                                    <TableCell className="flex justify-center items-center">
+                                        <Badge className={"px-2 py-1 " + (response.form?.isScreening ? 'bg-green-100 text-green-800 hover:bg-green-800 hover:text-green-100' : 'bg-primary-100 text-primary-600')}>
+                                            {response.form?.isScreening ? 'Triagem' : 'App'}
+                                        </Badge>
                                     </TableCell>
                                 )}
                                 {visibleColumnsEsteira.pontuacao && (

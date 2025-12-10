@@ -16,6 +16,7 @@ type Props = {
 export default function FormCard({ storage = 'local', storageKey = 'formCard.activeTab' }: Props) {
   const { getPermissions } = useAuth()
   const formularioPerm = useMemo(() => getPermissions ? getPermissions('formulario') : null, [getPermissions])
+  const esteiraPaciente = useMemo(() => getPermissions ? getPermissions('esteira-pacientes') : null, [getPermissions])
   const agendamentoPerm = useMemo(() => getPermissions ? getPermissions('agendamento') : null, [getPermissions])
   const encaminhamentoPerm = useMemo(() => getPermissions ? getPermissions('encaminhamento') : null, [getPermissions])
 
@@ -41,11 +42,15 @@ export default function FormCard({ storage = 'local', storageKey = 'formCard.act
     }
   }, [value, storage, storageKey])
 
+  if(!formularioPerm && !esteiraPaciente && !agendamentoPerm && !encaminhamentoPerm) {
+    return (<div>Você não tem permissão para visualizar este conteúdo.</div>)
+  }
+
   return (
     <Tabs value={value} onValueChange={(v) => setValue(v)} className="flex w-full flex-col justify-start gap-6">
       <TabsList>
         {formularioPerm?.visualizar && <TabsTrigger value="forms">Formulários</TabsTrigger>}
-        <TabsTrigger value="esteira-pacientes">Esteira de Pacientes</TabsTrigger>
+        {esteiraPaciente?.visualizar && <TabsTrigger value="esteira-pacientes">Esteira de Pacientes</TabsTrigger>}
         {encaminhamentoPerm?.visualizar && <TabsTrigger value="encaminhamento">Encaminhamentos</TabsTrigger>}
         {agendamentoPerm?.visualizar && <TabsTrigger value="agendamentos">Agendamentos</TabsTrigger>}
       </TabsList>

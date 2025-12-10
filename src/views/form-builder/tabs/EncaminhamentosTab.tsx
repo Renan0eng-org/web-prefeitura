@@ -179,7 +179,7 @@ export default function EncaminhamentosTab() {
     return (
         <div>
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h2 className="text-2xl font-semibold">Encaminhamentos</h2>
+                <h2 className="text-3xl font-bold tracking-tight">Encaminhamentos</h2>
                 <div className="flex items-center gap-2">
                     <ColumnsDropdown
                         columns={visibleColumns}

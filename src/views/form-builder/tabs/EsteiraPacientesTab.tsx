@@ -15,7 +15,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAlert } from "@/hooks/use-alert"
 import api from "@/services/api"
 import axios, { AxiosError } from "axios"
-import { ArrowUpFromDot, Calendar, Eye, Filter, MoreVertical, RefreshCcw, Settings2 } from "lucide-react"
+import { Calendar, Eye, Filter, ListStart, MoreVertical, RefreshCcw, Settings2 } from "lucide-react"
 import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 import { DateRange } from 'react-day-picker'
@@ -297,7 +297,7 @@ export default function EsteiraPacientesTab() {
                                                 setFerrals(true);
                                             }}>
                                                 <button className="flex items-center w-full text-left">
-                                                    <ArrowUpFromDot className="mr-2 h-4 w-4" />
+                                                    <ListStart className="mr-2 h-4 w-4" />
                                                     <span>Encaminhar</span>
                                                 </button>
                                             </DropdownMenuItem>

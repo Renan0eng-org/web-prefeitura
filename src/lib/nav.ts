@@ -1,6 +1,8 @@
 import {
   ClipboardList,
   Home,
+  ListStart,
+  Logs,
   Shield,
   User,
   UserCheck,
@@ -29,6 +31,27 @@ export const data = {
       icon: ClipboardList,
       isActive: false,
       nivel_acesso: "formulario",
+    },
+    {
+      title: "Esteira de Pacientes",
+      url: "/admin/esteira-pacientes",
+      icon: Logs,
+      isActive: false,
+      nivel_acesso: "esteira-pacientes",
+    },
+    {
+      title: "Agendamentos",
+      url: "/admin/agendamentos",
+      icon: ClipboardList,
+      isActive: false,
+      nivel_acesso: "agendamento",
+    },
+    {
+      title: "Encaminhamentos",
+      url: "/admin/encaminhamentos",
+      icon: ListStart,
+      isActive: false,
+      nivel_acesso: "encaminhamento",
     },
     {
       title: "Controle de Acesso",

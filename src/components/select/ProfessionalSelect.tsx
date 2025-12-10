@@ -51,7 +51,7 @@ export const ProfessionalSelect = React.forwardRef<HTMLButtonElement, Profession
             }
 
             fetchProfessionals()
-        }, [filterFn, setAlert])
+        }, [filterFn])
 
         return (
             <Select onValueChange={onChange} value={value} disabled={disabled || loading}>

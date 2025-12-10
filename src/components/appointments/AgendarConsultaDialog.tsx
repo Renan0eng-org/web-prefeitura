@@ -12,7 +12,7 @@ import { Loader2 } from "lucide-react"
 import * as React from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
-import { ProfessionalSelect } from "./ProfessionalSelect"
+import { ProfessionalSelect } from "../select/ProfessionalSelect"
 
 const agendamentoSchema = z.object({
     doctorId: z.string().min(1, "Selecione um médico."),

@@ -1,7 +1,7 @@
 // views/form-builder/ScoreRulesEditor.tsx
 'use client';
 
-import { ProfessionalSelect } from '@/components/appointments/ProfessionalSelect';
+import { ProfessionalSelect } from '@/components/select/ProfessionalSelect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScoreRule } from '@/types/form-builder';

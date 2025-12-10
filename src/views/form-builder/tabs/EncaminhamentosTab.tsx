@@ -5,15 +5,20 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import ColumnsDropdown from '@/components/ui/columns-dropdown'
 import ConfirmDialog from "@/components/ui/confirm-dialog"
+import { DateRangePicker } from '@/components/ui/date-range-piker'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import Pagination from "@/components/ui/pagination"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
-import { Edit, Eye, MoreVertical, RefreshCcw, Settings2, Trash } from "lucide-react"
-import { useEffect, useMemo, useRef, useState } from "react"
+import { Edit, Eye, Filter, MoreVertical, RefreshCcw, Settings2, Trash } from "lucide-react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { DateRange } from 'react-day-picker'
 
 export default function EncaminhamentosTab() {
     const [items, setItems] = useState<any[]>([])
@@ -56,12 +61,38 @@ export default function EncaminhamentosTab() {
         } catch (e) { }
     }, [visibleColumns])
 
-    const fetchItems = async (opts?: { page?: number; pageSize?: number }) => {
+    // Filters
+    const [showFilters, setShowFilters] = useState(false)
+    const [filterPatientName, setFilterPatientName] = useState<string>('')
+    const [filterProfessionalName, setFilterProfessionalName] = useState<string>('')
+    const [filterScheduledDateRange, setFilterScheduledDateRange] = useState<DateRange | undefined>(undefined)
+    const [filterCreatedDateRange, setFilterCreatedDateRange] = useState<DateRange | undefined>(undefined)
+    const [filterStatus, setFilterStatus] = useState<string | undefined>(undefined)
+
+    const fetchItems = async (opts?: { page?: number; pageSize?: number }, filters?: {
+        patientName?: string
+        professionalName?: string
+        scheduledFrom?: string
+        scheduledTo?: string
+        createdFrom?: string
+        createdTo?: string
+        status?: string
+    }) => {
         try {
             setIsLoading(true)
             const p = opts?.page ?? page
             const ps = opts?.pageSize ?? pageSize
-            const res = await api.get('/appointments/referrals', { params: { page: p, pageSize: ps } })
+            const params: any = { page: p, pageSize: ps }
+            if (filters) {
+                if (filters.patientName) params.patientName = filters.patientName
+                if (filters.professionalName) params.professionalName = filters.professionalName
+                if (filters.scheduledFrom) params.scheduledFrom = filters.scheduledFrom
+                if (filters.scheduledTo) params.scheduledTo = filters.scheduledTo
+                if (filters.createdFrom) params.createdFrom = filters.createdFrom
+                if (filters.createdTo) params.createdTo = filters.createdTo
+                if (filters.status) params.status = filters.status
+            }
+            const res = await api.get('/appointments/referrals', { params })
             const data = res.data?.data ?? res.data ?? []
             setItems(Array.isArray(data) ? data : [])
             const t = res.data?.total ?? res.data?.totalItems ?? res.data?.totalCount ?? (Array.isArray(data) ? data.length : 0)
@@ -109,6 +140,19 @@ export default function EncaminhamentosTab() {
 
     const didFetchRef = useRef(false)
 
+    const applyFilters = useCallback(() => {
+        setPage(1)
+    }, [])
+
+    const clearFilters = useCallback(() => {
+        setFilterPatientName('')
+        setFilterProfessionalName('')
+        setFilterScheduledDateRange(undefined)
+        setFilterCreatedDateRange(undefined)
+        setFilterStatus(undefined)
+        setPage(1)
+    }, [])
+
     useEffect(() => {
         if (agendamentoPerm?.visualizar && !didFetchRef.current) {
             didFetchRef.current = true
@@ -118,10 +162,19 @@ export default function EncaminhamentosTab() {
 
     useEffect(() => {
         if (agendamentoPerm?.visualizar) {
-            fetchItems({ page, pageSize })
+            const filters = {
+                patientName: filterPatientName || undefined,
+                professionalName: filterProfessionalName || undefined,
+                scheduledFrom: filterScheduledDateRange?.from ? filterScheduledDateRange.from.toISOString() : undefined,
+                scheduledTo: filterScheduledDateRange?.to ? filterScheduledDateRange.to.toISOString() : undefined,
+                createdFrom: filterCreatedDateRange?.from ? filterCreatedDateRange.from.toISOString() : undefined,
+                createdTo: filterCreatedDateRange?.to ? filterCreatedDateRange.to.toISOString() : undefined,
+                status: filterStatus || undefined,
+            }
+            fetchItems({ page, pageSize }, filters)
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, pageSize])
+    }, [page, pageSize, filterPatientName, filterProfessionalName, filterScheduledDateRange, filterCreatedDateRange, filterStatus])
 
     return (
         <div>
@@ -141,8 +194,69 @@ export default function EncaminhamentosTab() {
                             Atualizar
                         </Button>
                     )}
+                    <Button variant="outline" size="sm" onClick={() => setShowFilters(v => !v)}>
+                        <Filter className="h-4 w-4" />
+                        Filtros
+                    </Button>
                 </div>
             </div>
+
+            {showFilters && (
+                <div className="mb-4 rounded-md bg-muted p-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-3 items-end">
+                        <div>
+                            <Label htmlFor="filter-patient">Paciente</Label>
+                            <Input id="filter-patient" value={filterPatientName} onChange={(e) => setFilterPatientName(e.target.value)} placeholder="Nome do paciente" />
+                        </div>
+                        <div>
+                            <Label htmlFor="filter-professional">Profissional</Label>
+                            <Input id="filter-professional" value={filterProfessionalName} onChange={(e) => setFilterProfessionalName(e.target.value)} placeholder="Nome do profissional" />
+                        </div>
+                        <div>
+                            <Label>Data de Agendamento</Label>
+                            <DateRangePicker value={filterScheduledDateRange} onChange={(r) => setFilterScheduledDateRange(r)} />
+                        </div>
+                        <div>
+                            <Label>Data de Criação</Label>
+                            <DateRangePicker value={filterCreatedDateRange} onChange={(r) => setFilterCreatedDateRange(r)} />
+                        </div>
+                        <div>
+                            <Label>Status</Label>
+                            <div className="mt-2">
+                                <RadioGroup
+                                    className="flex flex-wrap gap-2"
+                                    value={filterStatus || 'TODOS'}
+                                    onValueChange={(value) => {
+                                        if (value === 'TODOS') setFilterStatus(undefined)
+                                        else setFilterStatus(value)
+                                    }}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <RadioGroupItem value="Pendente" id="status-pending" />
+                                        <Label htmlFor="status-pending">Pendente</Label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <RadioGroupItem value="Confirmado" id="status-confirmed" />
+                                        <Label htmlFor="status-confirmed">Confirmado</Label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <RadioGroupItem value="Cancelado" id="status-cancelled" />
+                                        <Label htmlFor="status-cancelled">Cancelado</Label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <RadioGroupItem value="TODOS" id="status-todos" />
+                                        <Label htmlFor="status-todos">Todos</Label>
+                                    </div>
+                                </RadioGroup>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button onClick={() => { applyFilters(); }}>Aplicar</Button>
+                            <Button variant="outline" onClick={() => { clearFilters(); }}>Limpar</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {!agendamentoPerm?.visualizar && (
                 <p className="text-muted-foreground">Você não tem permissão para visualizar encaminhamentos.</p>

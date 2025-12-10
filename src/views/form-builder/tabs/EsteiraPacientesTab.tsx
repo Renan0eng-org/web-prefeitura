@@ -4,16 +4,21 @@ import AgendarConsultaDialog from "@/components/appointments/AgendarConsultaDial
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import ColumnsDropdown from '@/components/ui/columns-dropdown'
+import { DateRangePicker } from '@/components/ui/date-range-piker'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
 import Pagination from "@/components/ui/pagination"
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAlert } from "@/hooks/use-alert"
 import api from "@/services/api"
 import axios, { AxiosError } from "axios"
-import { ArrowUpFromDot, Calendar, Eye, MoreVertical, RefreshCcw, Settings2 } from "lucide-react"
+import { ArrowUpFromDot, Calendar, Eye, Filter, MoreVertical, RefreshCcw, Settings2 } from "lucide-react"
 import Link from "next/link"
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
+import { DateRange } from 'react-day-picker'
 
 export default function EsteiraPacientesTab() {
     const [formsResponses, setFormsResponses] = useState<any[]>([])
@@ -42,12 +47,39 @@ export default function EsteiraPacientesTab() {
 
     const { setAlert } = useAlert();
 
-    const fetchResponses = async (opts?: { page?: number; pageSize?: number }) => {
+    // Filters
+    const [showFilters, setShowFilters] = useState(false)
+    const [filterFormTitle, setFilterFormTitle] = useState<string>('')
+    const [filterPatientName, setFilterPatientName] = useState<string>('')
+    const [filterDateRange, setFilterDateRange] = useState<DateRange | undefined>(undefined)
+    const [filterScreening, setFilterScreening] = useState<boolean | undefined>(undefined)
+    const [filterScoreMin, setFilterScoreMin] = useState<number | undefined>(undefined)
+    const [filterScoreMax, setFilterScoreMax] = useState<number | undefined>(undefined)
+
+    const fetchResponses = async (opts?: { page?: number; pageSize?: number }, filters?: {
+        formTitle?: string
+        patientName?: string
+        from?: string
+        to?: string
+        isScreening?: boolean
+        scoreMin?: number
+        scoreMax?: number
+    }) => {
         try {
             setIsLoading(true)
             const p = opts?.page ?? page
             const ps = opts?.pageSize ?? pageSize
-            const res = await api.get("/forms/responses/list", { params: { page: p, pageSize: ps } })
+            const params: any = { page: p, pageSize: ps }
+            if (filters) {
+                if (filters.formTitle) params.formTitle = filters.formTitle
+                if (filters.patientName) params.patientName = filters.patientName
+                if (filters.from) params.from = filters.from
+                if (filters.to) params.to = filters.to
+                if (typeof filters.isScreening === 'boolean') params.isScreening = filters.isScreening
+                if (typeof filters.scoreMin === 'number') params.scoreMin = filters.scoreMin
+                if (typeof filters.scoreMax === 'number') params.scoreMax = filters.scoreMax
+            }
+            const res = await api.get("/forms/responses/list", { params })
             const data = res.data?.data ?? res.data ?? []
             setFormsResponses(Array.isArray(data) ? data : [])
             const t = res.data?.total ?? res.data?.totalItems ?? res.data?.totalCount ?? (Array.isArray(data) ? data.length : 0)
@@ -67,14 +99,32 @@ export default function EsteiraPacientesTab() {
         }
     }
 
-    useEffect(() => {
-        fetchResponses()
+    const applyFilters = useCallback(() => {
+        setPage(1)
+    }, [])
+
+    const clearFilters = useCallback(() => {
+        setFilterFormTitle('')
+        setFilterPatientName('')
+        setFilterDateRange(undefined)
+        setFilterScreening(undefined)
+        setFilterScoreMin(undefined)
+        setFilterScoreMax(undefined)
+        setPage(1)
     }, [])
 
     useEffect(() => {
-        fetchResponses({ page, pageSize })
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, pageSize])
+        const filters = {
+            formTitle: filterFormTitle || undefined,
+            patientName: filterPatientName || undefined,
+            from: filterDateRange?.from ? filterDateRange.from.toISOString() : undefined,
+            to: filterDateRange?.to ? filterDateRange.to.toISOString() : undefined,
+            isScreening: typeof filterScreening === 'boolean' ? filterScreening : undefined,
+            scoreMin: typeof filterScoreMin === 'number' ? filterScoreMin : undefined,
+            scoreMax: typeof filterScoreMax === 'number' ? filterScoreMax : undefined,
+        }
+        fetchResponses({ page, pageSize }, filters)
+    }, [page, pageSize, filterFormTitle, filterPatientName, filterDateRange, filterScreening, filterScoreMin, filterScoreMax])
 
     return (
         <>
@@ -92,8 +142,69 @@ export default function EsteiraPacientesTab() {
                         <RefreshCcw className="w-4 h-4" />
                         Atualizar
                     </Button>
+                    <Button variant="outline" size="sm" onClick={() => setShowFilters(v => !v)}>
+                        <Filter className="h-4 w-4" />
+                        Filtros
+                    </Button>
                 </div>
             </div>
+
+            {showFilters && (
+                <div className="mb-4 rounded-md bg-muted p-4">
+                    <div className="grid grid-cols-1 lg:grid-cols-3 md:grid-cols-2 gap-3 items-end">
+                        <div>
+                            <Label htmlFor="filter-form-title">Formulário</Label>
+                            <Input id="filter-form-title" value={filterFormTitle} onChange={(e) => setFilterFormTitle(e.target.value)} placeholder="Nome do formulário" />
+                        </div>
+                        <div>
+                            <Label htmlFor="filter-patient-name">Paciente</Label>
+                            <Input id="filter-patient-name" value={filterPatientName} onChange={(e) => setFilterPatientName(e.target.value)} placeholder="Nome do paciente" />
+                        </div>
+                        <div>
+                            <Label>Data de Envio</Label>
+                            <DateRangePicker value={filterDateRange} onChange={(r) => setFilterDateRange(r)} />
+                        </div>
+                        <div>
+                            <Label>Origem</Label>
+                            <div className="mt-2">
+                                <RadioGroup
+                                    className="flex flex-wrap gap-2"
+                                    value={filterScreening === true ? 'TRIAGEM' : filterScreening === false ? 'APP' : 'TODOS'}
+                                    onValueChange={(value) => {
+                                        if (value === 'TRIAGEM') setFilterScreening(true)
+                                        else if (value === 'APP') setFilterScreening(false)
+                                        else setFilterScreening(undefined)
+                                    }}
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <RadioGroupItem value="TRIAGEM" id="screening-triagem" />
+                                        <Label htmlFor="screening-triagem">Triagem</Label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <RadioGroupItem value="APP" id="screening-app" />
+                                        <Label htmlFor="screening-app">App</Label>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                        <RadioGroupItem value="TODOS" id="screening-todos" />
+                                        <Label htmlFor="screening-todos">Todos</Label>
+                                    </div>
+                                </RadioGroup>
+                            </div>
+                        </div>
+                        <div>
+                            <Label htmlFor="filter-score">Pontuação (mín / max)</Label>
+                            <div className="flex space-x-2">
+                                <Input id="filter-score-min" type="number" value={filterScoreMin ?? ''} onChange={(e) => setFilterScoreMin(e.target.value ? Number(e.target.value) : undefined)} placeholder="0" />
+                                <Input id="filter-score-max" type="number" value={filterScoreMax ?? ''} onChange={(e) => setFilterScoreMax(e.target.value ? Number(e.target.value) : undefined)} placeholder="0" />
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                            <Button onClick={() => { applyFilters(); }}>Aplicar</Button>
+                            <Button variant="outline" onClick={() => { clearFilters(); }}>Limpar</Button>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             {error && <p className="text-red-500">{error}</p>}
             <Table className="overflow-hidden rounded-t-lg">
@@ -144,7 +255,7 @@ export default function EsteiraPacientesTab() {
                                     </TableCell>
                                 )}
                                 {visibleColumnsEsteira.isScreening && (
-                                    <TableCell className="flex justify-center items-center">
+                                    <TableCell>
                                         <Badge className={"px-2 py-1 " + (response.form?.isScreening ? 'bg-green-100 text-green-800 hover:bg-green-800 hover:text-green-100' : 'bg-primary-100 text-primary-600')}>
                                             {response.form?.isScreening ? 'Triagem' : 'App'}
                                         </Badge>

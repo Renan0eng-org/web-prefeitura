@@ -142,7 +142,7 @@ export default function AtivacaoUsuariosPage() {
                 Ativação de Usuários
             </h1>
             <Card>
-                <CardHeader className="flex items-center justify-between">
+                <CardHeader className="flex row items-center justify-between">
                     <div>
                         <CardTitle>Gerenciar Ativação de Contas</CardTitle>
                         <CardDescription>

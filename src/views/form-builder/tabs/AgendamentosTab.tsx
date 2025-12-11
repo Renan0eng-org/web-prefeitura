@@ -1,6 +1,7 @@
 "use client"
 
 import AgendarConsultaDialog from "@/components/appointments/AgendarConsultaDialog"
+import ExportExcelButton from "@/components/buttons/btn-export-excel"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import ColumnsDropdown from '@/components/ui/columns-dropdown'
@@ -199,6 +200,17 @@ export default function AgendamentosTab() {
                             Atualizar
                         </Button>
                     )}
+                    <ExportExcelButton
+                        data={appointments.map(item => ({
+                            'Paciente': item.patient?.name || item.patientName || 'Anônimo',
+                            'Médico': item.doctor?.name || item.professionalName || '—',
+                            'Agendamento': item.scheduledAt ? new Date(item.scheduledAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—',
+                            'Criação': item.createdAt ? new Date(item.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—',
+                            'Status': item.status ?? 'PENDENTE'
+                        }))}
+                        filename="agendamentos.xlsx"
+                        sheetName="Agendamentos"
+                    />
                     <Button variant="outline" size="sm" onClick={() => setShowFilters(v => !v)}>
                         <Filter className="h-4 w-4" />
                         Filtros

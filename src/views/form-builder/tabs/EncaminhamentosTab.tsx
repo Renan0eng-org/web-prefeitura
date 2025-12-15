@@ -134,9 +134,9 @@ export default function EncaminhamentosTab() {
 
     const { getPermissions } = useAuth()
 
-    const agendamentoPerm = useMemo(() => {
+    const encaminhamentoPerm = useMemo(() => {
         if (!getPermissions) return null
-        return getPermissions('agendamentos') ?? getPermissions('agendamento') ?? null
+        return getPermissions('encaminhamento') || null
     }, [getPermissions])
 
     const didFetchRef = useRef(false)
@@ -155,14 +155,14 @@ export default function EncaminhamentosTab() {
     }, [])
 
     useEffect(() => {
-        if (agendamentoPerm?.visualizar && !didFetchRef.current) {
+        if (encaminhamentoPerm?.visualizar && !didFetchRef.current) {
             didFetchRef.current = true
             fetchItems()
         }
-    }, [agendamentoPerm])
+    }, [encaminhamentoPerm])
 
     useEffect(() => {
-        if (agendamentoPerm?.visualizar) {
+        if (encaminhamentoPerm?.visualizar) {
             const filters = {
                 patientName: filterPatientName || undefined,
                 professionalName: filterProfessionalName || undefined,
@@ -189,7 +189,7 @@ export default function EncaminhamentosTab() {
                         contentClassName="p-2"
                         buttonLabel={<><Settings2 className="h-4 w-4" /> Colunas</>}
                     />
-                    {agendamentoPerm?.visualizar && (
+                    {encaminhamentoPerm?.visualizar && (
                         <Button variant="outline" size="sm" onClick={() => fetchItems()}>
                             <RefreshCcw className="w-4 h-4" />
                             Atualizar
@@ -270,10 +270,10 @@ export default function EncaminhamentosTab() {
                 </div>
             )}
 
-            {!agendamentoPerm?.visualizar && (
+            {!encaminhamentoPerm?.visualizar && (
                 <p className="text-muted-foreground">Você não tem permissão para visualizar encaminhamentos.</p>
             )}
-            {agendamentoPerm?.visualizar && (
+            {encaminhamentoPerm?.visualizar && (
                 <>
                     <Table className="overflow-hidden rounded-t-lg">
                         <TableHeader className="sticky top-0 z-10 bg-muted">
@@ -320,7 +320,7 @@ export default function EncaminhamentosTab() {
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                                     <DropdownMenuSeparator />
-                                                    {agendamentoPerm?.visualizar && (
+                                                    {encaminhamentoPerm?.visualizar && (
                                                         <DropdownMenuItem onClick={() => {
                                                             setSelectedItem(a)
                                                             setVisibleOnly(true)
@@ -330,7 +330,7 @@ export default function EncaminhamentosTab() {
                                                             <span>Visualizar Encaminhamento</span>
                                                         </DropdownMenuItem>
                                                     )}
-                                                    {agendamentoPerm?.editar && (
+                                                    {encaminhamentoPerm?.editar && (
                                                         <DropdownMenuItem onClick={() => {
                                                             setSelectedItem(a)
                                                             setIsDialogOpen(true)
@@ -339,7 +339,7 @@ export default function EncaminhamentosTab() {
                                                             <span>Editar Encaminhamento</span>
                                                         </DropdownMenuItem>
                                                     )}
-                                                    {agendamentoPerm?.excluir && (
+                                                    {encaminhamentoPerm?.excluir && (
                                                         <>
                                                             <DropdownMenuSeparator />
                                                             <DropdownMenuItem className="text-destructive" onClick={() => setTimeout(() => { setPendingDeleteId(a.id); setConfirmOpen(true) }, 50)}>

@@ -200,7 +200,7 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
                             <div className="bg-muted p-3 rounded-md border mb-4 overflow-auto scrollable">
                                 <div className="mb-2">
                                     <div className="font-medium">{responseDetail.form?.title || response.form?.title || 'Formulário'}</div>
-                                    <div className="font-small">{responseDetail.form?.description || response.form?.description || ''}</div>
+                                    <div className="text-sm">{responseDetail.form?.description || response.form?.description || ''}</div>
                                     <div className="text-xs text-muted-foreground">Enviado em: {new Date(responseDetail.submittedAt || response.submittedAt).toLocaleString('pt-BR')}</div>
                                     <div className="text-xs text-muted-foreground">Paciente: {responseDetail.user?.name || response.user?.name || 'Anônimo'}</div>
                                     <div className="text-xs text-primary-500 font-bold">Pontuação Total: {responseDetail.totalScore ?? response.totalScore ?? 0}</div>

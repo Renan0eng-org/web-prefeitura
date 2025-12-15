@@ -74,6 +74,9 @@ export default function AgendarConsultaDialog({ isOpen, onOpenChange, response, 
             if (!formId || !responseId) return
             setLoadingResponseDetail(true)
             const res = await api.get(`/forms/${formId}/responses/${responseId}`)
+
+            console.log("res.data", res.data);
+            
             setResponseDetail(res.data)
         } catch (err) {
             console.warn('Não foi possível carregar detalhes da resposta:', err)

@@ -215,7 +215,7 @@ export default function EsteiraPacientesTab() {
                         {visibleColumnsEsteira.dataEnvio && <TableHead>Data de Envio</TableHead>}
                         {visibleColumnsEsteira.isScreening && <TableHead className="min-w-20">Origen</TableHead>}
                         {visibleColumnsEsteira.pontuacao && <TableHead>Pontuação Total</TableHead>}
-                        {visibleColumnsEsteira.actions && <TableHead className="max-w-12 text-center">Ações</TableHead>}
+                        {visibleColumnsEsteira.actions && <TableHead className="text-center">Ações</TableHead>}
                     </TableRow>
                 </TableHeader>
                 <TableBody className="bg-white/40">

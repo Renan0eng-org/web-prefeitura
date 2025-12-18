@@ -12,8 +12,8 @@ import {
 
 export const data = {
   user: {
-    name: "Ícarus",
-    email: "icarus@example.com",
+    name: "PVAI SEM DOR",
+    email: "pvaisedor@paranavai.saude.br",
     avatar: "/logo.webp"
   },
   

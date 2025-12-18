@@ -1,7 +1,7 @@
 {
-  "name": "Ícarus - Controle de Produção Aquícola",
-  "short_name": "Ícarus",
-  "description": "Sistema de controle de produção para piscicultura",
+  "name": "PVAI SEM DOR - Gerenciamento de Dores Crônicas",
+  "short_name": "PVAI SEM DOR",
+  "description": "Sistema de gerenciamento de saúde pública de Paranavai para dores crônicas",
   "lang": "pt-BR",
   "start_url": "/admin",
   "display": "standalone",

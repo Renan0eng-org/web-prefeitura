@@ -185,7 +185,7 @@ export default function AgendamentosTab() {
     return (
         <div>
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h2 className="text-3xl font-bold tracking-tight">Agendamentos</h2>
+                <h2 className="text-3xl font-bold tracking-tight text-primary">Agendamentos</h2>
                 <div className="flex items-center gap-2">
                     <ColumnsDropdown
                         columns={visibleColumns}

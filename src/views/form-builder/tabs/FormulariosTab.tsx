@@ -186,8 +186,7 @@ export default function FormulariosTab() {
     return (
         <>
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-
-                <h1 className="text-3xl font-bold tracking-tight">Meus Formulários</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-primary">Meus Formulários</h1>
                 <div className="flex flex-wrap gap-2 items-center">
                     <ColumnsDropdown
                         columns={columns}

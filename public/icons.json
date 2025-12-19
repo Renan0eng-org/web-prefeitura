@@ -1,18 +1,4 @@
 {
-  "name": "PVAI SEM DOR - Gerenciamento de Dores Crônicas",
-  "short_name": "PVAI SEM DOR",
-  "description": "Sistema de gerenciamento de saúde pública de Paranavai para dores crônicas",
-  "lang": "pt-BR",
-  "start_url": "/admin",
-  "display": "standalone",
-  "background_color": "#ffffff",
-  "theme_color": "#0a3d62",
-  "orientation": "any",
-  "categories": [
-    "finance",
-    "productivity",
-    "utilities"
-  ],
   "icons": [
     {
       "src": "windows11/SmallTile.scale-100.png",

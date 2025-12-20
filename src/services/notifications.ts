@@ -28,34 +28,49 @@ export async function requestNotificationPermission(): Promise<NotificationPermi
 }
 
 export async function showLocalNotification(payload: NotificationPayload): Promise<void> {
-  if (!isNotificationSupported()) return;
+  console.log('🔔 showLocalNotification called:', payload);
+  
+  if (!isNotificationSupported()) {
+    console.warn('⚠️ Notifications não suportadas');
+    return;
+  }
 
   const permission = await requestNotificationPermission();
-  if (permission !== 'granted') return;
+  console.log('🔐 Permission status:', permission);
+  if (permission !== 'granted') {
+    console.warn('⚠️ Permission denied');
+    return;
+  }
 
   // Prefer showing via the Service Worker so notifications work in background
   if (isServiceWorkerSupported()) {
     try {
-      const reg = await navigator.serviceWorker.getRegistration();
-      if (reg) {
-        const options: any = {
-          body: payload.body,
-          icon: payload.icon || '/android/android-launchericon-96-96.png',
-          badge: payload.badge || '/android/android-launchericon-48-48.png',
-          data: payload.data,
-          tag: payload.tag,
-          requireInteraction: payload.requireInteraction,
-        };
-        await reg.showNotification(payload.title, options);
-        return;
-      }
-    } catch (_) {
+      console.log('⏳ Aguardando Service Worker ready...');
+      const reg = await navigator.serviceWorker.ready;
+      console.log('✅ Service Worker ready:', reg);
+      
+      const options: any = {
+        body: payload.body,
+        icon: payload.icon || '/android/android-launchericon-96-96.png',
+        badge: payload.badge || '/android/android-launchericon-48-48.png',
+        data: payload.data,
+        tag: payload.tag,
+        requireInteraction: payload.requireInteraction,
+      };
+      
+      console.log('📤 Showing notification via SW:', payload.title, options);
+      await reg.showNotification(payload.title, options);
+      console.log('✅ Notification showed successfully!');
+      return;
+    } catch (err) {
+      console.error('❌ Erro ao mostrar notificação via SW:', err);
       // fall through to page notification
     }
   }
 
   // Fallback: show a page-level notification (only works while tab is open)
   try {
+    console.log('📤 Showing page-level notification (fallback)');
     new Notification(payload.title, {
       body: payload.body,
       icon: payload.icon || '/android/android-launchericon-96-96.png',
@@ -64,7 +79,10 @@ export async function showLocalNotification(payload: NotificationPayload): Promi
       tag: payload.tag,
       requireInteraction: payload.requireInteraction,
     });
-  } catch (_) {}
+    console.log('✅ Page notification showed!');
+  } catch (err) {
+    console.error('❌ Erro ao mostrar notificação de página:', err);
+  }
 }
 
 // Optional: Web Push subscription management (requires backend to store subscriptions)

@@ -3,27 +3,33 @@ const OFFLINE_URL = '/offline.html';
 
 // INSTALAÇÃO (sem cache inicial)
 self.addEventListener('install', (event) => {
-  self.skipWaiting(); // opcional: ativa imediatamente
+  console.log('[SW] Installing...');
+  self.skipWaiting(); // Ativa imediatamente
 });
 
-// ATIVAÇÃO: limpeza de caches antigos
-// self.addEventListener('activate', (event) => {
-//   event.waitUntil(
-//     caches.keys().then((keyList) =>
-//       Promise.all(
-//         keyList.map((key) => {
-//           if (key !== CACHE_NAME) {
-//             return caches.delete(key);
-//           }
-//         })
-//       )
-//     )
-//   );
-//   return self.clients.claim();
-// });
+// ATIVAÇÃO: limpeza de caches antigos e claim clients
+self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating...');
+  event.waitUntil(
+    caches.keys().then((keyList) =>
+      Promise.all(
+        keyList.map((key) => {
+          if (key !== CACHE_NAME) {
+            console.log('[SW] Deleting old cache:', key);
+            return caches.delete(key);
+          }
+        })
+      )
+    ).then(() => {
+      console.log('[SW] Claiming clients...');
+      return self.clients.claim();
+    })
+  );
+});
 
 // Push notifications handler
 self.addEventListener('push', (event) => {
+  console.log('[SW] Push received:', event);
   let payload = {};
   try {
     if (event.data) {
@@ -44,28 +50,32 @@ self.addEventListener('push', (event) => {
     data: payload.data || {},
     tag: payload.tag,
     requireInteraction: payload.requireInteraction || false,
-    actions: payload.actions || []
   };
 
+  console.log('[SW] Showing notification:', title, options);
   event.waitUntil(self.registration.showNotification(title, options));
 });
 
 // Handle notification click to open/focus app
 self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notification clicked:', event.notification);
   event.notification.close();
   const data = event.notification && event.notification.data ? event.notification.data : {};
   const targetUrl = (data && (data.url || data.path)) ? (self.location.origin + (data.url || data.path)) : self.location.origin;
 
+  console.log('[SW] Opening URL:', targetUrl);
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
       // Try to focus an open tab with the same URL
       for (const client of clientList) {
         if ('url' in client && client.url && targetUrl && client.url === targetUrl && 'focus' in client) {
+          console.log('[SW] Focusing existing window');
           return client.focus();
         }
       }
       // Otherwise open a new window
       if (clients.openWindow) {
+        console.log('[SW] Opening new window');
         return clients.openWindow(targetUrl);
       }
     })

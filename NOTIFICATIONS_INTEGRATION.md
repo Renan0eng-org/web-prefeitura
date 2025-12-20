@@ -263,26 +263,42 @@ async function sendPush(subscription: PushSubscription, notification: Notificati
 
 ## 🧪 Como Testar
 
-### 1. Frontend - Pedir Permissão
+### Método 1: Página de Teste (Recomendado)
 
-Abra o console do navegador e execute:
+1. Rode o app: `npm run dev`
+2. Acesse: `http://localhost:3000/admin/test-notifications`
+3. Clique em "Solicitar Permissão" e aceite
+4. Clique em "Enviar Notificação de Teste Rápido"
+5. ✅ A notificação deve aparecer!
+
+### Método 2: Console do Navegador
+
+1. Abra o Console (F12)
+2. Carregue o script de diagnóstico:
+   ```javascript
+   const script = document.createElement('script');
+   script.src = '/test-notifications.js';
+   document.head.appendChild(script);
+   ```
+3. O diagnóstico completo será executado automaticamente
+4. Você verá todos os passos e possíveis problemas
+
+### Método 3: Manual no Console
+
 ```javascript
+// 1. Pedir permissão
 await Notification.requestPermission();
-```
 
-### 2. Frontend - Enviar Notificação Local
-
-```javascript
-import { showLocalNotification } from '@/services/notifications';
-
-showLocalNotification({
-  title: 'Teste',
-  body: 'Esta é uma notificação de teste!',
+// 2. Testar
+const reg = await navigator.serviceWorker.ready;
+await reg.showNotification('Teste!', {
+  body: 'Funcionou!',
+  icon: '/android/android-launchericon-96-96.png',
   data: { url: '/admin' }
 });
 ```
 
-### 3. Backend - Criar Notificação via Postman
+### ⚠️ Problemas? Veja [TROUBLESHOOTING_NOTIFICATIONS.md](TROUBLESHOOTING_NOTIFICATIONS.md)
 
 1. Importe `notifications-push.postman_collection.json`
 2. Configure `{{baseUrl}}` e `{{authToken}}`

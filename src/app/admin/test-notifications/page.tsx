@@ -1,13 +1,13 @@
 'use client';
 
-import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { showLocalNotification, requestNotificationPermission } from '@/services/notifications';
+import { requestNotificationPermission, showLocalNotification } from '@/services/notifications';
 import { Bell, Check, X } from 'lucide-react';
+import { useState } from 'react';
 
 export default function TestNotificationsPage() {
   const [permission, setPermission] = useState<NotificationPermission>(

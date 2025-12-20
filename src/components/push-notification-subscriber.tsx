@@ -1,9 +1,9 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useAuth } from '@/hooks/use-auth';
-import { autoSubscribePush } from '@/services/notifications';
 import api from '@/services/api';
+import { autoSubscribePush } from '@/services/notifications';
+import { useEffect } from 'react';
 
 /**
  * Component to auto-subscribe to push notifications after login.

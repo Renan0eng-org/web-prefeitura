@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import api from '@/services/api';
+import { useEffect, useState } from 'react';
 
 export type NotificationStatus = 'UNREAD' | 'READ' | 'ARCHIVED';
 

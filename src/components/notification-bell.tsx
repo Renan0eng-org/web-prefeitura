@@ -1,20 +1,20 @@
 'use client';
 
-import { useNotifications } from '@/hooks/use-notifications';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
+    DropdownMenu,
+    DropdownMenuContent,
+    DropdownMenuItem,
+    DropdownMenuLabel,
+    DropdownMenuSeparator,
+    DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Bell, Check, CheckCheck, Trash2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useNotifications } from '@/hooks/use-notifications';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Bell, Check, CheckCheck, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 
 export function NotificationBell() {
   const router = useRouter();

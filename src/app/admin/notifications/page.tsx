@@ -1,14 +1,14 @@
 'use client';
 
-import { useNotifications, type Notification } from '@/hooks/use-notifications';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Check, CheckCheck, Trash2, Loader2 } from 'lucide-react';
-import { useRouter } from 'next/navigation';
+import { useNotifications, type Notification } from '@/hooks/use-notifications';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { Check, CheckCheck, Loader2, Trash2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 export default function NotificationsPage() {

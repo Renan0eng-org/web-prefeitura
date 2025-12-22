@@ -4,8 +4,8 @@ const CHECK_NOTIFICATIONS_INTERVAL = 5 * 60 * 1000; // 5 minutos
 const LAST_CHECK_KEY = 'lastNotificationCheck';
 const SEEN_NOTIFICATIONS_KEY = 'seenNotifications';
 let cachedToken = null;
-let API_URL = 'http://localhost:4000'; // Padrão hardcoded, será atualizado pelo cliente
-// let API_URL = 'https://prefeitura.back.renannardi.com'; // Padrão hardcoded, será atualizado pelo cliente
+// let API_URL = 'http://localhost:4000'; // Padrão hardcoded, será atualizado pelo cliente
+let API_URL = 'https://prefeitura.back.renannardi.com'; // Padrão hardcoded, será atualizado pelo cliente
 
 // Variáveis globais do SW
 let notificationCheckInterval = null;

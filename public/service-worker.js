@@ -1,4 +1,4 @@
-const CACHE_NAME = 'my-app-cache-v0.4'; // Incrementado para forçar atualização
+const CACHE_NAME = 'my-app-cache-v0.6'; // Incrementado para forçar atualização
 const OFFLINE_URL = '/offline.html';
 const CHECK_NOTIFICATIONS_INTERVAL = 5 * 60 * 1000; // 5 minutos
 const LAST_CHECK_KEY = 'lastNotificationCheck';
@@ -241,11 +241,12 @@ async function checkForNewNotifications() {
     });
     
     // Busca notificações já vistas para não repetir (evita duplicatas)
-    const seenIds = await getSeenNotificationIds();
-    console.log('[SW] 👁️ IDs já exibidos nesta sessão:', seenIds.length);
+    // const seenIds = await getSeenNotificationIds();
+    // console.log('[SW] 👁️ IDs já exibidos nesta sessão:', seenIds.length);
     
     // Filtra apenas novas (que não foram exibidas nesta sessão)
-    const newNotifications = notifications.filter(n => !seenIds.includes(n.id));
+    // const newNotifications = notifications.filter(n => !seenIds.includes(n.id));
+    const newNotifications = notifications; // Sempre exibe todas as não lidas
     console.log('[SW] 🆕 Novas para exibir:', newNotifications.length);
     
     // Notifica clientes sobre notificações encontradas
@@ -265,7 +266,8 @@ async function checkForNewNotifications() {
       for (const notif of newNotifications) {
         console.log('[SW] 📨 Processando:', notif.title);
         await showBackgroundNotification(notif);
-        seenIds.push(notif.id);
+        // Marca como vista nesta sessão
+        // seenIds.push(notif.id);
         // Pequeno delay entre notificações para não sobrecarregar
         await new Promise(resolve => setTimeout(resolve, 500));
       }
@@ -276,9 +278,7 @@ async function checkForNewNotifications() {
     } else {
       console.log('[SW] ℹ️ Todas as notificações já foram exibidas anteriormente');
     }
-    
     console.log('[SW] ✅ ========== VERIFICAÇÃO CONCLUÍDA ==========');
-    
   } catch (err) {
     console.error('[SW] ❌ Erro ao verificar notificações:', err);
     console.error('[SW] ❌ Stack:', err.stack);

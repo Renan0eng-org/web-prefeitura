@@ -89,6 +89,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           reg.active.postMessage({
             type: 'USER_AUTHENTICATED',
             token: accessToken,
+            apiUrl: process.env?.NEXT_PUBLIC_API_URL,
             userId: user.idUser,
           });
         }

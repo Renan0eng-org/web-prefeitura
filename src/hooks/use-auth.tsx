@@ -80,6 +80,22 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     loadSession()
   }, [router, path])
 
+  // Notificar Service Worker quando usuário se autentica
+  useEffect(() => {
+    if (user && accessToken && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then((reg) => {
+        if (reg.active) {
+          console.log('💬 Compartilhando token com Service Worker');
+          reg.active.postMessage({
+            type: 'USER_AUTHENTICATED',
+            token: accessToken,
+            userId: user.idUser,
+          });
+        }
+      });
+    }
+  }, [accessToken]);
+
   useEffect(() => {
     if (accessToken) {
       api.defaults.headers.common['Authorization'] = `Bearer ${accessToken}`

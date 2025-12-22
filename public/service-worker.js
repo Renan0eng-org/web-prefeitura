@@ -1,10 +1,11 @@
-const CACHE_NAME = 'my-app-cache-v3'; // Incrementado para forçar atualização
+const CACHE_NAME = 'my-app-cache-v0.4'; // Incrementado para forçar atualização
 const OFFLINE_URL = '/offline.html';
 const CHECK_NOTIFICATIONS_INTERVAL = 5 * 60 * 1000; // 5 minutos
 const LAST_CHECK_KEY = 'lastNotificationCheck';
 const SEEN_NOTIFICATIONS_KEY = 'seenNotifications';
 let cachedToken = null;
-let API_URL = 'https://prefeitura.back.renannardi.com'; // Padrão hardcoded, será atualizado pelo cliente
+let API_URL = 'http://localhost:4000'; // Padrão hardcoded, será atualizado pelo cliente
+// let API_URL = 'https://prefeitura.back.renannardi.com'; // Padrão hardcoded, será atualizado pelo cliente
 
 // Variáveis globais do SW
 let notificationCheckInterval = null;
@@ -18,22 +19,24 @@ self.addEventListener('install', (event) => {
 
 // ATIVAÇÃO: limpeza de caches antigos e claim clients
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating...');
+  console.log('[SW] 🔄 Activating...');
   event.waitUntil(
     caches.keys().then((keyList) =>
       Promise.all(
         keyList.map((key) => {
           if (key !== CACHE_NAME) {
-            console.log('[SW] Deleting old cache:', key);
+            console.log('[SW] 🗑️ Deleting old cache:', key);
             return caches.delete(key);
           }
         })
       )
     ).then(() => {
-      console.log('[SW] Claiming clients...');
+      console.log('[SW] 👥 Claiming clients...');
       return self.clients.claim();
     }).then(() => {
-      console.log('[SW] Iniciando verificação periódica de notificações...');
+      console.log('[SW] 🚀 Service Worker ativo e pronto!');
+      console.log('[SW] 🌐 API_URL configurada:', API_URL);
+      console.log('[SW] 🔔 Iniciando sistema de notificações em background...');
       // Inicia verificação periódica ao ativar
       startPeriodicNotificationCheck();
     })
@@ -142,19 +145,26 @@ self.addEventListener('message', (event) => {
  * Busca a cada 5 minutos se há notificações não lidas
  */
 function startPeriodicNotificationCheck() {
-  console.log('[SW] Iniciando verificação periódica (a cada ' + (CHECK_NOTIFICATIONS_INTERVAL / 60000) + ' min)');
+  console.log('[SW] 🔄 Iniciando verificação periódica (a cada ' + (CHECK_NOTIFICATIONS_INTERVAL / 60000) + ' min)');
   
-  // Primeira verificação após 30 segundos (deixa app carregar)
+  // Primeira verificação imediata após 5 segundos
   setTimeout(() => {
+    console.log('[SW] ⏰ Primeira verificação automática...');
     checkForNewNotifications();
-  }, 30000);
+  }, 5000);
   
-  // Depois a cada 5 minutos
-  if (!notificationCheckInterval) {
-    notificationCheckInterval = setInterval(() => {
-      checkForNewNotifications();
-    }, CHECK_NOTIFICATIONS_INTERVAL);
+  // Para intervalo anterior se existir
+  if (notificationCheckInterval) {
+    clearInterval(notificationCheckInterval);
   }
+  
+  // Configura intervalo periódico
+  notificationCheckInterval = setInterval(() => {
+    console.log('[SW] ⏰ Verificação periódica automática disparada');
+    checkForNewNotifications();
+  }, CHECK_NOTIFICATIONS_INTERVAL);
+  
+  console.log('[SW] ✅ Verificação periódica configurada com sucesso');
 }
 
 /**
@@ -174,27 +184,30 @@ function stopPeriodicNotificationCheck() {
  */
 async function checkForNewNotifications() {
   if (isCheckingNotifications) {
-    console.log('[SW] Verificação já em andamento, pulando...');
+    console.log('[SW] ⏭️ Verificação já em andamento, pulando...');
     return;
   }
   
   isCheckingNotifications = true;
-  console.log('[SW] 🔍 Buscando notificações não lidas...');
+  console.log('[SW] 🔍 ========== VERIFICANDO NOTIFICAÇÕES ==========');
+  console.log('[SW] 🕐 Timestamp:', new Date().toLocaleString());
   
   try {
     // Busca token do localStorage (salvo pelo frontend)
     const token = await getStoredToken();
     if (!token) {
-      console.log('[SW] ℹ️ Sem token armazenado, usuário não autenticado');
+      console.log('[SW] ⚠️ Sem token armazenado, usuário não autenticado');
       isCheckingNotifications = false;
       return;
     }
     
-    console.log('[SW] ℹ️ URL da API:', API_URL);
+    console.log('[SW] ✅ Token obtido com sucesso');
+    console.log('[SW] 🌐 URL da API:', API_URL);
     
-    // Faz requisição ao backend (endpoint /notifications)
+    // Faz requisição ao backend buscando apenas notificações UNREAD
+    // A API já filtra e retorna apenas não lidas com status=UNREAD
     const url = `${API_URL}/notifications?status=UNREAD&limit=20`;
-    console.log('[SW] 📡 Fazendo requisição para:', url);
+    console.log('[SW] 📡 GET:', url);
     
     const response = await fetch(url, {
       method: 'GET',
@@ -206,7 +219,7 @@ async function checkForNewNotifications() {
     });
     
     if (!response.ok) {
-      console.warn('[SW] ⚠️ Erro ao buscar notificações:', response.status);
+      console.warn('[SW] ❌ Erro HTTP:', response.status, response.statusText);
       isCheckingNotifications = false;
       return;
     }
@@ -214,31 +227,61 @@ async function checkForNewNotifications() {
     const data = await response.json();
     const notifications = data.items || [];
     
-    console.log('[SW] 📬 Encontradas', notifications.length, 'notificações não lidas');
+    console.log('[SW] 📬 Encontradas', notifications.length, 'notificações não lidas (UNREAD)');
     
     if (notifications.length === 0) {
+      console.log('[SW] ✅ Nenhuma notificação nova');
       isCheckingNotifications = false;
       return;
     }
     
-    // Busca notificações já vistas para não repetir
-    const seenIds = await getSeenNotificationIds();
+    // Lista títulos das notificações encontradas
+    notifications.forEach((notif, index) => {
+      console.log(`[SW] 📌 ${index + 1}. ${notif.title} (ID: ${notif.id.substring(0, 8)}...)`);
+    });
     
-    // Filtra apenas novas
+    // Busca notificações já vistas para não repetir (evita duplicatas)
+    const seenIds = await getSeenNotificationIds();
+    console.log('[SW] 👁️ IDs já exibidos nesta sessão:', seenIds.length);
+    
+    // Filtra apenas novas (que não foram exibidas nesta sessão)
     const newNotifications = notifications.filter(n => !seenIds.includes(n.id));
-    console.log('[SW] 🆕 Novas notificações:', newNotifications.length);
+    console.log('[SW] 🆕 Novas para exibir:', newNotifications.length);
+    
+    // Notifica clientes sobre notificações encontradas
+    const clients = await self.clients.matchAll();
+    clients.forEach(client => {
+      client.postMessage({
+        type: 'NOTIFICATIONS_FOUND',
+        total: notifications.length,
+        new: newNotifications.length,
+        notifications: newNotifications.map(n => ({ id: n.id, title: n.title, body: n.body, category: n.category }))
+      });
+    });
     
     // Exibe cada notificação nova
-    for (const notif of newNotifications) {
-      await showBackgroundNotification(notif);
-      seenIds.push(notif.id);
+    if (newNotifications.length > 0) {
+      console.log('[SW] 🔔 Iniciando exibição de', newNotifications.length, 'notificações...');
+      for (const notif of newNotifications) {
+        console.log('[SW] 📨 Processando:', notif.title);
+        await showBackgroundNotification(notif);
+        seenIds.push(notif.id);
+        // Pequeno delay entre notificações para não sobrecarregar
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
+      
+      // Salva IDs vistos
+      await saveSeenNotificationIds(seenIds);
+      console.log('[SW] 💾 IDs salvos com sucesso');
+    } else {
+      console.log('[SW] ℹ️ Todas as notificações já foram exibidas anteriormente');
     }
     
-    // Salva IDs vistos
-    await saveSeenNotificationIds(seenIds);
+    console.log('[SW] ✅ ========== VERIFICAÇÃO CONCLUÍDA ==========');
     
   } catch (err) {
     console.error('[SW] ❌ Erro ao verificar notificações:', err);
+    console.error('[SW] ❌ Stack:', err.stack);
   } finally {
     isCheckingNotifications = false;
   }
@@ -249,19 +292,85 @@ async function checkForNewNotifications() {
  */
 async function showBackgroundNotification(notif) {
   try {
+    console.log('[SW] 🔔 Preparando notificação:', notif.title);
+    console.log('[SW] 📝 Corpo:', notif.body);
+    console.log('[SW] 🏷️ Categoria:', notif.category || 'geral');
+    console.log('[SW] ⚡ Prioridade:', notif.priority || 0);
+
     const options = {
-      body: notif.body || '',
+      body: notif.body || 'Você tem uma nova notificação',
       icon: '/android/android-launchericon-96-96.png',
       badge: '/android/android-launchericon-48-48.png',
-      data: notif.data || { url: '/admin/notifications' },
+      data: notif.data || { url: '/admin/notifications', notificationId: notif.id },
       tag: `notif-${notif.id}`,
-      requireInteraction: notif.priority > 0, // Alta prioridade = requer interação
+      requireInteraction: (notif.priority && notif.priority > 0) || false,
+      vibrate: [200, 100, 200],
+      silent: false,
+      timestamp: notif.createdAt ? new Date(notif.createdAt).getTime() : Date.now(),
     };
     
-    console.log('[SW] 📢 Exibindo notificação:', notif.title);
+    console.log('[SW] 📢 Chamando showNotification...');
+    
     await self.registration.showNotification(notif.title, options);
+    
+    console.log('[SW] ✅ Notificação exibida com sucesso!');
+    
+    // Marca a notificação como lida no backend
+    await markNotificationAsRead(notif.id);
+    
+    // Notifica clientes que a notificação foi exibida
+    const clients = await self.clients.matchAll();
+    clients.forEach(client => {
+      client.postMessage({
+        type: 'NOTIFICATION_SHOWN',
+        id: notif.id,
+        title: notif.title,
+        body: notif.body,
+        category: notif.category
+      });
+    });
+    
   } catch (err) {
-    console.error('[SW] ❌ Erro ao exibir notificação:', err);
+    console.error('[SW] ❌ ERRO ao exibir notificação:', err);
+    console.error('[SW] ❌ Nome do erro:', err.name);
+    console.error('[SW] ❌ Mensagem:', err.message);
+    console.error('[SW] ❌ Stack:', err.stack);
+  }
+}
+
+/**
+ * Marca uma notificação como lida no backend
+ */
+async function markNotificationAsRead(notificationId) {
+  try {
+    console.log('[SW] 📝 Marcando notificação como lida:', notificationId);
+    
+    const token = cachedToken || await getStoredToken();
+    if (!token) {
+      console.warn('[SW] ⚠️ Sem token para marcar como lida');
+      return;
+    }
+
+    const url = `${API_URL}/notifications/${notificationId}/read`;
+    console.log('[SW] 📡 PATCH:', url);
+
+    const response = await fetch(url, {
+      method: 'PATCH',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ read: true }),
+      credentials: 'include',
+    });
+
+    if (response.ok) {
+      console.log('[SW] ✅ Notificação marcada como lida:', notificationId);
+    } else {
+      console.warn('[SW] ⚠️ Erro ao marcar como lida:', response.status, response.statusText);
+    }
+  } catch (err) {
+    console.error('[SW] ❌ Erro ao marcar notificação como lida:', err);
   }
 }
 

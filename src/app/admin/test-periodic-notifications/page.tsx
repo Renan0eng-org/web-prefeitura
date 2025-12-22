@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Smartphone, Wifi, Bell } from 'lucide-react';
+import { Bell, Smartphone, Wifi } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export default function TestPeriodicNotificationsPage() {
   const [swActive, setSwActive] = useState(false);
@@ -24,6 +24,35 @@ export default function TestPeriodicNotificationsPage() {
     };
 
     checkSWStatus();
+
+    // Listener para mensagens do Service Worker
+    const handleSWMessage = (event: MessageEvent) => {
+      const { data } = event;
+      if (!data || !data.type) return;
+
+      if (data.type === 'NOTIFICATIONS_FOUND') {
+        addLog(`📬 ${data.total} notificações encontradas`);
+        if (data.notifications && data.notifications.length > 0) {
+          data.notifications.forEach((notif: any) => {
+            addLog(`  📌 ${notif.title}`);
+          });
+        }
+      }
+
+      if (data.type === 'NOTIFICATION_SHOWN') {
+        addLog(`🔔 Notificação exibida: ${data.title}`);
+      }
+    };
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', handleSWMessage);
+    }
+
+    return () => {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.removeEventListener('message', handleSWMessage);
+      }
+    };
   }, []);
 
   const addLog = (message: string) => {
@@ -44,15 +73,47 @@ export default function TestPeriodicNotificationsPage() {
   const handleSimulateNotification = async () => {
     addLog('🎭 Simulando notificação...');
     try {
+      // Verifica permissão primeiro
+      if (Notification.permission !== 'granted') {
+        addLog('⚠️ Permissão de notificação não concedida: ' + Notification.permission);
+        const permission = await Notification.requestPermission();
+        addLog('📝 Nova permissão: ' + permission);
+        if (permission !== 'granted') {
+          addLog('❌ Usuário negou permissão');
+          return;
+        }
+      }
+
       const reg = await navigator.serviceWorker.ready;
       await reg.showNotification('Teste Periódico de Notificação', {
         body: 'Esta é uma notificação de teste para verificar se funciona em background.',
         icon: '/android/android-launchericon-96-96.png',
         data: { url: '/admin/notifications' },
+        // vibrate: [200, 100, 200],
       });
       addLog('✅ Notificação simulada enviada');
     } catch (err) {
       addLog('❌ Erro ao simular: ' + (err as Error).message);
+    }
+  };
+
+  const handleCheckPermission = async () => {
+    if (!('Notification' in window)) {
+      addLog('❌ Este navegador não suporta notificações');
+      return;
+    }
+
+    addLog('📋 Verificando permissão...');
+    addLog(`Status atual: ${Notification.permission}`);
+
+    if (Notification.permission === 'default') {
+      addLog('🔔 Solicitando permissão...');
+      const permission = await Notification.requestPermission();
+      addLog(`✅ Nova permissão: ${permission}`);
+    } else if (Notification.permission === 'denied') {
+      addLog('❌ Permissão negada. Vá em configurações do navegador para habilitar.');
+    } else {
+      addLog('✅ Permissão já concedida!');
     }
   };
 
@@ -132,6 +193,13 @@ export default function TestPeriodicNotificationsPage() {
           <CardTitle>🧪 Testes Manuais</CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
+          <Button onClick={handleCheckPermission} className="w-full" variant="default">
+            🔔 Verificar Permissão de Notificações
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Verifica se você concedeu permissão para notificações.
+          </p>
+
           <Button onClick={handleForceCheck} className="w-full" variant="outline">
             🔍 Forçar Verificação Agora
           </Button>

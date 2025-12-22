@@ -35,9 +35,25 @@ export default function TestPeriodicNotificationsPage() {
       const { data } = event;
       if (!data || !data.type) return;
 
+      if (data.type === 'SW_LOG' && data.message) {
+        const prefix = data.level === 'error' ? '❌' : data.level === 'warn' ? '⚠️' : 'ℹ️';
+        addLog(`${prefix} ${data.message}`);
+      }
+
       if (data.type === 'NEXT_CHECK' && data.nextAt) {
         setNextCheck(new Date(data.nextAt));
         addLog(`⏰ Próxima verificação: ${new Date(data.nextAt).toLocaleTimeString()}`);
+      }
+
+      if (data.type === 'REQUEST_PERMISSION') {
+        addLog('🔔 Solicitando permissão de notificação (pedido do SW)');
+        Notification.requestPermission()
+          .then((permission) => {
+            addLog(`📥 Permissão retornou: ${permission}`);
+          })
+          .catch((err) => {
+            addLog('❌ Erro ao pedir permissão: ' + (err as Error).message);
+          });
       }
 
       if (data.type === 'NOTIFICATIONS_FOUND') {

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'my-app-cache-v0.7'; // Incrementado para forçar atualização
+const CACHE_NAME = 'my-app-cache-v0.10'; // Incrementado para forçar atualização
 const OFFLINE_URL = '/offline.html';
 const CHECK_NOTIFICATIONS_INTERVAL = 5 * 60 * 1000; // 5 minutos
 const LAST_CHECK_KEY = 'lastNotificationCheck';
@@ -11,6 +11,48 @@ let API_URL = 'https://prefeitura.back.renannardi.com'; // Padrão hardcoded, se
 let notificationCheckInterval = null;
 let isCheckingNotifications = false;
 let nextCheckAt = null;
+
+// Logging helper: replica nos clientes e mantém console original
+const originalConsole = {
+  log: console.log.bind(console),
+  warn: console.warn.bind(console),
+  error: console.error.bind(console),
+};
+
+function formatArg(arg) {
+  if (arg instanceof Error) return `${arg.name}: ${arg.message}`;
+  if (typeof arg === 'object') {
+    try {
+      return JSON.stringify(arg);
+    } catch (_) {
+      return String(arg);
+    }
+  }
+  return String(arg);
+}
+
+async function broadcastLog(level, ...args) {
+  // Mantém log no console do SW
+  originalConsole[level]?.(...args);
+  const message = args.map(formatArg).join(' ');
+
+  try {
+    // includeUncontrolled garante entrega mesmo antes do claim em novas abas
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+
+    if (clients.length === 0) return;
+
+    clients.forEach((client) => {
+      client.postMessage({ type: 'SW_LOG', level, message });
+    });
+  } catch (e) {
+    originalConsole.error('Failed to broadcast log', e);
+  }
+}
+
+console.log = (...args) => broadcastLog('log', ...args);
+console.warn = (...args) => broadcastLog('warn', ...args);
+console.error = (...args) => broadcastLog('error', ...args);
 
 async function broadcastNextCheck(timestamp) {
   nextCheckAt = timestamp;
@@ -213,7 +255,7 @@ async function checkForNewNotifications() {
   
   try {
     // Busca token do localStorage (salvo pelo frontend)
-    const token = await getStoredToken();
+    const token = cachedToken || await getStoredToken();
     if (!token) {
       console.log('[SW] ⚠️ Sem token armazenado, usuário não autenticado');
       isCheckingNotifications = false;
@@ -316,6 +358,21 @@ async function showBackgroundNotification(notif) {
     console.log('[SW] 📝 Corpo:', notif.body);
     console.log('[SW] 🏷️ Categoria:', notif.category || 'geral');
     console.log('[SW] ⚡ Prioridade:', notif.priority || 0);
+
+    // Se o navegador não concedeu permissão, não tentar exibir para evitar erro
+    if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
+      console.warn('[SW] ⚠️ Permissão de notificação não concedida, pulando exibição');
+      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      clients.forEach((client) => {
+        client.postMessage({
+          type: 'SW_LOG',
+          level: 'warn',
+          message: 'Permissão de notificação não concedida; abra o app e aceite para continuar',
+        });
+        client.postMessage({ type: 'REQUEST_PERMISSION' });
+      });
+      return;
+    }
 
     const options = {
       body: notif.body || 'Você tem uma nova notificação',

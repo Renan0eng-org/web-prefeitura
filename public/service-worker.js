@@ -1,4 +1,4 @@
-const CACHE_NAME = 'my-app-cache-v0.6'; // Incrementado para forçar atualização
+const CACHE_NAME = 'my-app-cache-v0.7'; // Incrementado para forçar atualização
 const OFFLINE_URL = '/offline.html';
 const CHECK_NOTIFICATIONS_INTERVAL = 5 * 60 * 1000; // 5 minutos
 const LAST_CHECK_KEY = 'lastNotificationCheck';
@@ -10,6 +10,15 @@ let API_URL = 'https://prefeitura.back.renannardi.com'; // Padrão hardcoded, se
 // Variáveis globais do SW
 let notificationCheckInterval = null;
 let isCheckingNotifications = false;
+let nextCheckAt = null;
+
+async function broadcastNextCheck(timestamp) {
+  nextCheckAt = timestamp;
+  const clients = await self.clients.matchAll();
+  clients.forEach((client) => {
+    client.postMessage({ type: 'NEXT_CHECK', nextAt: nextCheckAt });
+  });
+}
 
 // INSTALAÇÃO (sem cache inicial)
 self.addEventListener('install', (event) => {
@@ -109,6 +118,13 @@ self.addEventListener('message', (event) => {
     return;
   }
 
+  if (data.type === 'GET_NEXT_CHECK') {
+    if (nextCheckAt) {
+      event.source?.postMessage({ type: 'NEXT_CHECK', nextAt: nextCheckAt });
+    }
+    return;
+  }
+
   if (data.type === 'CHECK_NOTIFICATIONS_NOW') {
     console.log('[SW] 📥 Pedido de verificação imediata recebido');
     event.waitUntil(checkForNewNotifications());
@@ -163,7 +179,10 @@ function startPeriodicNotificationCheck() {
     console.log('[SW] ⏰ Verificação periódica automática disparada');
     checkForNewNotifications();
   }, CHECK_NOTIFICATIONS_INTERVAL);
-  
+
+  // Agenda e comunica próximo horário
+  broadcastNextCheck(Date.now() + CHECK_NOTIFICATIONS_INTERVAL);
+
   console.log('[SW] ✅ Verificação periódica configurada com sucesso');
 }
 
@@ -240,13 +259,12 @@ async function checkForNewNotifications() {
       console.log(`[SW] 📌 ${index + 1}. ${notif.title} (ID: ${notif.id.substring(0, 8)}...)`);
     });
     
-    // Busca notificações já vistas para não repetir (evita duplicatas)
-    // const seenIds = await getSeenNotificationIds();
-    // console.log('[SW] 👁️ IDs já exibidos nesta sessão:', seenIds.length);
-    
-    // Filtra apenas novas (que não foram exibidas nesta sessão)
-    // const newNotifications = notifications.filter(n => !seenIds.includes(n.id));
-    const newNotifications = notifications; // Sempre exibe todas as não lidas
+    // Busca IDs já vistos (usado só para registrar persistência e evitar warnings)
+    const seenIds = await getSeenNotificationIds();
+    console.log('[SW] 👁️ IDs já exibidos nesta sessão:', seenIds.length);
+
+    // Exibiremos todas as não lidas (API já retorna somente UNREAD)
+    const newNotifications = notifications;
     console.log('[SW] 🆕 Novas para exibir:', newNotifications.length);
     
     // Notifica clientes sobre notificações encontradas
@@ -266,14 +284,14 @@ async function checkForNewNotifications() {
       for (const notif of newNotifications) {
         console.log('[SW] 📨 Processando:', notif.title);
         await showBackgroundNotification(notif);
-        // Marca como vista nesta sessão
-        // seenIds.push(notif.id);
+        seenIds.push(notif.id);
         // Pequeno delay entre notificações para não sobrecarregar
         await new Promise(resolve => setTimeout(resolve, 500));
       }
       
       // Salva IDs vistos
-      await saveSeenNotificationIds(seenIds);
+      const uniqueIds = Array.from(new Set(seenIds));
+      await saveSeenNotificationIds(uniqueIds);
       console.log('[SW] 💾 IDs salvos com sucesso');
     } else {
       console.log('[SW] ℹ️ Todas as notificações já foram exibidas anteriormente');
@@ -284,6 +302,8 @@ async function checkForNewNotifications() {
     console.error('[SW] ❌ Stack:', err.stack);
   } finally {
     isCheckingNotifications = false;
+    // Sempre agenda próximo horário após uma verificação
+    broadcastNextCheck(Date.now() + CHECK_NOTIFICATIONS_INTERVAL);
   }
 }
 

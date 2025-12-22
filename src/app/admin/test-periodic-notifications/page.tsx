@@ -7,6 +7,7 @@ import { Bell, Smartphone, Wifi } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export default function TestPeriodicNotificationsPage() {
+  const CHECK_INTERVAL_MS = 5 * 60 * 1000;
   const [swActive, setSwActive] = useState(false);
   const [swCheckInterval, setSwCheckInterval] = useState('5 minutos');
   const [nextCheck, setNextCheck] = useState<Date | null>(null);
@@ -24,11 +25,20 @@ export default function TestPeriodicNotificationsPage() {
     };
 
     checkSWStatus();
+    // Pede ao SW o próximo horário de checagem
+    if (navigator.serviceWorker.controller) {
+      navigator.serviceWorker.controller.postMessage({ type: 'GET_NEXT_CHECK' });
+    }
 
     // Listener para mensagens do Service Worker
     const handleSWMessage = (event: MessageEvent) => {
       const { data } = event;
       if (!data || !data.type) return;
+
+      if (data.type === 'NEXT_CHECK' && data.nextAt) {
+        setNextCheck(new Date(data.nextAt));
+        addLog(`⏰ Próxima verificação: ${new Date(data.nextAt).toLocaleTimeString()}`);
+      }
 
       if (data.type === 'NOTIFICATIONS_FOUND') {
         addLog(`📬 ${data.total} notificações encontradas`);

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
 import { useServiceWorkerMessaging } from '@/hooks/use-service-worker-messaging';
+import { useEffect } from 'react';
 
 export function ServiceWorkerRegister() {
   // Mantém a comunicação SW <-> app (token, IDs vistos)

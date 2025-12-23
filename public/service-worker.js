@@ -1,4 +1,4 @@
-const CACHE_NAME = 'my-app-cache-v0.10'; // Incrementado para forçar atualização
+const CACHE_NAME = 'my-app-cache-v0.11'; // Incrementado para forçar atualização
 const OFFLINE_URL = '/offline.html';
 const CHECK_NOTIFICATIONS_INTERVAL = 5 * 60 * 1000; // 5 minutos
 const LAST_CHECK_KEY = 'lastNotificationCheck';
@@ -498,7 +498,7 @@ async function getStoredToken() {
       });
 
       if (token) {
-        cachedToken = token;
+        // cachedToken = token;
         console.log('[SW] 💾 Token armazenado em cache');
         return token;
       }

@@ -18,7 +18,7 @@ import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
 
-import { Edit, Eye, Filter, MoreVertical, RefreshCcw, Settings2, Trash } from "lucide-react"
+import { Check, Edit, Eraser, Eye, Filter, MoreVertical, RefreshCcw, Settings2, Trash } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { DateRange } from 'react-day-picker'
 
@@ -143,6 +143,38 @@ export default function AgendamentosTab() {
         performDelete(pendingDeleteId)
         setPendingDeleteId(null)
         setConfirmOpen(false)
+    }
+
+    const confirmAppointment = async (id: string) => {
+        try {
+            setIsLoading(true)
+            await api.put(`/appointments/${id}/status`, {
+                status: 'Confirmado'
+            })
+            setAlert('Agendamento confirmado com sucesso.', 'success')
+            await fetchAppointments({ page, pageSize })
+        } catch (err) {
+            console.error('Erro ao confirmar agendamento:', err)
+            setAlert('Erro ao confirmar agendamento.', 'error')
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const changeToPending = async (id: string) => {
+        try {
+            setIsLoading(true)
+            await api.put(`/appointments/${id}/status`, {
+                status: 'Pendente'
+            })
+            setAlert('Agendamento alterado para pendente com sucesso.', 'success')
+            await fetchAppointments({ page, pageSize })
+        } catch (err) {
+            console.error('Erro ao alterar agendamento para pendente:', err)
+            setAlert('Erro ao alterar agendamento para pendente.', 'error')
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     const applyFilters = useCallback(() => {
@@ -311,7 +343,7 @@ export default function AgendamentosTab() {
                                         {visibleColumns.agendamento && <TableCell>{a.scheduledAt ? new Date(a.scheduledAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</TableCell>}
                                         {visibleColumns.criacao && <TableCell>{a.createdAt ? new Date(a.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</TableCell>}
                                         {visibleColumns.status && <TableCell>
-                                            <Badge variant={a.status === 'CONFIRMED' ? 'secondary' : a.status === 'CANCELLED' ? 'destructive' : 'outline'}>
+                                            <Badge variant={a.status === 'Confirmado' ? 'secondary' : a.status === 'Cancelado' ? 'destructive' : 'outline'}>
                                                 {a.status ?? 'PENDENTE'}
                                             </Badge>
                                         </TableCell>}
@@ -343,6 +375,18 @@ export default function AgendamentosTab() {
                                                         }}>
                                                             <Edit className="mr-2 h-4 w-4" />
                                                             <span>Editar Agendamento</span>
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    {agendamentoPerm?.editar && a.status !== 'Confirmado' && (
+                                                        <DropdownMenuItem onClick={() => confirmAppointment(a.id)}>
+                                                            <Check className="mr-2 h-4 w-4" />
+                                                            <span>Confirmar Agendamento</span>
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    {agendamentoPerm?.editar && a.status === 'Confirmado' && (
+                                                        <DropdownMenuItem onClick={() => changeToPending(a.id)}>
+                                                            <Eraser className="mr-2 h-4 w-4" />
+                                                            <span>Mudar para Pendente</span>
                                                         </DropdownMenuItem>
                                                     )}
                                                     {agendamentoPerm?.excluir && (

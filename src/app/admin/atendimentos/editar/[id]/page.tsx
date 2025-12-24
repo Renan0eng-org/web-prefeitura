@@ -1,11 +1,11 @@
-"use client"
+import CriarAtendimentoView from "@/views/admin/atendimentos/CriarAtendimentoView";
 
-import CriarAtendimentoView from "@/views/admin/atendimentos/CriarAtendimentoView"
-import { useParams } from "next/navigation"
+interface PageProps {
+  params: Promise<{ id: string }>
+}
 
-export default function EditarAtendimentoPage() {
-  const params = useParams()
-  const id = (params as any)?.id
-
+export default async function EditarAtendimentoPage(props: PageProps) {
+const { params } = props;
+  const { id } = await params;
   return <CriarAtendimentoView attendanceId={id} />
 }

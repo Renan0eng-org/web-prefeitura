@@ -1,11 +1,10 @@
-"use client"
-
 import CriarAtendimentoView from "@/views/admin/atendimentos/CriarAtendimentoView"
-import { useSearchParams } from "next/navigation"
 
-export default function CriarAtendimentoPage() {
-  const searchParams = useSearchParams()
-  const appointmentId = searchParams.get("appointmentId")
+interface PageProps {
+  searchParams?: { [key: string]: string | string[] | undefined }
+}
 
+export default function CriarAtendimentoPage({ searchParams }: PageProps) {
+  const appointmentId = Array.isArray(searchParams?.appointmentId) ? String(searchParams?.appointmentId[0]) : (searchParams?.appointmentId as string | undefined)
   return <CriarAtendimentoView appointmentId={appointmentId || undefined} />
 }

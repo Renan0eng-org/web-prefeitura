@@ -18,7 +18,8 @@ import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
 
-import { Check, Edit, Eraser, Eye, Filter, MoreVertical, RefreshCcw, Settings2, Trash } from "lucide-react"
+import { Check, Edit, Eraser, Eye, Filter, MoreVertical, RefreshCcw, Settings2, Stethoscope, Trash } from "lucide-react"
+import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { DateRange } from 'react-day-picker'
 
@@ -33,6 +34,7 @@ export default function AgendamentosTab() {
     const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null)
     const [isAgendarOpen, setIsAgendarOpen] = useState(false)
     const [visibleOnly, setVisibleOnly] = useState(false)
+    const router = useRouter()
     const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(() => {
         try {
             const raw = localStorage.getItem('agendamentos_visible_columns')
@@ -387,6 +389,14 @@ export default function AgendamentosTab() {
                                                         <DropdownMenuItem onClick={() => changeToPending(a.id)}>
                                                             <Eraser className="mr-2 h-4 w-4" />
                                                             <span>Mudar para Pendente</span>
+                                                        </DropdownMenuItem>
+                                                    )}
+                                                    {a.status === 'Confirmado' && (
+                                                        <DropdownMenuItem onClick={() => {
+                                                            router.push(`/admin/atendimentos/criar?appointmentId=${a.id}`)
+                                                        }}>
+                                                            <Stethoscope className="mr-2 h-4 w-4" />
+                                                            <span>Criar Atendimento</span>
                                                         </DropdownMenuItem>
                                                     )}
                                                     {agendamentoPerm?.excluir && (

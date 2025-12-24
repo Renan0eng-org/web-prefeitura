@@ -3,6 +3,7 @@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { useAuth } from '@/hooks/use-auth'
 import AgendamentosTab from "@/views/form-builder/tabs/AgendamentosTab"
+import AtendimentosTab from "@/views/form-builder/tabs/AtendimentosTab"
 import EncaminhamentosTab from "@/views/form-builder/tabs/EncaminhamentosTab"
 import EsteiraPacientesTab from "@/views/form-builder/tabs/EsteiraPacientesTab"
 import FormulariosTab from "@/views/form-builder/tabs/FormulariosTab"
@@ -19,6 +20,7 @@ export default function FormCard({ storage = 'local', storageKey = 'formCard.act
   const esteiraPaciente = useMemo(() => getPermissions ? getPermissions('esteira-pacientes') : null, [getPermissions])
   const agendamentoPerm = useMemo(() => getPermissions ? getPermissions('agendamento') : null, [getPermissions])
   const encaminhamentoPerm = useMemo(() => getPermissions ? getPermissions('encaminhamento') : null, [getPermissions])
+  const atendimentoPerm = useMemo(() => getPermissions ? getPermissions('atendimento') : null, [getPermissions])
 
   const defaultTab = formularioPerm?.visualizar ? 'forms' : 'esteira-pacientes'
 
@@ -53,6 +55,7 @@ export default function FormCard({ storage = 'local', storageKey = 'formCard.act
         {esteiraPaciente?.visualizar && <TabsTrigger value="esteira-pacientes">Esteira de Pacientes</TabsTrigger>}
         {encaminhamentoPerm?.visualizar && <TabsTrigger value="encaminhamento">Encaminhamentos</TabsTrigger>}
         {agendamentoPerm?.visualizar && <TabsTrigger value="agendamentos">Agendamentos</TabsTrigger>}
+        {atendimentoPerm?.visualizar && <TabsTrigger value="atendimentos">Atendimentos</TabsTrigger>}
       </TabsList>
 
       {formularioPerm?.visualizar && <TabsContent value="forms" className="mt-4">
@@ -70,6 +73,11 @@ export default function FormCard({ storage = 'local', storageKey = 'formCard.act
       {encaminhamentoPerm?.visualizar && <TabsContent value="encaminhamento" className="mt-4">
         <EncaminhamentosTab />
       </TabsContent>}
+
+      {atendimentoPerm?.visualizar && <TabsContent value="atendimentos" className="mt-4">
+        <AtendimentosTab />
+      </TabsContent>}
+
     </Tabs>
   )
 }

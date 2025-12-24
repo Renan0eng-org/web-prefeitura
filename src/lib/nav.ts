@@ -1,12 +1,13 @@
 import {
-  ClipboardList,
-  Home,
-  ListStart,
-  Logs,
-  Shield,
-  User,
-  UserCheck,
-  UserPlus
+    ClipboardList,
+    Home,
+    ListStart,
+    Logs,
+    Shield,
+    Stethoscope,
+    User,
+    UserCheck,
+    UserPlus
 } from "lucide-react";
 
 
@@ -45,6 +46,13 @@ export const data = {
       icon: ClipboardList,
       isActive: false,
       nivel_acesso: "agendamento",
+    },
+    {
+      title: "Atendimentos",
+      url: "/admin/atendimentos",
+      icon: Stethoscope,
+      isActive: false,
+      nivel_acesso: "atendimento",
     },
     {
       title: "Encaminhamentos",

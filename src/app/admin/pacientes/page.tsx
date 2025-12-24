@@ -216,7 +216,7 @@ export default function PatientsPage() {
         <div className="p-2 md:p-4 lg:p-8">
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                 <h1 className="text-3xl font-bold tracking-tight">Pacientes</h1>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <ColumnsDropdown
                         columns={columns}
                         onChange={(c: Record<string, boolean>) => setColumns(c)}

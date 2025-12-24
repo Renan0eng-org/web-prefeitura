@@ -1,5 +1,5 @@
 export enum AttendanceStatus {
-  EmAndamento = "Em Andamento",
+  EmAndamento = "EmAndamento",
   Concluido = "Concluido",
   Cancelado = "Cancelado"
 }

@@ -143,12 +143,12 @@ export default function CriarAtendimentoView({ appointmentId, attendanceId }: Cr
                             answersMap[formId] = answersMap[formId] || {}
                             const respId = resp.id || resp.idResponse || resp.responseId || resp._id
                             if (respId) existingMap[formId] = respId
-                            ;(resp.answers || []).forEach((a: any) => {
-                                const qKey = a.question?.idQuestion || a.question?.id || a.questionId
-                                if (qKey === undefined || qKey === null) return
-                                if (a.value !== null && a.value !== undefined) answersMap[formId][qKey] = a.value
-                                else if (a.values !== null && a.values !== undefined) answersMap[formId][qKey] = a.values
-                            })
+                                ; (resp.answers || []).forEach((a: any) => {
+                                    const qKey = a.question?.idQuestion || a.question?.id || a.questionId
+                                    if (qKey === undefined || qKey === null) return
+                                    if (a.value !== null && a.value !== undefined) answersMap[formId][qKey] = a.value
+                                    else if (a.values !== null && a.values !== undefined) answersMap[formId][qKey] = a.values
+                                })
                         })
                         setAnswersByForm(prev => ({ ...(prev || {}), ...(answersMap || {}) }))
                         setExistingResponseIdByForm(prev => ({ ...(prev || {}), ...(existingMap || {}) }))
@@ -205,12 +205,12 @@ export default function CriarAtendimentoView({ appointmentId, attendanceId }: Cr
                             answersMap[formId] = answersMap[formId] || {}
                             const respId = resp.id || resp.idResponse || resp.responseId || resp._id
                             if (respId) existingMap[formId] = respId
-                            ;(resp.answers || []).forEach((a: any) => {
-                                const qKey = a.question?.idQuestion || a.question?.id || a.questionId
-                                if (qKey === undefined || qKey === null) return
-                                if (a.value !== null && a.value !== undefined) answersMap[formId][qKey] = a.value
-                                else if (a.values !== null && a.values !== undefined) answersMap[formId][qKey] = a.values
-                            })
+                                ; (resp.answers || []).forEach((a: any) => {
+                                    const qKey = a.question?.idQuestion || a.question?.id || a.questionId
+                                    if (qKey === undefined || qKey === null) return
+                                    if (a.value !== null && a.value !== undefined) answersMap[formId][qKey] = a.value
+                                    else if (a.values !== null && a.values !== undefined) answersMap[formId][qKey] = a.values
+                                })
                         })
                         setAnswersByForm(prev => ({ ...(prev || {}), ...(answersMap || {}) }))
                         setExistingResponseIdByForm(prev => ({ ...(prev || {}), ...(existingMap || {}) }))
@@ -229,9 +229,17 @@ export default function CriarAtendimentoView({ appointmentId, attendanceId }: Cr
 
                 setPatients(Array.isArray(patientsList) ? patientsList : [])
                 setScreeningForms(Array.isArray(formsList) ? formsList : [])
-            } catch (err) {
+            } catch (err: any) {
                 console.error("Erro ao carregar dados:", err)
-                setAlert("Erro ao carregar dados.", "error")
+                if (err?.response.data.message && Array.isArray(err.message)) {
+                    setAlert(err.message.join(' '), 'error')
+                } else if (err?.response?.data?.message) {
+                    setAlert(err.response.data.message, "error")
+                } else if (err?.message) {
+                    setAlert(err.message, "error")
+                } else {
+                    setAlert("Erro ao carregar dados.", "error")
+                }
             } finally {
                 setIsLoading(false)
             }
@@ -443,11 +451,16 @@ export default function CriarAtendimentoView({ appointmentId, attendanceId }: Cr
                 router.back()
             }, 500)
         } catch (err: any) {
+            console.error("Erro ao carregar dados:", err)
             if (err?.response.data.message && Array.isArray(err.message)) {
                 setAlert(err.message.join(' '), 'error')
+            } else if (err?.response?.data?.message) {
+                setAlert(err.response.data.message, "error")
+            } else if (err?.message) {
+                setAlert(err.message, "error")
+            } else {
+                setAlert("Erro ao carregar dados.", "error")
             }
-            console.error("Erro ao criar atendimento:", err)
-            setAlert("Erro ao criar atendimento.", "error")
         } finally {
             setIsSubmitting(false)
         }

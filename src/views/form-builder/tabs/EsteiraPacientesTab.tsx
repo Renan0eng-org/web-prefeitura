@@ -130,7 +130,7 @@ export default function EsteiraPacientesTab() {
         <>
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                 <h2 className="text-3xl font-bold tracking-tight text-primary">Esteira de Pacientes</h2>
-                <div className="flex space-x-2">
+                <div className="flex gap-2 flex-wrap">
                     <ColumnsDropdown
                         columns={visibleColumnsEsteira}
                         onChange={(c: Record<string, boolean>) => setVisibleColumnsEsteira(c)}
@@ -231,7 +231,14 @@ export default function EsteiraPacientesTab() {
                             </TableRow>
                         ))
                     ) : (
-                        formsResponses.map((response) => (
+                        formsResponses.map((response) => {
+                            const isAttendance = Array.isArray(response.attendanceResponses) && response.attendanceResponses.length > 0
+                            const isScreening = !!response.form?.isScreening
+                            const badgeText = isAttendance ? 'Atendimento' : (isScreening ? 'Triagem' : 'App')
+                            let badgeClass = 'bg-primary-100 text-primary-600'
+                            if (isAttendance) badgeClass = 'bg-orange-100 text-orange-800 hover:bg-orange-800 hover:text-orange-100'
+                            else if (isScreening) badgeClass = 'bg-green-100 text-green-800 hover:bg-green-800 hover:text-green-100'
+                            return (
                             <TableRow key={response.idResponse}>
                                 {visibleColumnsEsteira.form && (
                                     <TableCell title={response.form?.title || "Sem título"}>
@@ -256,8 +263,8 @@ export default function EsteiraPacientesTab() {
                                 )}
                                 {visibleColumnsEsteira.isScreening && (
                                     <TableCell>
-                                        <Badge className={"px-2 py-1 " + (response.form?.isScreening ? 'bg-green-100 text-green-800 hover:bg-green-800 hover:text-green-100' : 'bg-primary-100 text-primary-600')}>
-                                            {response.form?.isScreening ? 'Triagem' : 'App'}
+                                        <Badge className={"px-2 py-1 " + badgeClass}>
+                                            {badgeText}
                                         </Badge>
                                     </TableCell>
                                 )}
@@ -304,8 +311,8 @@ export default function EsteiraPacientesTab() {
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>}
-                            </TableRow>
-                        ))
+                            </TableRow>)
+                        })
                     )}
                 </TableBody>
             </Table>

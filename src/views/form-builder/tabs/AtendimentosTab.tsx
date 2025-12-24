@@ -226,7 +226,7 @@ export default function AtendimentosTab() {
     <div>
       <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
         <h2 className="text-3xl font-bold tracking-tight text-primary">Atendimentos</h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <ColumnsDropdown
             columns={visibleColumns}
             onChange={(c: Record<string, boolean>) => setVisibleColumns(c)}
@@ -251,18 +251,6 @@ export default function AtendimentosTab() {
             <Button variant="outline" size="sm" onClick={() => fetchAttendances()}>
               <RefreshCcw className="w-4 h-4" />
               Atualizar
-            </Button>
-          )}
-          {atendimentoPerm?.criar && (
-            <Button
-              variant="default"
-              size="sm"
-              onClick={() => {
-                router.push("/admin/atendimentos/criar")
-              }}
-            >
-              <Plus className="w-4 h-4" />
-              Novo Atendimento
             </Button>
           )}
           <ExportExcelButton
@@ -298,6 +286,18 @@ export default function AtendimentosTab() {
             <Filter className="h-4 w-4" />
             Filtros
           </Button>
+          {atendimentoPerm?.criar && (
+            <Button
+              variant="default"
+              size="sm"
+              onClick={() => {
+                router.push("/admin/atendimentos/criar")
+              }}
+            >
+              <Plus className="w-4 h-4" />
+              Novo Atendimento
+            </Button>
+          )}
         </div>
       </div>
 

@@ -152,7 +152,7 @@ export function GerenciarNiveisAcesso() {
             Crie os níveis (cargos) e gerencie quais menus eles podem acessar.
           </CardDescription>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
             <ColumnsDropdown
               columns={visibleColumns}
               onChange={(c: Record<string, boolean>) => setVisibleColumns(c as Record<string, boolean>)}

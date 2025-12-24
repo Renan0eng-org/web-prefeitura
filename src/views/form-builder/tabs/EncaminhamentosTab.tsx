@@ -181,7 +181,7 @@ export default function EncaminhamentosTab() {
         <div>
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
                 <h2 className="text-3xl font-bold tracking-tight text-primary">Encaminhamentos</h2>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                     <ColumnsDropdown
                         columns={visibleColumns}
                         onChange={(c: Record<string, boolean>) => setVisibleColumns(c)}

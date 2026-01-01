@@ -1,6 +1,7 @@
 "use client"
 
 import BtnVoltar from "@/components/buttons/btn-voltar"
+import { MedicalNotesEditor, type MedicalNote } from "@/components/medical-notes-editor"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import { Input } from "@/components/ui/input"
@@ -9,7 +10,6 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { SearchableSelect } from "@/components/ui/searchable-select"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Textarea } from "@/components/ui/textarea"
 import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
@@ -49,12 +49,6 @@ export default function CriarAtendimentoView({ appointmentId, attendanceId }: Cr
         patientId: "",
         professionalId: user?.idUser || "",
         attendanceDate: formatDateToLocal(new Date()),
-        chiefComplaint: "",
-        presentingIllness: "",
-        medicalHistory: "",
-        physicalExamination: "",
-        diagnosis: "",
-        treatment: "",
         bloodPressure: "",
         heartRate: "",
         temperature: "",
@@ -62,6 +56,7 @@ export default function CriarAtendimentoView({ appointmentId, attendanceId }: Cr
         status: AttendanceStatus.EmAndamento,
     })
 
+    const [medicalNotes, setMedicalNotes] = useState<MedicalNote[]>([])
     const [patients, setPatients] = useState<any[]>([])
     const [screeningForms, setScreeningForms] = useState<ScreeningForm[]>([])
     const [selectedFormIds, setSelectedFormIds] = useState<Record<string, boolean>>({})
@@ -91,18 +86,17 @@ export default function CriarAtendimentoView({ appointmentId, attendanceId }: Cr
                         patientId: att.patientId || att.userId || prev.patientId || "",
                         professionalId: att.professionalId || prev.professionalId || "",
                         attendanceDate: att.attendanceDate ? formatDateToLocal(new Date(att.attendanceDate)) : prev.attendanceDate,
-                        chiefComplaint: att.chiefComplaint || att.queixa || prev.chiefComplaint || "",
-                        presentingIllness: att.presentingIllness || prev.presentingIllness || "",
-                        medicalHistory: att.medicalHistory || prev.medicalHistory || "",
-                        physicalExamination: att.physicalExamination || prev.physicalExamination || "",
-                        diagnosis: att.diagnosis || prev.diagnosis || "",
-                        treatment: att.treatment || prev.treatment || "",
                         bloodPressure: att.bloodPressure || prev.bloodPressure || "",
                         heartRate: att.heartRate ? String(att.heartRate) : prev.heartRate || "",
                         temperature: att.temperature ? String(att.temperature) : prev.temperature || "",
                         respiratoryRate: att.respiratoryRate ? String(att.respiratoryRate) : prev.respiratoryRate || "",
                         status: att.status || prev.status,
                     }))
+
+                    // Carregar medical notes
+                    if (att.medicalNotes && Array.isArray(att.medicalNotes) && att.medicalNotes.length > 0) {
+                        setMedicalNotes(att.medicalNotes)
+                    }
 
                     // merge assigned forms if provided
                     const fromAssigned = att.assignedForms || att.fromAssigned || []
@@ -290,8 +284,10 @@ export default function CriarAtendimentoView({ appointmentId, attendanceId }: Cr
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        if (!formData.patientId || !formData.professionalId || !formData.attendanceDate || !formData.chiefComplaint) {
-            setAlert("Por favor, preencha todos os campos obrigatórios.", "error")
+        // Validar que há pelo menos uma nota com conteúdo
+        const hasValidNote = medicalNotes.some(note => note.content && note.content.trim() !== "")
+        if (!formData.patientId || !formData.professionalId || !formData.attendanceDate || !hasValidNote) {
+            setAlert("Por favor, preencha todos os campos obrigatórios incluindo pelo menos uma nota médica.", "error")
             return
         }
 
@@ -302,17 +298,12 @@ export default function CriarAtendimentoView({ appointmentId, attendanceId }: Cr
                 patientId: formData.patientId,
                 professionalId: formData.professionalId,
                 attendanceDate: formData.attendanceDate,
-                chiefComplaint: formData.chiefComplaint,
-                presentingIllness: formData.presentingIllness || undefined,
-                medicalHistory: formData.medicalHistory || undefined,
-                physicalExamination: formData.physicalExamination || undefined,
-                diagnosis: formData.diagnosis || undefined,
-                treatment: formData.treatment || undefined,
                 bloodPressure: formData.bloodPressure || undefined,
                 heartRate: formData.heartRate ? parseInt(formData.heartRate) : undefined,
                 temperature: formData.temperature ? parseFloat(formData.temperature) : undefined,
                 respiratoryRate: formData.respiratoryRate ? parseInt(formData.respiratoryRate) : undefined,
                 status: formData.status,
+                medicalNotes: medicalNotes.filter(note => note.content && note.content.trim() !== ""),
             }
 
             let savedAttendanceId = attendanceId
@@ -578,75 +569,10 @@ export default function CriarAtendimentoView({ appointmentId, attendanceId }: Cr
                     </div>
 
                     {/* Informações Clínicas */}
-                    <div className="bg-white rounded-lg border p-2 sm:p-6 space-y-4">
-                        <h2 className="text-lg font-semibold">Informações Clínicas</h2>
-
-                        <div>
-                            <Label htmlFor="chiefComplaint">Queixa Principal *</Label>
-                            <Textarea
-                                id="chiefComplaint"
-                                value={formData.chiefComplaint}
-                                onChange={(e) => handleInputChange("chiefComplaint", e.target.value)}
-                                placeholder="Motivo da consulta"
-                                rows={2}
-                            />
-                        </div>
-
-                        <div>
-                            <Label htmlFor="presentingIllness">História da Doença Atual</Label>
-                            <Textarea
-                                id="presentingIllness"
-                                value={formData.presentingIllness}
-                                onChange={(e) => handleInputChange("presentingIllness", e.target.value)}
-                                placeholder="Descrição da doença atual"
-                                rows={2}
-                            />
-                        </div>
-
-                        <div>
-                            <Label htmlFor="medicalHistory">Histórico Médico</Label>
-                            <Textarea
-                                id="medicalHistory"
-                                value={formData.medicalHistory}
-                                onChange={(e) => handleInputChange("medicalHistory", e.target.value)}
-                                placeholder="Antecedentes médicos relevantes"
-                                rows={2}
-                            />
-                        </div>
-
-                        <div>
-                            <Label htmlFor="physicalExamination">Exame Físico</Label>
-                            <Textarea
-                                id="physicalExamination"
-                                value={formData.physicalExamination}
-                                onChange={(e) => handleInputChange("physicalExamination", e.target.value)}
-                                placeholder="Resultado do exame físico"
-                                rows={2}
-                            />
-                        </div>
-
-                        <div>
-                            <Label htmlFor="diagnosis">Diagnóstico</Label>
-                            <Textarea
-                                id="diagnosis"
-                                value={formData.diagnosis}
-                                onChange={(e) => handleInputChange("diagnosis", e.target.value)}
-                                placeholder="Diagnóstico identificado"
-                                rows={2}
-                            />
-                        </div>
-
-                        <div>
-                            <Label htmlFor="treatment">Tratamento Recomendado</Label>
-                            <Textarea
-                                id="treatment"
-                                value={formData.treatment}
-                                onChange={(e) => handleInputChange("treatment", e.target.value)}
-                                placeholder="Plano de tratamento"
-                                rows={2}
-                            />
-                        </div>
-                    </div>
+                    <MedicalNotesEditor
+                        medicalNotes={medicalNotes}
+                        onChange={setMedicalNotes}
+                    />
 
                     {/* Formulários */}
                     {screeningForms.length > 0 && (

@@ -10,7 +10,6 @@ import {
 } from "@/components/ui/sidebar";
 import { AlertProvider } from "@/hooks/use-alert";
 import { AuthProvider } from "@/hooks/use-auth";
-import { Analytics } from "@vercel/analytics/react";
 
 export default async function RootLayout({
   children,
@@ -40,7 +39,6 @@ export default async function RootLayout({
           </SidebarProvider>
         </AuthProvider>
       </AlertProvider>
-      <Analytics />
     </>
   )
 }

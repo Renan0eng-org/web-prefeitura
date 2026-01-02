@@ -2,6 +2,8 @@
 
 import { QuillEditor } from "@/components/quill-editor"
 import { Button } from "@/components/ui/button"
+import { Label } from "@/components/ui/label"
+import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
 import { cn } from "@/lib/utils"
 import {
@@ -19,6 +21,7 @@ export interface MedicalNote {
     content: string
     mode: "advanced" | "simple"
     order: number
+    allowFutureUse?: boolean
 }
 
 interface MedicalNotesEditorProps {
@@ -31,6 +34,7 @@ interface NoteTab {
     title: string
     content: string
     isEditing: boolean
+    allowFutureUse: boolean
 }
 
 export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEditorProps) {
@@ -54,6 +58,7 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
                     title: note.title,
                     content: note.content || "",
                     isEditing: false,
+                    allowFutureUse: Boolean(note.allowFutureUse),
                 }))
             setTabs(loadedTabs)
             setActiveTabId(loadedTabs[0]?.id || "")
@@ -62,9 +67,9 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
         } else if (tabs.length === 0 && !isInitialized.current) {
             // Criar abas padrão apenas se não houver nenhuma
             const defaultTabs: NoteTab[] = [
-                { id: "tab-1", title: "Queixa Principal", content: "", isEditing: false },
-                { id: "tab-2", title: "História Atual", content: "", isEditing: false },
-                { id: "tab-3", title: "Exame Físico", content: "", isEditing: false },
+                { id: "tab-1", title: "Queixa Principal", content: "", isEditing: false, allowFutureUse: false },
+                { id: "tab-2", title: "História Atual", content: "", isEditing: false, allowFutureUse: false },
+                { id: "tab-3", title: "Exame Físico", content: "", isEditing: false, allowFutureUse: false },
             ]
             setTabs(defaultTabs)
             setActiveTabId(defaultTabs[0].id)
@@ -80,6 +85,7 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
                 content: tab.content,
                 mode: advancedMode ? "advanced" : "simple",
                 order: index,
+                allowFutureUse: tab.allowFutureUse,
             }))
             onChange(notes)
         }
@@ -93,6 +99,7 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
             title: `Nova Nota ${tabs.length + 1}`,
             content: "",
             isEditing: false,
+            allowFutureUse: false,
         }
         setTabs(prev => [...prev, newTab])
         setActiveTabId(newTab.id)
@@ -220,6 +227,13 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
         },
     ]
 
+
+    const updateAllowFutureUse = (tabId: string, value: boolean) => {
+        if (!tabId) return
+        setTabs(prev => prev.map(tab =>
+            tab.id === tabId ? { ...tab, allowFutureUse: value } : tab
+        ))
+    }
     return (
         <div className="bg-white rounded-lg border overflow-hidden">
             {/* Header estilo navegador */}
@@ -295,6 +309,16 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
                         onChange={(e) => updateTabTitle(activeTabId, e.target.value)}
                     />
                     <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
+                            <Switch
+                                id={`allow-future-${activeTabId || "current"}`}
+                                checked={Boolean(activeTab?.allowFutureUse)}
+                                onCheckedChange={(checked) => updateAllowFutureUse(activeTabId, checked)}
+                            />
+                            <Label htmlFor={`allow-future-${activeTabId || "current"}`} className="cursor-pointer">
+                                Permitir reutilização futura
+                            </Label>
+                        </div>
                         {/* <div className="flex rounded border overflow-hidden">
                             <button
                                 type="button"

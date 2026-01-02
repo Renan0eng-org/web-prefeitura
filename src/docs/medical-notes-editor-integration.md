@@ -28,6 +28,7 @@ interface MedicalNote {
   content: string          // Conteúdo (HTML ou texto plano)
   mode: "advanced" | "simple"  // Modo do editor
   order: number            // Ordem de exibição
+  allowFutureUse?: boolean // Permite reutilizar a nota em atendimentos futuros
 }
 ```
 
@@ -104,19 +105,22 @@ const handleSubmit = async (e: React.FormEvent) => {
       "title": "Queixa Principal",
       "content": "<p><strong>Dor de cabeça</strong> intensa há 2 dias</p>",
       "mode": "advanced",
-      "order": 0
+      "order": 0,
+      "allowFutureUse": true
     },
     {
       "title": "História Atual",
       "content": "• Dor pulsátil\n• Fotofobia\n• Náuseas leves",
       "mode": "simple",
-      "order": 1
+      "order": 1,
+      "allowFutureUse": false
     },
     {
       "title": "Exame Físico",
       "content": "Paciente alerta e orientado. Sem sinais neurológicos focais.",
       "mode": "simple",
-      "order": 2
+      "order": 2,
+      "allowFutureUse": false
     }
   ]
 }

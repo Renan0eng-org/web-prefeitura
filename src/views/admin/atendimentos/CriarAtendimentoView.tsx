@@ -15,7 +15,7 @@ import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
 import { AttendanceStatus } from "@/types/attendance"
 import { useRouter } from "next/navigation"
-import { useEffect, useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 
 // Helper para formatar data no timezone local
 const formatDateToLocal = (date: Date): string => {
@@ -42,7 +42,7 @@ interface CriarAtendimentoViewProps {
 export default function CriarAtendimentoView({ appointmentId, attendanceId }: CriarAtendimentoViewProps) {
     const router = useRouter()
     const { setAlert } = useAlert()
-    const { user } = useAuth()
+    const { user, getPermissions } = useAuth()
 
     // Form data
     const [formData, setFormData] = useState({
@@ -55,6 +55,20 @@ export default function CriarAtendimentoView({ appointmentId, attendanceId }: Cr
         respiratoryRate: "",
         status: AttendanceStatus.EmAndamento,
     })
+
+    /*
+    {
+        nome: string;
+        idMenuAcesso: number;
+        slug: string;
+        visualizar: boolean;
+        criar: boolean;
+        editar: boolean;
+        excluir: boolean;
+        relatorio: boolean;
+    }
+    */
+    const atendimentoPerm = useMemo(() => getPermissions ? getPermissions('atendimento') : null, [getPermissions])
 
     const [medicalNotes, setMedicalNotes] = useState<MedicalNote[]>([])
     const [patients, setPatients] = useState<any[]>([])
@@ -455,6 +469,11 @@ export default function CriarAtendimentoView({ appointmentId, attendanceId }: Cr
         } finally {
             setIsSubmitting(false)
         }
+    }
+
+    if((!atendimentoPerm?.editar && attendanceId) || 
+        (!atendimentoPerm?.criar)) {
+        router.push(`/admin`)
     }
 
     return (

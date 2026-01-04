@@ -1,16 +1,11 @@
 const CACHE_NAME = 'my-app-cache-v0.11'; // Incrementado para forçar atualização
 const OFFLINE_URL = '/offline.html';
-const CHECK_NOTIFICATIONS_INTERVAL = 5 * 60 * 1000; // 5 minutos
-const LAST_CHECK_KEY = 'lastNotificationCheck';
-const SEEN_NOTIFICATIONS_KEY = 'seenNotifications';
 let cachedToken = null;
-// let API_URL = 'http://localhost:4000'; // Padrão hardcoded, será atualizado pelo cliente
 let API_URL = 'https://prefeitura.back.renannardi.com'; // Padrão hardcoded, será atualizado pelo cliente
 
-// Variáveis globais do SW
-let notificationCheckInterval = null;
-let isCheckingNotifications = false;
-let nextCheckAt = null;
+// Importar Firebase Messaging
+importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app.compat.js');
+importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
 
 // Logging helper: replica nos clientes e mantém console original
 const originalConsole = {
@@ -54,14 +49,6 @@ console.log = (...args) => broadcastLog('log', ...args);
 console.warn = (...args) => broadcastLog('warn', ...args);
 console.error = (...args) => broadcastLog('error', ...args);
 
-async function broadcastNextCheck(timestamp) {
-  nextCheckAt = timestamp;
-  const clients = await self.clients.matchAll();
-  clients.forEach((client) => {
-    client.postMessage({ type: 'NEXT_CHECK', nextAt: nextCheckAt });
-  });
-}
-
 // INSTALAÇÃO (sem cache inicial)
 self.addEventListener('install', (event) => {
   console.log('[SW] Installing...');
@@ -87,9 +74,8 @@ self.addEventListener('activate', (event) => {
     }).then(() => {
       console.log('[SW] 🚀 Service Worker ativo e pronto!');
       console.log('[SW] 🌐 API_URL configurada:', API_URL);
-      console.log('[SW] 🔔 Iniciando sistema de notificações em background...');
-      // Inicia verificação periódica ao ativar
-      startPeriodicNotificationCheck();
+      console.log('[SW] 🔔 Firebase Messaging inicializado!');
+      initializeFirebase();
     })
   );
 });
@@ -160,18 +146,6 @@ self.addEventListener('message', (event) => {
     return;
   }
 
-  if (data.type === 'GET_NEXT_CHECK') {
-    if (nextCheckAt) {
-      event.source?.postMessage({ type: 'NEXT_CHECK', nextAt: nextCheckAt });
-    }
-    return;
-  }
-
-  if (data.type === 'CHECK_NOTIFICATIONS_NOW') {
-    console.log('[SW] 📥 Pedido de verificação imediata recebido');
-    event.waitUntil(checkForNewNotifications());
-  }
-
   if (data.type === 'USER_AUTHENTICATED') {
     console.log('[SW] 🔑 Token recebido do app');
     cachedToken = data.token || null;
@@ -195,372 +169,56 @@ self.addEventListener('message', (event) => {
   }
 });
 
-
-// ========== NOTIFICAÇÕES PERIÓDICAS ==========
-
-/**
- * Inicia verificação periódica de notificações
- * Busca a cada 5 minutos se há notificações não lidas
- */
-function startPeriodicNotificationCheck() {
-  console.log('[SW] 🔄 Iniciando verificação periódica (a cada ' + (CHECK_NOTIFICATIONS_INTERVAL / 60000) + ' min)');
-  
-  // Primeira verificação imediata após 5 segundos
-  setTimeout(() => {
-    console.log('[SW] ⏰ Primeira verificação automática...');
-    checkForNewNotifications();
-  }, 5000);
-  
-  // Para intervalo anterior se existir
-  if (notificationCheckInterval) {
-    clearInterval(notificationCheckInterval);
-  }
-  
-  // Configura intervalo periódico
-  notificationCheckInterval = setInterval(() => {
-    console.log('[SW] ⏰ Verificação periódica automática disparada');
-    checkForNewNotifications();
-  }, CHECK_NOTIFICATIONS_INTERVAL);
-
-  // Agenda e comunica próximo horário
-  broadcastNextCheck(Date.now() + CHECK_NOTIFICATIONS_INTERVAL);
-
-  console.log('[SW] ✅ Verificação periódica configurada com sucesso');
-}
+// ========== FIREBASE MESSAGING ==========
 
 /**
- * Para a verificação periódica
+ * Inicializa Firebase Messaging no Service Worker
  */
-function stopPeriodicNotificationCheck() {
-  if (notificationCheckInterval) {
-    clearInterval(notificationCheckInterval);
-    notificationCheckInterval = null;
-    console.log('[SW] Verificação periódica parada');
-  }
-}
-
-/**
- * Busca notificações não lidas do backend
- * Se houver novas, exibe notificação ao usuário
- */
-async function checkForNewNotifications() {
-  if (isCheckingNotifications) {
-    console.log('[SW] ⏭️ Verificação já em andamento, pulando...');
-    return;
-  }
-  
-  isCheckingNotifications = true;
-  console.log('[SW] 🔍 ========== VERIFICANDO NOTIFICAÇÕES ==========');
-  console.log('[SW] 🕐 Timestamp:', new Date().toLocaleString());
-  
+function initializeFirebase() {
   try {
-    // Busca token do localStorage (salvo pelo frontend)
-    const token = cachedToken || await getStoredToken();
-    if (!token) {
-      console.log('[SW] ⚠️ Sem token armazenado, usuário não autenticado');
-      isCheckingNotifications = false;
-      return;
-    }
-    
-    console.log('[SW] ✅ Token obtido com sucesso');
-    console.log('[SW] 🌐 URL da API:', API_URL);
-    
-    // Faz requisição ao backend buscando apenas notificações UNREAD
-    // A API já filtra e retorna apenas não lidas com status=UNREAD
-    const url = `${API_URL}/notifications?status=UNREAD&limit=20`;
-    console.log('[SW] 📡 GET:', url);
-    
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
-    });
-    
-    if (!response.ok) {
-      console.warn('[SW] ❌ Erro HTTP:', response.status, response.statusText);
-      isCheckingNotifications = false;
-      return;
-    }
-    
-    const data = await response.json();
-    const notifications = data.items || [];
-    
-    console.log('[SW] 📬 Encontradas', notifications.length, 'notificações não lidas (UNREAD)');
-    
-    if (notifications.length === 0) {
-      console.log('[SW] ✅ Nenhuma notificação nova');
-      isCheckingNotifications = false;
-      return;
-    }
-    
-    // Lista títulos das notificações encontradas
-    notifications.forEach((notif, index) => {
-      console.log(`[SW] 📌 ${index + 1}. ${notif.title} (ID: ${notif.id.substring(0, 8)}...)`);
-    });
-    
-    // Busca IDs já vistos (usado só para registrar persistência e evitar warnings)
-    const seenIds = await getSeenNotificationIds();
-    console.log('[SW] 👁️ IDs já exibidos nesta sessão:', seenIds.length);
-
-    // Exibiremos todas as não lidas (API já retorna somente UNREAD)
-    const newNotifications = notifications;
-    console.log('[SW] 🆕 Novas para exibir:', newNotifications.length);
-    
-    // Notifica clientes sobre notificações encontradas
-    const clients = await self.clients.matchAll();
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'NOTIFICATIONS_FOUND',
-        total: notifications.length,
-        new: newNotifications.length,
-        notifications: newNotifications.map(n => ({ id: n.id, title: n.title, body: n.body, category: n.category }))
-      });
-    });
-    
-    // Exibe cada notificação nova
-    if (newNotifications.length > 0) {
-      console.log('[SW] 🔔 Iniciando exibição de', newNotifications.length, 'notificações...');
-      for (const notif of newNotifications) {
-        console.log('[SW] 📨 Processando:', notif.title);
-        await showBackgroundNotification(notif);
-        seenIds.push(notif.id);
-        // Pequeno delay entre notificações para não sobrecarregar
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
-      
-      // Salva IDs vistos
-      const uniqueIds = Array.from(new Set(seenIds));
-      await saveSeenNotificationIds(uniqueIds);
-      console.log('[SW] 💾 IDs salvos com sucesso');
-    } else {
-      console.log('[SW] ℹ️ Todas as notificações já foram exibidas anteriormente');
-    }
-    console.log('[SW] ✅ ========== VERIFICAÇÃO CONCLUÍDA ==========');
-  } catch (err) {
-    console.error('[SW] ❌ Erro ao verificar notificações:', err);
-    console.error('[SW] ❌ Stack:', err.stack);
-  } finally {
-    isCheckingNotifications = false;
-    // Sempre agenda próximo horário após uma verificação
-    broadcastNextCheck(Date.now() + CHECK_NOTIFICATIONS_INTERVAL);
-  }
-}
-
-/**
- * Exibe uma notificação no background
- */
-async function showBackgroundNotification(notif) {
-  try {
-    console.log('[SW] 🔔 Preparando notificação:', notif.title);
-    console.log('[SW] 📝 Corpo:', notif.body);
-    console.log('[SW] 🏷️ Categoria:', notif.category || 'geral');
-    console.log('[SW] ⚡ Prioridade:', notif.priority || 0);
-
-    // Se o navegador não concedeu permissão, não tentar exibir para evitar erro
-    if (typeof Notification !== 'undefined' && Notification.permission !== 'granted') {
-      console.warn('[SW] ⚠️ Permissão de notificação não concedida, pulando exibição');
-      const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
-      clients.forEach((client) => {
-        client.postMessage({
-          type: 'SW_LOG',
-          level: 'warn',
-          message: 'Permissão de notificação não concedida; abra o app e aceite para continuar',
-        });
-        client.postMessage({ type: 'REQUEST_PERMISSION' });
-      });
-      return;
-    }
-
-    const options = {
-      body: notif.body || 'Você tem uma nova notificação',
-      icon: '/android/android-launchericon-96-96.png',
-      badge: '/android/android-launchericon-48-48.png',
-      data: notif.data || { url: '/admin/notifications', notificationId: notif.id },
-      tag: `notif-${notif.id}`,
-      requireInteraction: (notif.priority && notif.priority > 0) || false,
-      vibrate: [200, 100, 200],
-      silent: false,
-      timestamp: notif.createdAt ? new Date(notif.createdAt).getTime() : Date.now(),
+    const firebaseConfig = {
+      apiKey: "AIzaSyD6A_4rN_QY2Tog_MqQWireTJCrwfORmsY",
+      authDomain: "pvai-ab7eb.firebaseapp.com",
+      projectId: "pvai-ab7eb",
+      storageBucket: "pvai-ab7eb.firebasestorage.app",
+      messagingSenderId: "84989376406",
+      appId: "1:84989376406:web:2f7d595eca8543fd1e4fb7"
     };
-    
-    console.log('[SW] 📢 Chamando showNotification...');
-    
-    await self.registration.showNotification(notif.title, options);
-    
-    console.log('[SW] ✅ Notificação exibida com sucesso!');
-    
-    // Marca a notificação como lida no backend
-    await markNotificationAsRead(notif.id);
-    
-    // Notifica clientes que a notificação foi exibida
-    const clients = await self.clients.matchAll();
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'NOTIFICATION_SHOWN',
-        id: notif.id,
-        title: notif.title,
-        body: notif.body,
-        category: notif.category
-      });
-    });
-    
-  } catch (err) {
-    console.error('[SW] ❌ ERRO ao exibir notificação:', err);
-    console.error('[SW] ❌ Nome do erro:', err.name);
-    console.error('[SW] ❌ Mensagem:', err.message);
-    console.error('[SW] ❌ Stack:', err.stack);
-  }
-}
 
-/**
- * Marca uma notificação como lida no backend
- */
-async function markNotificationAsRead(notificationId) {
-  try {
-    console.log('[SW] 📝 Marcando notificação como lida:', notificationId);
-    
-    const token = cachedToken || await getStoredToken();
-    if (!token) {
-      console.warn('[SW] ⚠️ Sem token para marcar como lida');
-      return;
+    // Inicializar Firebase
+    if (!firebase.apps.length) {
+      firebase.initializeApp(firebaseConfig);
+      console.log('[SW] ✅ Firebase inicializado com sucesso');
     }
 
-    const url = `${API_URL}/notifications/${notificationId}/read`;
-    console.log('[SW] 📡 PATCH:', url);
+    // Obter instância de messaging
+    const messaging = firebase.messaging();
+    console.log('[SW] 📬 Firebase Messaging ativado');
 
-    const response = await fetch(url, {
-      method: 'PATCH',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ read: true }),
-      credentials: 'include',
+    // Handler para notificações em background
+    messaging.onBackgroundMessage((payload) => {
+      console.log('[SW] 🔔 Notificação Firebase em background:', payload);
+
+      const notificationTitle = payload.notification?.title || 'Notificação';
+      const notificationOptions = {
+        body: payload.notification?.body || '',
+        icon: payload.notification?.image || '/android/android-launchericon-96-96.png',
+        badge: '/android/android-launchericon-48-48.png',
+        tag: payload.data?.appointmentId || 'default',
+        data: payload.data || {},
+        requireInteraction: false,
+      };
+
+      console.log('[SW] 📢 Exibindo notificação:', notificationTitle);
+      return self.registration.showNotification(notificationTitle, notificationOptions);
     });
 
-    if (response.ok) {
-      console.log('[SW] ✅ Notificação marcada como lida:', notificationId);
-    } else {
-      console.warn('[SW] ⚠️ Erro ao marcar como lida:', response.status, response.statusText);
-    }
-  } catch (err) {
-    console.error('[SW] ❌ Erro ao marcar notificação como lida:', err);
+    console.log('[SW] ✅ Handlers do Firebase configurados');
+  } catch (error) {
+    console.error('[SW] ❌ Erro ao inicializar Firebase:', error);
   }
 }
 
-/**
- * Busca token armazenado (será salvo pelo frontend)
- */
-async function getStoredToken() {
-  // 1. Verifica cache em memória
-  if (cachedToken) {
-    console.log('[SW] 🔐 Token encontrado em cache de memória');
-    return cachedToken;
-  }
-
-  try {
-    // 2. Tenta solicitar do cliente via MessageChannel
-    console.log('[SW] 📡 Solicitando token do cliente...');
-    const clients = await self.clients.matchAll();
-    
-    if (clients.length === 0) {
-      console.log('[SW] ⚠️ Nenhum cliente ativo para solicitar token');
-    }
-
-    for (const client of clients) {
-      const token = await new Promise((resolve) => {
-        const channel = new MessageChannel();
-        let responded = false;
-
-        const timeoutId = setTimeout(() => {
-          if (!responded) {
-            console.log('[SW] ⏱️ Timeout esperando resposta do cliente');
-            channel.port1.onmessage = null;
-            resolve(null);
-          }
-        }, 5000); // Aumentado para 5 segundos
-
-        channel.port1.onmessage = (event) => {
-          if (event.data && event.data.type === 'GET_TOKEN_RESPONSE') {
-            responded = true;
-            clearTimeout(timeoutId);
-            const token = event.data.token;
-            console.log('[SW] ✅ Token recebido do cliente:', token ? '(token presente)' : '(sem token)');
-            resolve(token || null);
-          }
-        };
-
-        console.log('[SW] 📤 Enviando GET_TOKEN para cliente');
-        client.postMessage({ type: 'GET_TOKEN' }, [channel.port2]);
-      });
-
-      if (token) {
-        // cachedToken = token;
-        console.log('[SW] 💾 Token armazenado em cache');
-        return token;
-      }
-    }
-  } catch (err) {
-    console.error('[SW] ❌ Erro ao buscar token:', err);
-  }
-
-  console.log('[SW] ℹ️ Nenhum token obtido');
-  return null;
-}
-
-/**
- * Busca IDs de notificações já vistas
- */
-async function getSeenNotificationIds() {
-  try {
-    // Tenta buscar de clientes ativos via MessageChannel
-    const clients = await self.clients.matchAll();
-    for (const client of clients) {
-      const ids = await new Promise((resolve) => {
-        const channel = new MessageChannel();
-
-        const timeoutId = setTimeout(() => {
-          channel.port1.onmessage = null;
-          resolve([]);
-        }, 2000);
-
-        channel.port1.onmessage = (event) => {
-          if (event.data && event.data.type === 'GET_SEEN_IDS_RESPONSE') {
-            clearTimeout(timeoutId);
-            resolve(event.data.ids || []);
-          }
-        };
-
-        client.postMessage({ type: 'GET_SEEN_IDS' }, [channel.port2]);
-      });
-
-      if (ids.length > 0) return ids;
-    }
-  } catch (err) {
-    console.log('[SW] Info: Sem cache de IDs vistos');
-  }
-  return [];
-}
-
-/**
- * Salva IDs de notificações já vistas
- */
-async function saveSeenNotificationIds(ids) {
-  try {
-    const clients = await self.clients.matchAll();
-    clients.forEach(client => {
-      client.postMessage({
-        type: 'SAVE_SEEN_IDS',
-        ids: ids.slice(-50) // Mantém apenas os últimos 50
-      });
-    });
-  } catch (err) {
-    console.log('[SW] Info: Não foi possível salvar IDs vistos');
-  }
-}
 
 
 // FETCH: Cacheia ao navegar, usa cache se offline

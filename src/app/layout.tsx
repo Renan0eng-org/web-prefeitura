@@ -26,6 +26,7 @@ export default function RootLayout({
       </head>
       <body className={`${nunito.className} antialiased`}>
         <ServiceWorkerRegister />
+        {/* <NotificationManager /> */}
         {children}
         <Analytics />
       </body>

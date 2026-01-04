@@ -1,9 +1,9 @@
-import { useEffect, useState, useCallback } from 'react';
 import {
-  requestNotificationPermission,
-  registerDeviceOnBackend,
-  setupForegroundMessageListener
+    registerDeviceOnBackend,
+    requestNotificationPermission,
+    setupForegroundMessageListener
 } from '@/lib/firebase';
+import { useCallback, useEffect, useState } from 'react';
 
 interface UsePushNotificationsReturn {
   isSubscribed: boolean;

@@ -1,7 +1,7 @@
 'use client';
 
-import { useEffect } from 'react';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useEffect } from 'react';
 
 export function NotificationManager() {
   const { isSubscribed, isLoading, error, subscribe, unsubscribe } = 

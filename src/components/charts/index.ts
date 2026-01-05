@@ -1,0 +1,6 @@
+export { FormResponsesChart } from "./FormResponsesChart"
+export { FormsByOriginChart } from "./FormsByOriginChart"
+export { TopFormulariosChart } from "./TopFormulariosChart"
+export { FormAverageScoresChart } from "./FormAverageScoresChart"
+export { AllResponsesChart } from "./AllResponsesChart"
+export { ReferralsByDestinationChart } from "./ReferralsByDestinationChart"

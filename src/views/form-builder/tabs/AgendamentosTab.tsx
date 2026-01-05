@@ -85,6 +85,11 @@ export default function AgendamentosTab() {
         return getPermissions('agendamentos') ?? getPermissions('agendamento') ?? null
     }, [getPermissions])
 
+    const atendimentoPerm = useMemo(() => {
+        if (!getPermissions) return null
+        return getPermissions("atendimentos") ?? getPermissions("atendimento") ?? null
+    }, [getPermissions])
+
     const didFetchRef = useRef(false)
 
     const fetchAppointments = async (opts?: { page?: number; pageSize?: number }, filters?: {
@@ -391,7 +396,7 @@ export default function AgendamentosTab() {
                                                             <span>Mudar para Pendente</span>
                                                         </DropdownMenuItem>
                                                     )}
-                                                    {a.status === 'Confirmado' && (
+                                                    {a.status === 'Confirmado' && atendimentoPerm?.criar && (
                                                         <DropdownMenuItem onClick={() => {
                                                             router.push(`/admin/atendimentos/criar?appointmentId=${a.id}`)
                                                         }}>

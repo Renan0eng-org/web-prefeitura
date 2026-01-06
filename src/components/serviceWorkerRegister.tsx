@@ -1,11 +1,9 @@
 'use client';
 
-import { useServiceWorkerMessaging } from '@/hooks/use-service-worker-messaging';
 import { useEffect } from 'react';
 
 export function ServiceWorkerRegister() {
-  // Mantém a comunicação SW <-> app (token, IDs vistos)
-  useServiceWorkerMessaging();
+  // Registro simples do Service Worker para features de PWA (sem Firebase Notifications)
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {

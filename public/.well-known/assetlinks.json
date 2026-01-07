@@ -1,0 +1,8 @@
+[{
+      "relation": ["delegate_permission/common.handle_all_urls"],
+      "target": {
+        "namespace": "android_app",
+        "package_name": "com.renannardi.prefeitura.twa",
+        "sha256_cert_fingerprints": ["2E:58:E0:67:73:47:C2:91:E2:F7:E7:01:24:2A:91:02:04:37:02:D5:BB:D9:87:A6:46:B5:E2:3E:62:87:00:25"]
+      }
+    }]

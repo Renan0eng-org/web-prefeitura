@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation"
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react"
 import api from "../services/api"
+import { registerPushDevice, unregisterPushDevice } from "../services/notifications"
 import { useAlert } from "./use-alert"
 
 export type MenuPermission = {
@@ -56,6 +57,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
+  const [pushRegistered, setPushRegistered] = useState(false)
   const { setAlert } = useAlert()
 
   const router = useRouter();
@@ -104,6 +106,24 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       delete api.defaults.headers.common['Authorization']
     }
   }, [accessToken])
+
+  useEffect(() => {
+    if (user && accessToken) {
+      if (pushRegistered) return
+
+      registerPushDevice(api)
+        .then((res) => setPushRegistered(res.registered))
+        .catch((err) => {
+          console.error('Falha ao registrar push device:', err)
+          setPushRegistered(false)
+        })
+      return
+    }
+
+    if (!user && pushRegistered) {
+      unregisterPushDevice(api).finally(() => setPushRegistered(false))
+    }
+  }, [user, accessToken, pushRegistered])
 
   const login = async (email: string, password: string) => {
     try {

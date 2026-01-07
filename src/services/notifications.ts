@@ -13,6 +13,12 @@ export type NotificationPayload = {
   requireInteraction?: boolean;
 };
 
+export type PushRegistrationResult = {
+  registered: boolean;
+  subscription?: PushSubscriptionJSON | null;
+  message?: string;
+};
+
 function isNotificationSupported() {
   return typeof window !== 'undefined' && 'Notification' in window;
 }
@@ -153,6 +159,55 @@ export async function autoSubscribePush(apiClient: any): Promise<boolean> {
     return true;
   } catch (err) {
     console.error('Failed to auto-subscribe push:', err);
+    return false;
+  }
+}
+
+export async function registerPushDevice(apiClient: any): Promise<PushRegistrationResult> {
+  const vapidPublicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  if (!vapidPublicKey) {
+    return { registered: false, message: 'VAPID public key not configured' };
+  }
+
+  try {
+    const subscription = await subscribePush(vapidPublicKey);
+    if (!subscription) {
+      return { registered: false, message: 'Could not create push subscription' };
+    }
+
+    const p256dh = arrayBufferToBase64(subscription.getKey('p256dh'));
+    const auth = arrayBufferToBase64(subscription.getKey('auth'));
+
+    await apiClient.post('/push/subscribe', {
+      deviceToken: subscription.endpoint,
+      endpoint: subscription.endpoint,
+      keys: { p256dh, auth },
+      userAgent: typeof navigator !== 'undefined' ? navigator.userAgent : undefined,
+    });
+
+    return { registered: true, subscription: subscription.toJSON() };
+  } catch (err) {
+    console.error('Failed to register push device:', err);
+    return { registered: false, message: 'Failed to register push device' };
+  }
+}
+
+export async function unregisterPushDevice(apiClient: any): Promise<boolean> {
+  try {
+    const subscription = await getPushSubscription();
+    if (!subscription) return true;
+
+    await apiClient.delete('/push/subscribe', {
+      data: {
+        deviceToken: subscription.endpoint,
+        endpoint: subscription.endpoint,
+      },
+    });
+
+    await subscription.unsubscribe();
+    return true;
+  } catch (err) {
+    console.error('Failed to unregister push device:', err);
     return false;
   }
 }

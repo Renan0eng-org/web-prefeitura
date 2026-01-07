@@ -2,6 +2,8 @@ const CACHE_NAME = 'my-app-cache-v0.11';
 const OFFLINE_URL = '/offline.html';
 let cachedToken = null;
 let API_URL = 'http://localhost:4000';
+const FALLBACK_ICON = '/android/android-launchericon-96-96.png';
+const FALLBACK_BADGE = '/android/android-launchericon-48-48.png';
 
 // Logging helper: replica nos clientes e mantém console original
 const originalConsole = {
@@ -38,6 +40,15 @@ async function broadcastLog(level, ...args) {
     });
   } catch (e) {
     originalConsole.error('Failed to broadcast log', e);
+  }
+}
+
+async function broadcastMessage(payload) {
+  try {
+    const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    clients.forEach((client) => client.postMessage(payload));
+  } catch (e) {
+    originalConsole.error('Failed to broadcast message', e);
   }
 }
 
@@ -107,6 +118,75 @@ self.addEventListener('message', (event) => {
     }
   }
 });
+
+// Push notifications handler
+self.addEventListener('push', (event) => {
+  event.waitUntil(handlePush(event));
+});
+
+async function handlePush(event) {
+  try {
+    const raw = event.data?.text() || '';
+    let payload = {};
+
+    if (raw) {
+      try {
+        payload = JSON.parse(raw);
+      } catch (_) {
+        payload = { title: raw };
+      }
+    }
+
+    const title = payload.title || 'Nova notificação';
+    const body = payload.body || '';
+    const clickUrl = payload.clickUrl || payload.data?.url || payload.url;
+
+    const options = {
+      body,
+      icon: payload.icon || FALLBACK_ICON,
+      badge: payload.badge || FALLBACK_BADGE,
+      data: { ...(payload.data || {}), clickUrl },
+      tag: payload.tag,
+      requireInteraction: payload.requireInteraction || false,
+      actions: payload.actions,
+    };
+
+    await self.registration.showNotification(title, options);
+    await broadcastLog('log', '[SW] 🔔 Notificação exibida a partir do push');
+    await broadcastMessage({ type: 'PUSH_RECEIVED', payload });
+  } catch (err) {
+    await broadcastLog('error', '[SW] Falha ao processar push', err);
+  }
+}
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const targetUrl = event.notification.data?.clickUrl || '/';
+
+  event.waitUntil(openWindowOrFocus(targetUrl));
+});
+
+async function openWindowOrFocus(url) {
+  try {
+    const clientList = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    for (const client of clientList) {
+      const sameOrigin = url && client.url && client.url.startsWith(self.location.origin);
+      if (sameOrigin) {
+        await client.focus();
+        if ('navigate' in client && url) {
+          return client.navigate(url);
+        }
+        return;
+      }
+    }
+
+    if (url) {
+      await self.clients.openWindow(url);
+    }
+  } catch (err) {
+    await broadcastLog('error', '[SW] Erro ao abrir/focar janela', err);
+  }
+}
 
 
 // FETCH: Cacheia ao navegar, usa cache se offline

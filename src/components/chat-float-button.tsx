@@ -1,10 +1,21 @@
 "use client"
 
+import { useAuth } from "@/hooks/use-auth"
 import { useChat } from "@/hooks/use-chat"
 import { MessageCircle } from "lucide-react"
 
 export function ChatFloatButton() {
   const { isOpen, toggleChat } = useChat()
+  const { getPermissions, loading: authLoading } = useAuth()
+
+  const permissions = !authLoading && getPermissions
+    ? getPermissions('chat-ai')
+    : null
+
+  // Só mostra o botão se o usuário tiver permissão de visualizar
+  if (authLoading || !permissions?.visualizar) {
+    return null
+  }
 
   return (
     <button

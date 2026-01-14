@@ -1,5 +1,6 @@
 "use client"
 
+import { useAuth } from "@/hooks/use-auth"
 import { useChat } from "@/hooks/use-chat"
 import { cn } from "@/lib/utils"
 import api from "@/services/api"
@@ -90,6 +91,12 @@ const renderMarkdown = (text: string) => {
 
 export function ChatSidebar() {
   const { isOpen, setIsOpen } = useChat()
+  const { getPermissions, loading: authLoading } = useAuth()
+
+  const permissions = !authLoading && getPermissions
+    ? getPermissions('chat-ai')
+    : null
+
   const [messages, setMessages] = React.useState<Message[]>([
     {
       id: "1",
@@ -333,6 +340,11 @@ export function ChatSidebar() {
     } catch (error) {
       console.error("Erro ao deletar chat:", error)
     }
+  }
+
+  // Só mostra a sidebar se o usuário tiver permissão de visualizar
+  if (authLoading || !permissions?.visualizar) {
+    return null
   }
 
   return (

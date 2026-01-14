@@ -117,7 +117,19 @@ export default function FormulariosTab() {
     const performDelete = async (id: string) => {
         try {
             await api.delete(`/forms/${id}`)
-            fetchForms({ page, pageSize })
+            fetchForms({ 
+                page, 
+                pageSize, 
+            },
+            {
+                title: filterTitle || undefined,
+                description: filterDescription || undefined,
+                from: filterDateRange?.from ? filterDateRange.from.toISOString() : undefined,
+                to: filterDateRange?.to ? filterDateRange.to.toISOString() : undefined,
+                isScreening: typeof filterScreening === 'boolean' ? filterScreening : undefined,
+                responsesMin: typeof filterResponsesMin === 'number' ? filterResponsesMin : undefined,
+                responsesMax: typeof filterResponsesMax === 'number' ? filterResponsesMax : undefined,
+            })
         } catch (err) {
             console.error("Erro ao excluir:", err)
         }

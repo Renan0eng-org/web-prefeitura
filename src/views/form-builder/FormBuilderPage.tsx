@@ -72,6 +72,13 @@ export const FormBuilderPage = ({ formId }: FormBuilderPageProps) => {
                 const response = await api.get(`/forms/${formId}`);
                 if (isCancelled) return;
 
+                // Verifica se os dados do formulário existem
+                if (!response.data || !response.data.idForm) {
+                    alert.setAlert('Formulário não encontrado.', 'error');
+                    router.push('/admin');
+                    return;
+                }
+
                 const data = response.data;
                 setFormState(data);
                 if (data.questions.length > 0) {
@@ -79,10 +86,14 @@ export const FormBuilderPage = ({ formId }: FormBuilderPageProps) => {
                 } else {
                     setActiveQuestionId(null);
                 }
-            } catch (error) {
+            } catch (error: any) {
                 if (!isCancelled) {
                     console.error("Falha ao carregar formulário:", error);
-                    setFormState(EMPTY_STATE);
+                    alert.setAlert(
+                        error?.response?.data?.message || 'Erro ao carregar o formulário.',
+                        'error'
+                    );
+                    router.push('/admin');
                 }
             } finally {
                 if (!isCancelled) {
@@ -253,7 +264,7 @@ export const FormBuilderPage = ({ formId }: FormBuilderPageProps) => {
         <div className="min-h-screen px-2 sm:px-8 relative max-w-4xl mx-auto xxl:pt-2 pt-12" onClick={() => setActiveQuestionId(null)}>
             <BtnVoltar />
 
-            <div className="fixed sm:right-10 right-3 bottom-10 rounded-lg shadow-lg border z-50">
+            <div className="fixed sm:right-10 right-3 bottom-10 rounded-lg shadow-lg border z-40">
                 <Button onClick={(e) => { e.stopPropagation(); addQuestion(); }} className=" bg-primary hover:bg-primary-600 [&_svg]:text-white [&_svg]:size-6 w-14 h-14 ">
                     <PlusCircle className="text-gray-600" />
                 </Button>
@@ -275,7 +286,8 @@ export const FormBuilderPage = ({ formId }: FormBuilderPageProps) => {
                     })}
                     onClick={(e) => {
                         e.stopPropagation();
-                        setActiveQuestionId("header")}
+                        setActiveQuestionId("header")
+                    }
                     }
 
                 >

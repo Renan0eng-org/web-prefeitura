@@ -37,6 +37,7 @@ export default function PatientsPage() {
     const [filterExamesDetalhes, setFilterExamesDetalhes] = React.useState<string>('')
     const [filterAlergias, setFilterAlergias] = React.useState<string>('')
     const [filterActive, setFilterActive] = React.useState<boolean | null>(null)
+    const [filterAutoCadastro, setFilterAutoCadastro] = React.useState<boolean | null>(null)
     const [page, setPage] = React.useState(1)
     const [pageSize, setPageSize] = React.useState(10)
     const [total, setTotal] = React.useState(0)
@@ -58,6 +59,7 @@ export default function PatientsPage() {
                 exames: true,
                 examesDetalhes: false,
                 alergias: false,
+                autoCadastro: true,
                 status: true,
                 actions: true,
             }
@@ -73,6 +75,7 @@ export default function PatientsPage() {
                 exames: true,
                 examesDetalhes: false,
                 alergias: false,
+                autoCadastro: true,
                 status: true,
                 actions: true,
             }
@@ -96,6 +99,7 @@ export default function PatientsPage() {
         exames: 'Exames',
         examesDetalhes: 'Exames Detalhes',
         alergias: 'Alergias',
+        autoCadastro: 'Auto Cadastro',
         status: 'Status',
         actions: 'Ações',
     }
@@ -131,6 +135,7 @@ export default function PatientsPage() {
             if (filterExamesDetalhes) params.examesDetalhes = filterExamesDetalhes
             if (filterAlergias) params.alergias = filterAlergias
             if (filterActive !== null) params.active = filterActive
+            if (filterAutoCadastro !== null) params.autoCadastro = filterAutoCadastro
             
             const res = await api.get('/patients', { params })
             const payload = res.data
@@ -155,7 +160,7 @@ export default function PatientsPage() {
 
     React.useEffect(() => {
         if (permissions?.visualizar) fetchPatients({ page, pageSize })
-    }, [permissions?.visualizar, page, pageSize, filterName, filterEmail, filterCpf, filterBirthDateRange, filterSexo, filterUnidade, filterMedicamentos, filterExames, filterExamesDetalhes, filterAlergias, filterActive])
+    }, [permissions?.visualizar, page, pageSize, filterName, filterEmail, filterCpf, filterBirthDateRange, filterSexo, filterUnidade, filterMedicamentos, filterExames, filterExamesDetalhes, filterAlergias, filterActive, filterAutoCadastro])
 
     const applyFilters = React.useCallback(() => {
         setPage(1)
@@ -174,6 +179,7 @@ export default function PatientsPage() {
         setFilterExamesDetalhes('')
         setFilterAlergias('')
         setFilterActive(null)
+        setFilterAutoCadastro(null)
         setPage(1)
     }, [])
 
@@ -185,6 +191,7 @@ export default function PatientsPage() {
 
     const [confirmOpen, setConfirmOpen] = React.useState(false)
     const [pendingPatient, setPendingPatient] = React.useState<any | null>(null)
+    const [actionType, setActionType] = React.useState<'delete' | 'accept'>('delete')
 
     const performDelete = async (user: any) => {
         try {
@@ -197,11 +204,27 @@ export default function PatientsPage() {
         }
     }
 
+    const performAcceptRegistration = async (user: any) => {
+        try {
+            await api.patch(`/patients/${user.idUser}/accept-registration`)
+            setAlert('Cadastro aceito com sucesso!', 'success')
+            fetchPatients({ page, pageSize })
+        } catch (err: any) {
+            console.error('Erro ao aceitar cadastro', err)
+            setAlert(err.response?.data?.message || 'Erro ao aceitar cadastro', 'error')
+        }
+    }
+
     const handleConfirmDelete = () => {
         if (!pendingPatient) return
-        performDelete(pendingPatient)
+        if (actionType === 'delete') {
+            performDelete(pendingPatient)
+        } else if (actionType === 'accept') {
+            performAcceptRegistration(pendingPatient)
+        }
         setPendingPatient(null)
         setConfirmOpen(false)
+        setActionType('delete')
     }
 
     // pagination: if server returns paged data we display it directly,
@@ -366,6 +389,25 @@ export default function PatientsPage() {
                                 </Label>
                             </div>
                         </div>
+                        <div>
+                            <Label htmlFor="filter-autoCadastro">Auto Cadastro</Label>
+                            <div className="flex items-center space-x-2">
+                                <Switch
+                                    id="filter-autoCadastro"
+                                    checked={filterAutoCadastro === true}
+                                    onCheckedChange={(checked: boolean) => {
+                                        if (checked === (filterAutoCadastro === true)) {
+                                            setFilterAutoCadastro(null)
+                                        } else {
+                                            setFilterAutoCadastro(checked)
+                                        }
+                                    }}
+                                />
+                                <Label htmlFor="filter-autoCadastro" className="text-xs cursor-pointer">
+                                    {filterAutoCadastro === null ? 'Todos' : filterAutoCadastro ? 'Auto Cadastro' : 'Administrador'}
+                                </Label>
+                            </div>
+                        </div>
                         <div className="flex items-center gap-2 justify-end">
                             <Button onClick={() => { applyFilters(); }}>Aplicar</Button>
                             <Button variant="outline" onClick={() => { clearFilters(); }}>Limpar</Button>
@@ -382,7 +424,7 @@ export default function PatientsPage() {
                 confirmLabel="Excluir"
                 cancelLabel="Cancelar"
                 onConfirm={handleConfirmDelete}
-                onCancel={() => { setConfirmOpen(false); setPendingPatient(null) }}
+                onCancel={() => { setConfirmOpen(false); setPendingPatient(null); setActionType('delete') }}
             />
 
             {error && <p className="text-red-500 mb-4">{error}</p>}
@@ -401,6 +443,7 @@ export default function PatientsPage() {
                             {columns.exames && <TableHead>Exames</TableHead>}
                             {columns.examesDetalhes && <TableHead>Detalhes Exames</TableHead>}
                             {columns.alergias && <TableHead>Alergias</TableHead>}
+                            {columns.autoCadastro && <TableHead>Auto Cadastro</TableHead>}
                             {columns.status && <TableHead>Status</TableHead>}
                             {columns.actions && <TableHead className="w-[64px] text-right">Ações</TableHead>}
                         </TableRow>
@@ -419,6 +462,7 @@ export default function PatientsPage() {
                                     {columns.exames && <TableCell><Skeleton className="h-4 w-20" /></TableCell>}
                                     {columns.examesDetalhes && <TableCell><Skeleton className="h-4 w-48" /></TableCell>}
                                     {columns.alergias && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
+                                    {columns.autoCadastro && <TableCell><Skeleton className="h-4 w-20" /></TableCell>}
                                     {columns.status && <TableCell><Skeleton className="h-4 w-20" /></TableCell>}
                                     {columns.actions && <TableCell><Skeleton className="h-4 w-12 mx-auto" /></TableCell>}
                                 </TableRow>
@@ -441,6 +485,7 @@ export default function PatientsPage() {
                                     {columns.examesDetalhes && <TableCell className="max-w-[200px] truncate">{u.examesDetalhes || '-'}</TableCell>}
                                     {columns.alergias && <TableCell className="max-w-[160px] truncate">{u.alergias || '-'}</TableCell>}
                                     {columns.status && <TableCell>{u.active ? <Badge variant="secondary">Ativo</Badge> : <Badge variant="destructive">Inativo</Badge>}</TableCell>}
+                                    {columns.autoCadastro && <TableCell>{u.autoCadastro ? <Badge variant="outline">Auto Cadastro</Badge> : <Badge variant="secondary">Sistema</Badge>}</TableCell>}
                                     {columns.actions && <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -452,13 +497,18 @@ export default function PatientsPage() {
                                                 {/* <DropdownMenuItem asChild>
                                                     <Link href={`/admin/patients/${u.idUser}`}>Visualizar</Link>
                                                 </DropdownMenuItem> */}
+                                                {u.autoCadastro && permissions?.editar && (
+                                                    <DropdownMenuItem onSelect={() => setTimeout(() => { setPendingPatient(u); setConfirmOpen(true); setActionType('accept') }, 50)}>
+                                                        Aceitar Cadastro
+                                                    </DropdownMenuItem>
+                                                )}
                                                 {permissions?.editar && (
                                                     <Link href={`/admin/editar-paciente/${u.idUser}`}>
                                                         <DropdownMenuItem>Editar</DropdownMenuItem>
                                                     </Link>
                                                 )}
                                                     {permissions?.excluir && (
-                                                    <DropdownMenuItem className="text-destructive" onSelect={() => setTimeout(() => { setPendingPatient(u); setConfirmOpen(true) }, 50)}>Excluir</DropdownMenuItem>
+                                                    <DropdownMenuItem className="text-destructive" onSelect={() => setTimeout(() => { setPendingPatient(u); setConfirmOpen(true); setActionType('delete') }, 50)}>Excluir</DropdownMenuItem>
                                                     )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
@@ -489,13 +539,17 @@ export default function PatientsPage() {
 
             <ConfirmDialog
                 open={confirmOpen}
-                title="Excluir Paciente"
-                description={pendingPatient ? `Tem certeza que deseja excluir o paciente "${pendingPatient.name}"?` : 'Tem certeza?'}
-                intent="destructive"
-                confirmLabel="Excluir"
+                title={actionType === 'delete' ? 'Excluir Paciente' : 'Aceitar Cadastro'}
+                description={
+                    actionType === 'delete'
+                        ? (pendingPatient ? `Tem certeza que deseja excluir o paciente "${pendingPatient.name}"?` : 'Tem certeza?')
+                        : (pendingPatient ? `Tem certeza que deseja aceitar o cadastro de "${pendingPatient.name}"?` : 'Tem certeza?')
+                }
+                intent={actionType === 'delete' ? 'destructive' : 'default'}
+                confirmLabel={actionType === 'delete' ? 'Excluir' : 'Aceitar'}
                 cancelLabel="Cancelar"
                 onConfirm={handleConfirmDelete}
-                onCancel={() => { setConfirmOpen(false); setPendingPatient(null) }}
+                onCancel={() => { setConfirmOpen(false); setPendingPatient(null); setActionType('delete') }}
             />
         </div>
     )

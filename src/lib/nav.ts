@@ -1,4 +1,5 @@
 import {
+    Bot,
     ClipboardList,
     Home,
     ListStart,
@@ -102,6 +103,13 @@ export const data = {
       icon: ClipboardList,
       isActive: false,
       nivel_acesso: "log",
+    },
+    {
+      title: "IA - Triggers",
+      url: "/admin/triggers-admin",
+      icon: Bot,
+      isActive: false,
+      nivel_acesso: "chat-ai-admin",
     },
   ],
   flow: [

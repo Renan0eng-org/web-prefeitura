@@ -108,7 +108,7 @@ export function ChatSidebar() {
   const [inputValue, setInputValue] = React.useState("")
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
-  const [sidebarWidth, setSidebarWidth] = useState(320)
+  const [sidebarWidth, setSidebarWidth] = useState(600)
   const [isResizing, setIsResizing] = useState(false)
   const [showHistory, setShowHistory] = useState(false)
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>([])
@@ -148,6 +148,7 @@ export function ChatSidebar() {
       if (!isResizing) return
       const newWidth = window.innerWidth - e.clientX
       setSidebarWidth(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth)))
+      // setSidebarWidth(MAX_WIDTH)
     }
 
     const handleMouseUp = () => {

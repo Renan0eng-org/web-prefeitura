@@ -10,28 +10,23 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - name: Checkout do código
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Login no Docker Hub
-        run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
+      - run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
 
-      - name: Build e push da imagem
-        run: |
+      - run: |
           docker build -t devnardi/web-prefeitura:latest .
           docker push devnardi/web-prefeitura:latest
 
-      - name: Atualizar container rodando
-        run: |
-          echo "Removendo container antigo..."
+      - run: |
           docker rm -f web-prefeitura || true
-
-          echo "Atualizando imagem..."
           docker pull devnardi/web-prefeitura:latest
-
-          echo "Subindo novo container..."
           docker run -d \
             --name web-prefeitura \
             -p 3000:3000 \
+            --user 1001:1001 \
+            --read-only \
+            --cap-drop ALL \
+            --security-opt no-new-privileges \
             -e NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }} \
             devnardi/web-prefeitura:latest

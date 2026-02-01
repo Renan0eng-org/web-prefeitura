@@ -3,21 +3,24 @@
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
-    Dialog,
-    DialogContent,
-    DialogDescription,
-    DialogFooter,
-    DialogHeader,
-    DialogTitle,
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Textarea } from "@/components/ui/textarea"
+import { useAlert } from "@/hooks/use-alert"
+import api from "@/services/api"
 import { Trigger, TriggerKeyword } from "@/types/trigger"
-import { Plus, Trash2 } from "lucide-react"
+import { Loader2, Plus, Sparkles, Trash2 } from "lucide-react"
 import { useEffect, useState } from "react"
+
 
 interface TriggerEditDialogProps {
   trigger: Trigger | null
@@ -28,10 +31,10 @@ interface TriggerEditDialogProps {
   agentId?: string
 }
 
-export function TriggerEditDialog({ 
-  trigger, 
-  open, 
-  onOpenChange, 
+export function TriggerEditDialog({
+  trigger,
+  open,
+  onOpenChange,
   onSave,
   isCreating = false,
   agentId,
@@ -50,6 +53,10 @@ export function TriggerEditDialog({
   const [newWord, setNewWord] = useState("")
   const [newWeight, setNewWeight] = useState(5)
   const [newMarker, setNewMarker] = useState("")
+  const [isGeneratingKeywords, setIsGeneratingKeywords] = useState(false)
+
+  const { setAlert } = useAlert()
+
 
   useEffect(() => {
     if (trigger) {
@@ -106,6 +113,42 @@ export function TriggerEditDialog({
 
   const handleRemoveMarker = (index: number) => {
     setMarkers(markers.filter((_, i) => i !== index))
+  }
+
+  const handleGenerateKeywords = async () => {
+    if (!name.trim()) {
+      setAlert("Preencha o nome da trigger antes de gerar keywords", "warning")
+      return
+    }
+
+    setIsGeneratingKeywords(true)
+    try {
+      const response = await api.post('/triggers/generate-keywords', {
+        name,
+        description,
+        systemPrompt,
+      })
+
+      const generatedKeywords = response.data.keywords as TriggerKeyword[]
+
+      // Filtrar keywords que já existem
+      const existingWords = new Set(keywords.map(k => k.word.toLowerCase()))
+      const newKeywords = generatedKeywords.filter(
+        k => !existingWords.has(k.word.toLowerCase())
+      )
+
+      if (newKeywords.length > 0) {
+        setKeywords([...keywords, ...newKeywords])
+        setAlert(`${newKeywords.length} keywords geradas com sucesso!`, "success")
+      } else {
+        setAlert("Nenhuma keyword nova foi gerada", "info")
+      }
+    } catch (error) {
+      console.error("Erro ao gerar keywords:", error)
+      setAlert("Erro ao gerar keywords com IA", "error")
+    } finally {
+      setIsGeneratingKeywords(false)
+    }
   }
 
   const handleSave = () => {
@@ -271,7 +314,21 @@ export function TriggerEditDialog({
               <Button onClick={handleAddKeyword} size="icon">
                 <Plus className="h-4 w-4" />
               </Button>
+              <Button
+                onClick={handleGenerateKeywords}
+                variant="secondary"
+                disabled={isGeneratingKeywords}
+                title="Gerar keywords com IA"
+              >
+                {isGeneratingKeywords ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                <span className="ml-2 hidden sm:inline">Gerar com IA</span>
+              </Button>
             </div>
+
 
             {/* Lista de keywords */}
             <div className="border rounded-lg p-3 max-h-72 overflow-y-auto space-y-2">
@@ -281,8 +338,8 @@ export function TriggerEditDialog({
                 </p>
               ) : (
                 keywords.map((kw, idx) => (
-                  <div 
-                    key={idx} 
+                  <div
+                    key={idx}
                     className="flex items-center gap-2 p-2 bg-muted/50 rounded"
                   >
                     <Badge variant="secondary" className="flex-1">
@@ -309,7 +366,7 @@ export function TriggerEditDialog({
               )}
             </div>
             <p className="text-xs text-muted-foreground">
-              Total: {keywords.length} keywords | 
+              Total: {keywords.length} keywords |
               Soma máxima: {keywords.reduce((sum, k) => sum + k.weight, 0)}
             </p>
           </TabsContent>
@@ -333,8 +390,8 @@ export function TriggerEditDialog({
                     placeholder="Herdar do agente"
                   />
                   {temperature !== null && (
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="sm"
                       onClick={() => setTemperature(null)}
                     >
@@ -358,8 +415,8 @@ export function TriggerEditDialog({
                     placeholder="Herdar do agente"
                   />
                   {maxTokens !== null && (
-                    <Button 
-                      variant="ghost" 
+                    <Button
+                      variant="ghost"
                       size="sm"
                       onClick={() => setMaxTokens(null)}
                     >
@@ -392,8 +449,8 @@ export function TriggerEditDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancelar
           </Button>
-          <Button 
-            onClick={handleSave} 
+          <Button
+            onClick={handleSave}
             disabled={!name.trim() || !systemPrompt.trim()}
           >
             {isCreating ? "Criar Trigger" : "Salvar Alterações"}

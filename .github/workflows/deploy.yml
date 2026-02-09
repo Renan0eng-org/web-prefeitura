@@ -1,4 +1,4 @@
-name: Deploy Frontend Prefeitura
+name: Deploy Frontend Prefeitura (PM2)
 
 on:
   push:
@@ -10,23 +10,20 @@ jobs:
     runs-on: self-hosted
 
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - run: echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USER }}" --password-stdin
+      - name: Instalar dependências
+        run: npm ci
 
-      - run: |
-          docker build -t devnardi/web-prefeitura:latest .
-          docker push devnardi/web-prefeitura:latest
+      - name: Build
+        run: npm run build
 
-      - run: |
-          docker rm -f web-prefeitura || true
-          docker pull devnardi/web-prefeitura:latest
-          docker run -d \
-            --name web-prefeitura \
-            -p 3000:3000 \
-            --user 1001:1001 \
-            --read-only \
-            --cap-drop ALL \
-            --security-opt no-new-privileges \
-            -e NEXT_PUBLIC_API_URL=${{ secrets.NEXT_PUBLIC_API_URL }} \
-            devnardi/web-prefeitura:latest
+      - name: Deploy com PM2
+        run: |
+          pm2 stop web-prefeitura || true
+          pm2 delete web-prefeitura || true
+          pm2 start "npm run start" --name web-prefeitura -- --port 3000
+          pm2 save
+        env:
+          NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}

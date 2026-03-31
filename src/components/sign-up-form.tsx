@@ -47,7 +47,7 @@ export function SignUpForm({
   const onSubmit = async (data: SignUpSchema) => {
     try {
       const { confirmPassword, ...user } = data;
-      api.post("/auth/register", user).then(() => {
+      api.post("/auth/register-web", user).then(() => {
         setAlert("Cadastro realizado com sucesso! Por favor, faça o login.")
         router.push("/auth/login")
       }).catch((error: any) => {
@@ -99,6 +99,20 @@ export function SignUpForm({
                 />
                 {errors.email && (
                   <p className="text-sm text-red-500">{errors.email.message}</p>
+                )}
+              </div>
+
+              {/* CPF */}
+              <div className="grid gap-2">
+                <Label htmlFor="cpf">CPF</Label>
+                <Input
+                  id="cpf"
+                  type="text"
+                  placeholder="000.000.000-00"
+                  {...register("cpf")}
+                />
+                {errors.cpf && (
+                  <p className="text-sm text-red-500">{errors.cpf.message}</p>
                 )}
               </div>
 

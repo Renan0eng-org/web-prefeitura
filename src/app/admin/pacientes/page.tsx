@@ -16,12 +16,13 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
-import { Filter, MoreHorizontal, Plus, RefreshCcw, Settings2 } from "lucide-react"
+import { cn } from "@/lib/utils"
+import { Filter, MoreHorizontal, Plus, RefreshCcw, Settings2, LogOut, Undo2, UserCheck, Pencil, Trash2 } from "lucide-react"
 import Link from "next/link"
 import * as React from "react"
 import { DateRange } from "react-day-picker"
 
-export default function PatientsPage() {
+export default function PatientsPage({ className, initialPageSize = 10 }: { className?: string; initialPageSize?: number } = {}) {
     const [patients, setPatients] = React.useState<any[]>([])
     const [isLoading, setIsLoading] = React.useState(true)
     const [loaderRefresh, setLoaderRefresh] = React.useState(false)
@@ -38,8 +39,9 @@ export default function PatientsPage() {
     const [filterAlergias, setFilterAlergias] = React.useState<string>('')
     const [filterActive, setFilterActive] = React.useState<boolean | null>(null)
     const [filterAutoCadastro, setFilterAutoCadastro] = React.useState<boolean | null>(null)
+    const [filterAlta, setFilterAlta] = React.useState<boolean | null>(null)
     const [page, setPage] = React.useState(1)
-    const [pageSize, setPageSize] = React.useState(10)
+    const [pageSize, setPageSize] = React.useState(initialPageSize)
     const [total, setTotal] = React.useState(0)
     const totalPages = Math.max(1, Math.ceil(total / pageSize))
     const [error, setError] = React.useState<string | null>(null)
@@ -136,6 +138,7 @@ export default function PatientsPage() {
             if (filterAlergias) params.alergias = filterAlergias
             if (filterActive !== null) params.active = filterActive
             if (filterAutoCadastro !== null) params.autoCadastro = filterAutoCadastro
+            if (filterAlta !== null) params.alta = filterAlta
             
             const res = await api.get('/patients', { params })
             const payload = res.data
@@ -160,7 +163,7 @@ export default function PatientsPage() {
 
     React.useEffect(() => {
         if (permissions?.visualizar) fetchPatients({ page, pageSize })
-    }, [permissions?.visualizar, page, pageSize, filterName, filterEmail, filterCpf, filterBirthDateRange, filterSexo, filterUnidade, filterMedicamentos, filterExames, filterExamesDetalhes, filterAlergias, filterActive, filterAutoCadastro])
+    }, [permissions?.visualizar, page, pageSize, filterName, filterEmail, filterCpf, filterBirthDateRange, filterSexo, filterUnidade, filterMedicamentos, filterExames, filterExamesDetalhes, filterAlergias, filterActive, filterAutoCadastro, filterAlta])
 
     const applyFilters = React.useCallback(() => {
         setPage(1)
@@ -180,6 +183,7 @@ export default function PatientsPage() {
         setFilterAlergias('')
         setFilterActive(null)
         setFilterAutoCadastro(null)
+        setFilterAlta(null)
         setPage(1)
     }, [])
 
@@ -191,7 +195,7 @@ export default function PatientsPage() {
 
     const [confirmOpen, setConfirmOpen] = React.useState(false)
     const [pendingPatient, setPendingPatient] = React.useState<any | null>(null)
-    const [actionType, setActionType] = React.useState<'delete' | 'accept'>('delete')
+    const [actionType, setActionType] = React.useState<'delete' | 'accept' | 'alta' | 'reverter-alta'>('delete')
 
     const performDelete = async (user: any) => {
         try {
@@ -215,12 +219,38 @@ export default function PatientsPage() {
         }
     }
 
+    const performDarAlta = async (user: any) => {
+        try {
+            await api.patch(`/patients/${user.idUser}/alta`)
+            setAlert('Alta registrada com sucesso!', 'success')
+            fetchPatients({ page, pageSize })
+        } catch (err: any) {
+            console.error('Erro ao dar alta', err)
+            setAlert(err.response?.data?.message || 'Erro ao dar alta', 'error')
+        }
+    }
+
+    const performReverterAlta = async (user: any) => {
+        try {
+            await api.patch(`/patients/${user.idUser}/reverter-alta`)
+            setAlert('Alta revertida com sucesso!', 'success')
+            fetchPatients({ page, pageSize })
+        } catch (err: any) {
+            console.error('Erro ao reverter alta', err)
+            setAlert(err.response?.data?.message || 'Erro ao reverter alta', 'error')
+        }
+    }
+
     const handleConfirmDelete = () => {
         if (!pendingPatient) return
         if (actionType === 'delete') {
             performDelete(pendingPatient)
         } else if (actionType === 'accept') {
             performAcceptRegistration(pendingPatient)
+        } else if (actionType === 'alta') {
+            performDarAlta(pendingPatient)
+        } else if (actionType === 'reverter-alta') {
+            performReverterAlta(pendingPatient)
         }
         setPendingPatient(null)
         setConfirmOpen(false)
@@ -236,9 +266,11 @@ export default function PatientsPage() {
     }, [patients, page, pageSize, serverPaged])
 
     return (
-        <div className="p-2 md:p-4 lg:p-8">
+        <div
+            className={cn("p-2 md:p-4 lg:p-8", className)}
+        >
             <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h1 className="text-3xl font-bold tracking-tight">Pacientes</h1>
+                <h1 className="text-3xl font-bold tracking-tight text-primary-500">Pacientes</h1>
                 <div className="flex items-center gap-2 flex-wrap">
                     <ColumnsDropdown
                         columns={columns}
@@ -408,6 +440,25 @@ export default function PatientsPage() {
                                 </Label>
                             </div>
                         </div>
+                        <div>
+                            <Label htmlFor="filter-alta">Alta</Label>
+                            <div className="flex items-center space-x-2">
+                                <Switch
+                                    id="filter-alta"
+                                    checked={filterAlta === true}
+                                    onCheckedChange={(checked: boolean) => {
+                                        if (checked === (filterAlta === true)) {
+                                            setFilterAlta(null)
+                                        } else {
+                                            setFilterAlta(checked)
+                                        }
+                                    }}
+                                />
+                                <Label htmlFor="filter-alta" className="text-xs cursor-pointer">
+                                    {filterAlta === null ? 'Todos' : filterAlta ? 'Com Alta' : 'Sem Alta'}
+                                </Label>
+                            </div>
+                        </div>
                         <div className="flex items-center gap-2 justify-end">
                             <Button onClick={() => { applyFilters(); }}>Aplicar</Button>
                             <Button variant="outline" onClick={() => { clearFilters(); }}>Limpar</Button>
@@ -415,17 +466,6 @@ export default function PatientsPage() {
                     </div>
                 </div>
             )}
-
-            <ConfirmDialog
-                open={confirmOpen}
-                title="Excluir Paciente"
-                description={pendingPatient ? `Tem certeza que deseja excluir o paciente "${pendingPatient.name}"?` : 'Tem certeza?' }
-                intent="destructive"
-                confirmLabel="Excluir"
-                cancelLabel="Cancelar"
-                onConfirm={handleConfirmDelete}
-                onCancel={() => { setConfirmOpen(false); setPendingPatient(null); setActionType('delete') }}
-            />
 
             {error && <p className="text-red-500 mb-4">{error}</p>}
 
@@ -443,7 +483,7 @@ export default function PatientsPage() {
                             {columns.exames && <TableHead>Exames</TableHead>}
                             {columns.examesDetalhes && <TableHead>Detalhes Exames</TableHead>}
                             {columns.alergias && <TableHead>Alergias</TableHead>}
-                            {columns.autoCadastro && <TableHead>Auto Cadastro</TableHead>}
+                            {columns.autoCadastro && <TableHead>Cadastro</TableHead>}
                             {columns.status && <TableHead>Status</TableHead>}
                             {columns.actions && <TableHead className="w-[64px] text-right">Ações</TableHead>}
                         </TableRow>
@@ -484,8 +524,8 @@ export default function PatientsPage() {
                                     {columns.exames && <TableCell>{u.exames ? <Badge variant="secondary">Sim</Badge> : <Badge variant="destructive">Não</Badge>}</TableCell>}
                                     {columns.examesDetalhes && <TableCell className="max-w-[200px] truncate">{u.examesDetalhes || '-'}</TableCell>}
                                     {columns.alergias && <TableCell className="max-w-[160px] truncate">{u.alergias || '-'}</TableCell>}
-                                    {columns.status && <TableCell>{u.active ? <Badge variant="secondary">Ativo</Badge> : <Badge variant="destructive">Inativo</Badge>}</TableCell>}
                                     {columns.autoCadastro && <TableCell>{u.autoCadastro ? <Badge variant="outline">Auto Cadastro</Badge> : <Badge variant="secondary">Sistema</Badge>}</TableCell>}
+                                    {columns.status && <TableCell>{u.alta ? <Badge variant="destructive">Alta</Badge> : u.active ? <Badge variant="secondary">Ativo</Badge> : <Badge variant="outline">Inativo</Badge>}</TableCell>}
                                     {columns.actions && <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -499,16 +539,29 @@ export default function PatientsPage() {
                                                 </DropdownMenuItem> */}
                                                 {u.autoCadastro && permissions?.editar && (
                                                     <DropdownMenuItem onSelect={() => setTimeout(() => { setPendingPatient(u); setConfirmOpen(true); setActionType('accept') }, 50)}>
+                                                        <UserCheck className="mr-2 h-4 w-4" />
                                                         Aceitar Cadastro
                                                     </DropdownMenuItem>
                                                 )}
                                                 {permissions?.editar && (
                                                     <Link href={`/admin/editar-paciente/${u.idUser}`}>
-                                                        <DropdownMenuItem>Editar</DropdownMenuItem>
+                                                        <DropdownMenuItem><Pencil className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>
                                                     </Link>
                                                 )}
+                                                {permissions?.editar && !u.alta && (
+                                                    <DropdownMenuItem onSelect={() => setTimeout(() => { setPendingPatient(u); setConfirmOpen(true); setActionType('alta') }, 50)}>
+                                                        <LogOut className="mr-2 h-4 w-4" />
+                                                        Dar Alta
+                                                    </DropdownMenuItem>
+                                                )}
+                                                {permissions?.editar && u.alta && (
+                                                    <DropdownMenuItem onSelect={() => setTimeout(() => { setPendingPatient(u); setConfirmOpen(true); setActionType('reverter-alta') }, 50)}>
+                                                        <Undo2 className="mr-2 h-4 w-4" />
+                                                        Reverter Alta
+                                                    </DropdownMenuItem>
+                                                )}
                                                     {permissions?.excluir && (
-                                                    <DropdownMenuItem className="text-destructive" onSelect={() => setTimeout(() => { setPendingPatient(u); setConfirmOpen(true); setActionType('delete') }, 50)}>Excluir</DropdownMenuItem>
+                                                    <DropdownMenuItem className="text-destructive" onSelect={() => setTimeout(() => { setPendingPatient(u); setConfirmOpen(true); setActionType('delete') }, 50)}><Trash2 className="mr-2 h-4 w-4" />Excluir</DropdownMenuItem>
                                                     )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
@@ -539,14 +592,18 @@ export default function PatientsPage() {
 
             <ConfirmDialog
                 open={confirmOpen}
-                title={actionType === 'delete' ? 'Excluir Paciente' : 'Aceitar Cadastro'}
+                title={actionType === 'delete' ? 'Excluir Paciente' : actionType === 'alta' ? 'Dar Alta' : actionType === 'reverter-alta' ? 'Reverter Alta' : 'Aceitar Cadastro'}
                 description={
                     actionType === 'delete'
                         ? (pendingPatient ? `Tem certeza que deseja excluir o paciente "${pendingPatient.name}"?` : 'Tem certeza?')
+                        : actionType === 'alta'
+                            ? (pendingPatient ? `Tem certeza que deseja dar alta ao paciente "${pendingPatient.name}"?` : 'Tem certeza?')
+                            : actionType === 'reverter-alta'
+                                ? (pendingPatient ? `Tem certeza que deseja reverter a alta do paciente "${pendingPatient.name}"?` : 'Tem certeza?')
                         : (pendingPatient ? `Tem certeza que deseja aceitar o cadastro de "${pendingPatient.name}"?` : 'Tem certeza?')
                 }
                 intent={actionType === 'delete' ? 'destructive' : 'default'}
-                confirmLabel={actionType === 'delete' ? 'Excluir' : 'Aceitar'}
+                confirmLabel={actionType === 'delete' ? 'Excluir' : actionType === 'alta' ? 'Dar Alta' : actionType === 'reverter-alta' ? 'Reverter Alta' : 'Aceitar'}
                 cancelLabel="Cancelar"
                 onConfirm={handleConfirmDelete}
                 onCancel={() => { setConfirmOpen(false); setPendingPatient(null); setActionType('delete') }}

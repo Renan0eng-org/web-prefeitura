@@ -26,7 +26,6 @@ const renderMarkdown = (text: string) => {
   const elements: React.ReactNode[] = []
   let key = 0
 
-  // Divide o texto em linhas para processar
   const lines = text.split('\n')
   
   lines.forEach((line, lineIndex) => {
@@ -34,13 +33,11 @@ const renderMarkdown = (text: string) => {
       elements.push(<br key={`br-${key++}`} />)
     }
 
-    // Regex para encontrar padrões de markdown
     const pattern = /(\*\*[^*]+\*\*|\*[^*]+\*|https?:\/\/[^\s]+)/g
     let lastIndex = 0
     let match
 
     while ((match = pattern.exec(line)) !== null) {
-      // Adiciona texto antes do match
       if (match.index > lastIndex) {
         elements.push(line.substring(lastIndex, match.index))
       }
@@ -48,21 +45,18 @@ const renderMarkdown = (text: string) => {
       const matchText = match[0]
 
       if (matchText.startsWith('**') && matchText.endsWith('**')) {
-        // Bold
         elements.push(
           <strong key={`bold-${key++}`} className="font-bold">
             {matchText.slice(2, -2)}
           </strong>
         )
       } else if (matchText.startsWith('*') && matchText.endsWith('*')) {
-        // Italic
         elements.push(
           <em key={`italic-${key++}`}>
             {matchText.slice(1, -1)}
           </em>
         )
       } else if (matchText.startsWith('http')) {
-        // Link
         elements.push(
           <a
             key={`link-${key++}`}
@@ -80,7 +74,6 @@ const renderMarkdown = (text: string) => {
       lastIndex = match.index + matchText.length
     }
 
-    // Adiciona o restante do texto
     if (lastIndex < line.length) {
       elements.push(line.substring(lastIndex))
     }
@@ -89,9 +82,21 @@ const renderMarkdown = (text: string) => {
   return elements
 }
 
+function useIsMobilChat() {
+  const [isMobile, setIsMobile] = useState(false)
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener("resize", check)
+    return () => window.removeEventListener("resize", check)
+  }, [])
+  return isMobile
+}
+
 export function ChatSidebar() {
   const { isOpen, setIsOpen } = useChat()
   const { getPermissions, loading: authLoading } = useAuth()
+  const isMobile = useIsMobilChat()
 
   const permissions = !authLoading && getPermissions
     ? getPermissions('chat-ai')
@@ -137,18 +142,20 @@ export function ChatSidebar() {
     adjustTextareaHeight()
   }, [inputValue, adjustTextareaHeight])
 
-  // Resize handlers
+  // Resize handlers (desktop only)
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if (isMobile) return
     e.preventDefault()
     setIsResizing(true)
-  }, [])
+  }, [isMobile])
 
   useEffect(() => {
+    if (isMobile) return
+
     const handleMouseMove = (e: MouseEvent) => {
       if (!isResizing) return
       const newWidth = window.innerWidth - e.clientX
       setSidebarWidth(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth)))
-      // setSidebarWidth(MAX_WIDTH)
     }
 
     const handleMouseUp = () => {
@@ -168,7 +175,17 @@ export function ChatSidebar() {
       document.body.style.cursor = ""
       document.body.style.userSelect = ""
     }
-  }, [isResizing])
+  }, [isResizing, isMobile])
+
+  // Lock body scroll on mobile when chat is open
+  useEffect(() => {
+    if (isMobile && isOpen) {
+      document.body.style.overflow = "hidden"
+    } else {
+      document.body.style.overflow = ""
+    }
+    return () => { document.body.style.overflow = "" }
+  }, [isMobile, isOpen])
 
   // Carregar último chat ou criar novo ao abrir
   useEffect(() => {
@@ -350,44 +367,50 @@ export function ChatSidebar() {
 
   return (
     <>
-      {/* Overlay */}
+      {/* Overlay - visible on all screens when open */}
       {isOpen && (
         <div
-          className="fixed inset-0 z-50 bg-black/50 lg:hidden"
+          className="fixed inset-0 z-50 bg-black/50 md:bg-black/30"
           onClick={() => setIsOpen(false)}
         />
       )}
 
-      {/* Chat Sidebar */}
+      {/* Chat Sidebar - fullscreen on mobile, panel on desktop */}
       <div
         ref={sidebarRef}
-        style={{ width: `${sidebarWidth}px` }}
+        style={isMobile ? undefined : { width: `${sidebarWidth}px` }}
         className={cn(
-          "fixed right-0 top-0 h-screen flex flex-col bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-40",
+          "fixed flex flex-col bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-[60]",
+          // Mobile: fullscreen
+          "inset-0 w-full h-full",
+          // Desktop: right panel
+          "md:inset-auto md:right-0 md:top-0 md:h-screen",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
       >
-        {/* Resize Handle */}
-        <div
-          onMouseDown={handleMouseDown}
-          className={cn(
-            "absolute left-0 top-0 h-full w-3 cursor-ew-resize hover:bg-blue-500/20 transition-colors flex items-center justify-center group",
-            isResizing && "bg-blue-500/20"
-          )}
-        >
-          <GripVertical className={cn(
-            "h-6 w-6 text-gray-300 group-hover:text-blue-500 transition-colors",
-            isResizing && "text-blue-500"
-          )} />
-        </div>
+        {/* Resize Handle - desktop only */}
+        {!isMobile && (
+          <div
+            onMouseDown={handleMouseDown}
+            className={cn(
+              "absolute left-0 top-0 h-full w-3 cursor-ew-resize hover:bg-blue-500/20 transition-colors flex items-center justify-center group",
+              isResizing && "bg-blue-500/20"
+            )}
+          >
+            <GripVertical className={cn(
+              "h-6 w-6 text-gray-300 group-hover:text-blue-500 transition-colors",
+              isResizing && "text-blue-500"
+            )} />
+          </div>
+        )}
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b p-4">
+        <div className="flex items-center justify-between border-b p-3 md:p-4 shrink-0">
           <div className="flex items-center gap-2">
             {showHistory ? (
               <button
                 onClick={() => setShowHistory(false)}
-                className="rounded-lg p-1 hover:bg-gray-100"
+                className="rounded-lg p-1.5 hover:bg-gray-100 active:bg-gray-200"
               >
                 <ChevronLeft className="h-5 w-5 text-gray-600" />
               </button>
@@ -398,7 +421,7 @@ export function ChatSidebar() {
             )}
             <div>
               <h2 className="font-semibold text-gray-900">
-                {showHistory ? "Histórico" : "Assistente"}
+                {showHistory ? "Histórico" : "Assistente IA"}
               </h2>
               {!showHistory && <p className="text-xs text-gray-500">Online</p>}
             </div>
@@ -408,14 +431,14 @@ export function ChatSidebar() {
               <>
                 <button
                   onClick={createNewChat}
-                  className="rounded-lg p-1 hover:bg-gray-100"
+                  className="rounded-lg p-2 hover:bg-gray-100 active:bg-gray-200"
                   title="Novo chat"
                 >
                   <Plus className="h-5 w-5 text-gray-600" />
                 </button>
                 <button
                   onClick={toggleHistory}
-                  className="rounded-lg p-1 hover:bg-gray-100"
+                  className="rounded-lg p-2 hover:bg-gray-100 active:bg-gray-200"
                   title="Histórico de conversas"
                 >
                   <History className="h-5 w-5 text-gray-600" />
@@ -424,7 +447,7 @@ export function ChatSidebar() {
             )}
             <button
               onClick={() => setIsOpen(false)}
-              className="rounded-lg p-1 hover:bg-gray-100"
+              className="rounded-lg p-2 hover:bg-gray-100 active:bg-gray-200"
             >
               <X className="h-5 w-5 text-gray-600" />
             </button>
@@ -433,7 +456,7 @@ export function ChatSidebar() {
 
         {/* History Panel */}
         {showHistory ? (
-          <div className="flex-1 overflow-y-auto scrollable">
+          <div className="flex-1 overflow-y-auto scrollable min-h-0">
             {loadingHistory ? (
               <div className="flex items-center justify-center p-8">
                 <Loader className="h-6 w-6 animate-spin text-blue-600" />
@@ -449,13 +472,13 @@ export function ChatSidebar() {
                   <div
                     key={chat.idChat}
                     className={cn(
-                      "w-full flex items-center justify-between p-4 hover:bg-gray-50 transition-colors group",
+                      "w-full flex items-center justify-between p-3 md:p-4 hover:bg-gray-50 active:bg-gray-100 transition-colors group",
                       currentChatId === chat.idChat && "bg-blue-50"
                     )}
                   >
                     <div
                       onClick={() => loadChat(chat.idChat)}
-                      className="flex-1 text-left cursor-pointer"
+                      className="flex-1 text-left cursor-pointer min-w-0"
                     >
                       <p className="font-medium text-gray-900 truncate">
                         {chat.title}
@@ -477,7 +500,7 @@ export function ChatSidebar() {
                         e.stopPropagation()
                         deleteChat(chat.idChat)
                       }}
-                      className="ml-2 p-2 rounded hover:bg-red-100 text-gray-400 hover:text-red-600 transition-colors"
+                      className="ml-2 p-2 rounded hover:bg-red-100 active:bg-red-200 text-gray-400 hover:text-red-600 transition-colors shrink-0"
                       title="Excluir conversa"
                     >
                       <X className="h-4 w-4" />
@@ -490,7 +513,7 @@ export function ChatSidebar() {
         ) : (
           <>
             {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollable">
+              <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 scrollable min-h-0">
               {messages.map((message) => (
                 <div
                   key={message.id}
@@ -501,18 +524,18 @@ export function ChatSidebar() {
                 >
                   <div
                     className={cn(
-                      "max-w-[85%] px-4 py-2 rounded-lg",
+                      "max-w-[90%] md:max-w-[85%] px-3 md:px-4 py-2 rounded-lg",
                       message.sender === "user"
                         ? "bg-blue-600 text-white rounded-br-none"
                         : "bg-gray-200 text-gray-900 rounded-bl-none"
                     )}
                   >
-                    <p className="text-sm whitespace-pre-wrap break-words">
+                    <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
                       {renderMarkdown(message.text)}
                     </p>
                     <span
                       className={cn(
-                        "text-xs",
+                        "text-[10px] md:text-xs block mt-1",
                         message.sender === "user"
                           ? "text-blue-100"
                           : "text-gray-500"
@@ -528,16 +551,20 @@ export function ChatSidebar() {
               ))}
               {loading && (
                 <div className="flex justify-start">
-                  <div className="bg-gray-200 text-gray-900 rounded-lg rounded-bl-none px-4 py-2">
-                    <Loader className="h-4 w-4 animate-spin" />
+                    <div className="bg-gray-200 text-gray-900 rounded-lg rounded-bl-none px-4 py-3">
+                      <div className="flex items-center gap-1">
+                        <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                        <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                        <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                      </div>
                   </div>
                 </div>
               )}
               <div ref={messagesEndRef} />
             </div>
 
-            {/* Input */}
-            <div className="border-t p-4">
+              {/* Input - safe area padding on mobile for notch/home indicator */}
+              <div className="border-t p-3 md:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-4 shrink-0 bg-white">
               <form onSubmit={handleSendMessage} className="flex gap-2 items-end">
                 <textarea
                   ref={textareaRef}
@@ -547,13 +574,13 @@ export function ChatSidebar() {
                   placeholder="Digite sua mensagem..."
                   disabled={loading}
                   rows={1}
-                  className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 resize-none overflow-hidden"
-                  style={{ minHeight: "36px", maxHeight: "76px" }}
+                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 resize-none overflow-hidden"
+                    style={{ minHeight: "40px", maxHeight: "76px" }}
                 />
                 <button
                   type="submit"
                   disabled={loading}
-                  className="rounded-lg bg-blue-600 px-3 py-2 text-white hover:bg-blue-700 disabled:bg-gray-400 h-9"
+                    className="rounded-lg bg-blue-600 p-2.5 text-white hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-400 shrink-0 touch-manipulation"
                 >
                   {loading ? (
                     <Loader className="h-5 w-5 animate-spin" />

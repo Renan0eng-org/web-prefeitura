@@ -197,8 +197,8 @@ export default function FormulariosTab() {
 
     return (
         <>
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h1 className="text-3xl font-bold tracking-tight text-primary">Meus Formulários</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-primary">Meus Formulários</h1>
                 <div className="flex flex-wrap gap-2 items-center">
                     <ColumnsDropdown
                         columns={columns}
@@ -303,7 +303,8 @@ export default function FormulariosTab() {
 
             {error && <p className="text-red-500">{error}</p>}
             <div className="rounded-t-lg overflow-hidden">
-                <Table className="scrollable overflow-auto">
+                <div className="overflow-x-auto scrollable">
+                    <Table className="min-w-[700px]">
                     <TableHeader className="sticky top-0 z-10 bg-muted">
                         <TableRow>
                             {columns.title && <TableHead className="min-w-52">Título</TableHead>}
@@ -440,6 +441,7 @@ export default function FormulariosTab() {
                         )}
                     </TableBody>
                 </Table>
+                </div>
             </div>
 
             <Pagination

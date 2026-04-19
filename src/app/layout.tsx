@@ -12,6 +12,7 @@ const nunito = Nunito({
 export const metadata: Metadata = {
   title: "PVAI SEM DOR - Gerenciamento de Dores Crônicas",
   description: "Sistema de gerenciamento de saúde pública de Paranavai para dores crônicas",
+  viewport: "width=device-width, initial-scale=1, viewport-fit=cover",
 };
 
 export default function RootLayout({

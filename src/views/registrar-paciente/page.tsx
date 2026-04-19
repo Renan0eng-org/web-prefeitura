@@ -439,7 +439,7 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
   }
 
   return (
-    <div className="max-w-4xl mx-auto p-6 relative xxl:pt-6 pt-12">
+    <div className="max-w-4xl mx-auto px-3 py-4 md:p-6 relative xxl:pt-6 pt-12">
       <BtnVoltar />
 
       <h1 className="text-2xl font-semibold mb-4">{idUser ? 'Editar Paciente' : 'Cadastro de Paciente'}</h1>

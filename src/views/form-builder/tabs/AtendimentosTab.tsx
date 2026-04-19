@@ -224,8 +224,8 @@ export default function AtendimentosTab() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-        <h2 className="text-3xl font-bold tracking-tight text-primary">Atendimentos</h2>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+        <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-primary">Atendimentos</h2>
         <div className="flex items-center gap-2 flex-wrap">
           <ColumnsDropdown
             columns={visibleColumns}
@@ -375,7 +375,8 @@ export default function AtendimentosTab() {
       )}
       {atendimentoPerm?.visualizar && (
         <>
-          <Table className="overflow-hidden rounded-t-lg">
+          <div className="overflow-x-auto scrollable rounded-t-lg">
+            <Table className="min-w-[700px]">
             <TableHeader className="sticky top-0 z-10 bg-muted">
               <TableRow>
                 {visibleColumns.paciente && <TableHead>Paciente</TableHead>}
@@ -526,6 +527,7 @@ export default function AtendimentosTab() {
               )}
             </TableBody>
           </Table>
+          </div>
 
           
 

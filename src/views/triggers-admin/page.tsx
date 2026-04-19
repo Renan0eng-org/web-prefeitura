@@ -254,16 +254,16 @@ export default function TriggersAdminPage() {
   }
 
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto px-3 md:px-6 py-4 md:py-6 space-y-4 md:space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-bold">Gerenciamento de IA</h1>
-          <p className="text-muted-foreground">
+          <h1 className="text-xl sm:text-2xl font-bold">Gerenciamento de IA</h1>
+          <p className="text-sm text-muted-foreground">
             Configure agentes e triggers do sistema de chat com IA.
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 shrink-0">
           <Button onClick={() => { fetchAgents(); fetchTriggers(); }} variant="outline" disabled={isLoading}>
             <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Atualizar

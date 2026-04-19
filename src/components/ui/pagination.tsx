@@ -32,15 +32,15 @@ export default function Pagination({
   const goLast = () => onPageChange(totalPages)
 
   return (
-    <div className="flex items-center justify-between px-4 bg-muted rounded-b-md py-2">
+    <div className="flex flex-col sm:flex-row items-center justify-between px-3 md:px-4 bg-muted rounded-b-md py-2 gap-2">
       <div className="text-muted-foreground hidden flex-1 text-sm lg:flex">
-        {selectedCount} of {total} row(s) selected.
+        {selectedCount} de {total} registro(s).
       </div>
 
-      <div className="flex w-full items-center gap-8 lg:w-fit bg-muted">
+      <div className="flex w-full sm:w-auto items-center justify-between sm:justify-end gap-4 sm:gap-8 bg-muted">
         <div className="hidden items-center gap-2 lg:flex">
-          <Label htmlFor="rows-per-page" className="text-sm font-medium">
-            Rows per page
+          <Label htmlFor="rows-per-page" className="text-sm font-medium whitespace-nowrap">
+            Por página
           </Label>
           <Select
             value={`${pageSize}`}
@@ -59,11 +59,11 @@ export default function Pagination({
           </Select>
         </div>
 
-        <div className="flex w-fit items-center justify-center text-sm font-medium">
-          Page {page} of {totalPages}
+        <div className="flex w-fit items-center justify-center text-xs sm:text-sm font-medium whitespace-nowrap">
+          Página {page} de {totalPages}
         </div>
 
-        <div className="ml-auto flex items-center gap-2 lg:ml-0">
+        <div className="ml-auto flex items-center gap-1 sm:gap-2 lg:ml-0">
           <Button
             variant="outline"
             className="hidden h-8 w-8 p-0 lg:flex"

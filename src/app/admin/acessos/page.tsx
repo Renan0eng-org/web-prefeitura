@@ -77,12 +77,12 @@ export default function PaginaAcessos() {
 
     return (
         <div className=" mx-auto p-2 md:p-4">
-            <h1 className="text-3xl font-bold tracking-tight mb-6">
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight mb-4 md:mb-6">
                 Controle de Acesso
             </h1>
 
             <Tabs defaultValue="niveis" className="w-full">
-                <TabsList className="max-w-full md:col mb-2">
+                <TabsList className="w-full flex flex-wrap h-auto gap-1 lg:flex-nowrap mb-2">
                     {perms.niveis?.visualizar && (
                         <TabsTrigger value="niveis" className="md:justify-start">
                             <ShieldCheck className="h-4 mr-2" />

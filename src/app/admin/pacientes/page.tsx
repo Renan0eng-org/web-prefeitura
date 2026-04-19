@@ -269,8 +269,8 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
         <div
             className={cn("p-2 md:p-4 lg:p-8", className)}
         >
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h1 className="text-3xl font-bold tracking-tight text-primary-500">Pacientes</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-primary-500">Pacientes</h1>
                 <div className="flex items-center gap-2 flex-wrap">
                     <ColumnsDropdown
                         columns={columns}
@@ -470,7 +470,8 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
             {error && <p className="text-red-500 mb-4">{error}</p>}
 
             <div className="rounded-lg overflow-hidden border">
-                <Table className="bg-white/40 scrollable overflow-auto">
+                <div className="overflow-x-auto scrollable">
+                    <Table className="bg-white/40 min-w-[800px]">
                     <TableHeader className="bg-muted sticky top-0 z-10">
                         <TableRow>
                             {columns.name && <TableHead>Nome</TableHead>}
@@ -577,6 +578,7 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
                         )}
                     </TableBody>}
                 </Table>
+                </div>
                 <div className="border-t border-gray-200">
                     <Pagination
                         page={page}

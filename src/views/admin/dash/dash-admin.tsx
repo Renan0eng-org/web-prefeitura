@@ -81,12 +81,12 @@ export default function DashAdmin() {
   return (
     <div className="space-y-6 p-2 sm:p-8">
       {/* Header */}
-      <div className="flex items-center justify-between flex-wrap gap-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-primary">
+          <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-primary">
             Dashboard de Análises
           </h1>
-          <p className="text-sm text-muted-foreground mt-1">
+          <p className="text-xs sm:text-sm text-muted-foreground mt-1">
             Análise completa de formulários e respostas
           </p>
         </div>

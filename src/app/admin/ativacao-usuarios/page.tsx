@@ -198,8 +198,8 @@ export default function AtivacaoUsuariosPage() {
 
     return (
         <div className="p-2 md:p-4 lg:p-8">
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h1 className="text-3xl font-bold tracking-tight">Ativação de Usuários</h1>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">Ativação de Usuários</h1>
                 <div className="flex items-center gap-2 flex-wrap">
                     <ColumnsDropdown
                         columns={visibleColumns}
@@ -278,7 +278,8 @@ export default function AtivacaoUsuariosPage() {
             )}
 
             <div className="rounded-lg overflow-hidden border">
-                <Table className="bg-white/40">
+                <div className="overflow-x-auto scrollable">
+                    <Table className="bg-white/40 min-w-[500px]">
                     <TableHeader className="bg-muted sticky top-0 z-10">
                         <TableRow>
                             {visibleColumns.usuario && <TableHead>Usuário</TableHead>}
@@ -341,6 +342,7 @@ export default function AtivacaoUsuariosPage() {
                             )}
                         </TableBody>}
                 </Table>
+                </div>
                 <div className="border-t border-gray-200">
                     <Pagination
                         page={page}

@@ -223,7 +223,7 @@ export default function LogsPage() {
 
     return (
         <div className="space-y-6 px-2 md:px-8 lg:px-12 pb-8">
-            <h1 className="text-3xl font-bold tracking-tight">Logs</h1>
+            <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">Logs</h1>
 
             <Card className="p-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-2 items-end">

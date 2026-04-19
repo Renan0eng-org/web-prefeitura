@@ -223,7 +223,7 @@ export default function FormListPage() {
     };
 
     return (
-        <div className="p-8 max-w-4xl mx-auto relative xxl:pt-9 pt-12">
+        <div className="px-3 py-6 md:p-8 max-w-4xl mx-auto relative xxl:pt-9 pt-12">
             <BtnVoltar className=''/>
             <div className="flex flex-col justify-between items-center mb-6 md:flex-row sm:gap-4">
                 <h1 className="text-3xl font-bold">Meus Formulários</h1>

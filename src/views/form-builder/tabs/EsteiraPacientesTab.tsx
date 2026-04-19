@@ -128,8 +128,8 @@ export default function EsteiraPacientesTab() {
 
     return (
         <>
-            <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
-                <h2 className="text-3xl font-bold tracking-tight text-primary">Esteira de Pacientes</h2>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-3">
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight text-primary">Esteira de Pacientes</h2>
                 <div className="flex gap-2 flex-wrap">
                     <ColumnsDropdown
                         columns={visibleColumnsEsteira}
@@ -207,7 +207,8 @@ export default function EsteiraPacientesTab() {
             )}
 
             {error && <p className="text-red-500">{error}</p>}
-            <Table className="overflow-hidden rounded-t-lg">
+            <div className="overflow-x-auto scrollable rounded-t-lg">
+                <Table className="min-w-[700px]">
                 <TableHeader className="sticky top-0 z-10 bg-muted">
                         <TableRow>
                         {visibleColumnsEsteira.form && <TableHead>Formulário</TableHead>}
@@ -316,6 +317,7 @@ export default function EsteiraPacientesTab() {
                     )}
                 </TableBody>
             </Table>
+            </div>
             <Pagination
                 page={page}
                 pageSize={pageSize}

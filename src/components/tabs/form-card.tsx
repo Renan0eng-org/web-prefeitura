@@ -49,13 +49,13 @@ export default function FormCard({ storage = 'local', storageKey = 'formCard.act
   }
 
   return (
-    <Tabs value={value} onValueChange={(v) => setValue(v)} className="flex w-full flex-col justify-start gap-6">
-      <TabsList>
-        {formularioPerm?.visualizar && <TabsTrigger value="forms">Formulários</TabsTrigger>}
-        {esteiraPaciente?.visualizar && <TabsTrigger value="esteira-pacientes">Esteira de Pacientes</TabsTrigger>}
-        {encaminhamentoPerm?.visualizar && <TabsTrigger value="encaminhamento">Encaminhamentos</TabsTrigger>}
-        {agendamentoPerm?.visualizar && <TabsTrigger value="agendamentos">Agendamentos</TabsTrigger>}
-        {atendimentoPerm?.visualizar && <TabsTrigger value="atendimentos">Atendimentos</TabsTrigger>}
+    <Tabs value={value} onValueChange={(v) => setValue(v)} className="flex w-full flex-col justify-start gap-4 md:gap-6">
+      <TabsList className="w-full flex flex-wrap h-auto gap-1 lg:flex-nowrap">
+        {formularioPerm?.visualizar && <TabsTrigger value="forms" className="text-xs sm:text-sm">Formulários</TabsTrigger>}
+        {esteiraPaciente?.visualizar && <TabsTrigger value="esteira-pacientes" className="text-xs sm:text-sm">Esteira de Pacientes</TabsTrigger>}
+        {encaminhamentoPerm?.visualizar && <TabsTrigger value="encaminhamento" className="text-xs sm:text-sm">Encaminhamentos</TabsTrigger>}
+        {agendamentoPerm?.visualizar && <TabsTrigger value="agendamentos" className="text-xs sm:text-sm">Agendamentos</TabsTrigger>}
+        {atendimentoPerm?.visualizar && <TabsTrigger value="atendimentos" className="text-xs sm:text-sm">Atendimentos</TabsTrigger>}
       </TabsList>
 
       {formularioPerm?.visualizar && <TabsContent value="forms" className="mt-4">

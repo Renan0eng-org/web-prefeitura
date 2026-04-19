@@ -452,7 +452,13 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
               <Switch
                 id="patient-active"
                 checked={patientActive}
-                onCheckedChange={setPatientActive}
+                onCheckedChange={(v) => {
+                  if (v && patientAlta) {
+                    setAlert('Não é possível ativar um paciente que está de alta. Remova a alta primeiro.', 'warning')
+                    return
+                  }
+                  setPatientActive(v)
+                }}
               />
               <Label htmlFor="patient-active">Ativo</Label>
             </div>
@@ -460,7 +466,10 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
               <Switch
                 id="patient-alta"
                 checked={patientAlta}
-                onCheckedChange={setPatientAlta}
+                onCheckedChange={(v) => {
+                  setPatientAlta(v)
+                  if (v) setPatientActive(false)
+                }}
               />
               <Label htmlFor="patient-alta">Alta</Label>
             </div>

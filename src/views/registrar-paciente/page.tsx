@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group'
 import { Skeleton } from '@/components/ui/skeleton'
+import { Switch } from '@/components/ui/switch'
 import { useAlert } from '@/hooks/use-alert'
 import api from '@/services/api'
 import { useRouter } from 'next/navigation'
@@ -62,6 +63,8 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
   const [isLoadingForms, setIsLoadingForms] = useState(true)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [isFetchingPatient, setIsFetchingPatient] = useState(false)
+  const [patientActive, setPatientActive] = useState(false)
+  const [patientAlta, setPatientAlta] = useState(false)
   const { setAlert } = useAlert()
 
   const router = useRouter();
@@ -109,6 +112,9 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
           examesDetalhes: data.examesDetalhes || '',
           alergias: data.alergias || '',
         })
+
+        setPatientActive(Boolean(data.active))
+        setPatientAlta(Boolean(data.alta))
 
         // prefill assigned forms (fromAssigned) returned by backend
         const assigned: Record<string, boolean> = {}
@@ -222,6 +228,11 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
       alergias: data.alergias,
       screeningAnswers: {},
       assignedForms: [],
+    }
+
+    if (idUser) {
+      payload.active = patientActive
+      payload.alta = patientAlta
     }
 
     // pre-submit: ensure all selected forms to RESPONDER have required questions answered
@@ -432,6 +443,30 @@ export default function RegisterPatientPage({idUser}: {idUser?: string}) {
       <BtnVoltar />
 
       <h1 className="text-2xl font-semibold mb-4">{idUser ? 'Editar Paciente' : 'Cadastro de Paciente'}</h1>
+
+      {idUser && (
+        <section className="mb-6 bg-card p-4 rounded-md">
+          <h2 className="font-medium mb-2">STATUS DO PACIENTE</h2>
+          <div className="flex flex-col gap-4 sm:flex-row sm:gap-8">
+            <div className="flex items-center gap-3">
+              <Switch
+                id="patient-active"
+                checked={patientActive}
+                onCheckedChange={setPatientActive}
+              />
+              <Label htmlFor="patient-active">Ativo</Label>
+            </div>
+            <div className="flex items-center gap-3">
+              <Switch
+                id="patient-alta"
+                checked={patientAlta}
+                onCheckedChange={setPatientAlta}
+              />
+              <Label htmlFor="patient-alta">Alta</Label>
+            </div>
+          </div>
+        </section>
+      )}
 
       <section className="mb-6 bg-card p-4 rounded-md">
         <h2 className="font-medium mb-2">IDENTIFICAÇÃO</h2>

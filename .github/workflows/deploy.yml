@@ -1,4 +1,4 @@
-name: Deploy Frontend Prefeitura (PM2)
+name: Deploy Frontend Prefeitura (Docker)
 
 on:
   push:
@@ -13,17 +13,29 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Instalar dependências
-        run: npm ci --legacy-peer-deps
-
-      - name: Build
-        run: npm run build
-
-      - name: Deploy com PM2
+      - name: Optional Docker Hub login
+        if: ${{ secrets.DOCKERHUB_USERNAME && secrets.DOCKERHUB_TOKEN }}
         run: |
-          pm2 stop web-prefeitura || true
-          pm2 delete web-prefeitura || true
-          pm2 start "npm run start" --name web-prefeitura -- --port 3000
-          pm2 save
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
+
+      - name: Pull Docker image
+        run: docker pull devnardi/web-prefeitura:latest
+
+      - name: Stop and remove existing container
+        run: |
+          docker rm -f web-prefeitura || true
+
+      - name: Run container
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
+        run: |
+          docker run -d \
+            --name web-prefeitura \
+            --restart unless-stopped \
+            -p 3000:3000 \
+            -e NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL}" \
+            devnardi/web-prefeitura:latest
+
+      - name: Prune unused images
+        if: always()
+        run: docker image prune -f

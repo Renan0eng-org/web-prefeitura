@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paranavaí Sem Dor — Exclusão de conta e dados</title>
+  <style>
+    :root {
+      --bg: #0d0d0d;
+      --surface: #1a1a1e;
+      --border: #2a2a2e;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #42a5f5;
+      --accent-dim: rgba(66, 165, 245, 0.15);
+      --danger: #f87171;
+      --danger-dim: rgba(248, 113, 113, 0.12);
+      --ok: #4ade80;
+      --ok-dim: rgba(74, 222, 128, 0.12);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      padding: 1.25rem;
+    }
+
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding-bottom: 3rem;
+    }
+
+    h1 {
+      color: var(--accent);
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.75rem;
+    }
+
+    h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin: 2rem 0 0.75rem;
+      color: var(--text);
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 1.25rem;
+    }
+
+    .app-id {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.95rem;
+    }
+
+    .app-id p { margin-bottom: 0.35rem; }
+    .app-id p:last-child { margin-bottom: 0; }
+
+    p { margin-bottom: 1rem; }
+
+    ul {
+      margin: 0 0 1rem 1.25rem;
+    }
+
+    li { margin-bottom: 0.35rem; }
+
+    .steps {
+      list-style: none;
+      margin: 1rem 0 1.25rem;
+      padding: 0;
+    }
+
+    .steps li {
+      display: flex;
+      gap: 0.85rem;
+      align-items: flex-start;
+      margin-bottom: 0.85rem;
+    }
+
+    .steps .num {
+      flex-shrink: 0;
+      width: 1.75rem;
+      height: 1.75rem;
+      border-radius: 50%;
+      background: var(--accent-dim);
+      color: var(--accent);
+      font-weight: 700;
+      font-size: 0.85rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .card {
+      border-radius: 12px;
+      padding: 1.15rem 1.25rem;
+      margin-bottom: 1rem;
+      border: 1px solid var(--border);
+    }
+
+    .deleted {
+      background: var(--danger-dim);
+      border-color: rgba(248, 113, 113, 0.35);
+    }
+
+    .deleted h3 { color: var(--danger); margin-bottom: 0.5rem; font-size: 0.95rem; }
+
+    .kept {
+      background: var(--ok-dim);
+      border-color: rgba(74, 222, 128, 0.35);
+    }
+
+    .kept h3 { color: var(--ok); margin-bottom: 0.5rem; font-size: 0.95rem; }
+
+    .warn {
+      background: var(--danger-dim);
+      border-left: 3px solid var(--danger);
+      padding: 0.85rem 1rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1rem 0;
+      font-size: 0.95rem;
+    }
+
+    .contact {
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-top: 2rem;
+    }
+
+    .contact h2 { margin-top: 0; color: var(--accent); }
+
+    .contact a {
+      color: var(--accent);
+      word-break: break-all;
+    }
+
+    footer {
+      margin-top: 2.5rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover { text-decoration: underline; }
+
+    code {
+      font-size: 0.88em;
+      background: var(--surface);
+      padding: 0.1em 0.35em;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Exclusão de conta e dados</h1>
+
+    <div class="meta">
+      <p><strong>Última atualização:</strong> 30 de junho de 2026</p>
+    </div>
+
+    <div class="app-id">
+      <p><strong>Aplicativo:</strong> Paranavaí Sem Dor — participação cidadã e formulários da prefeitura</p>
+      <p><strong>Desenvolvedor:</strong> Marco Ferreira</p>
+      <p><strong>Contacto:</strong> marcoa.fer.dev@gmail.com</p>
+    </div>
+
+    <h2>Introdução</h2>
+    <p>
+      Esta página explica como solicitar a <strong>exclusão da sua conta e dados pessoais</strong> no
+      sistema do aplicativo <strong>Paranavaí Sem Dor</strong>, em conformidade com a <strong>LGPD</strong>
+      e com os requisitos da <strong>Google Play Console</strong> para URL pública de exclusão de contas.
+    </p>
+
+    <h2>Como solicitar a exclusão</h2>
+
+    <h3 style="color: var(--accent); font-size: 1rem; margin-bottom: 0.5rem;">Opção A — No aplicativo (recomendado)</h3>
+    <ol class="steps">
+      <li>
+        <span class="num">1</span>
+        <span>Abra o <strong>Paranavaí Sem Dor</strong> e faça login com <strong>CPF</strong> e senha.</span>
+      </li>
+      <li>
+        <span class="num">2</span>
+        <span>Abra o menu e vá em <strong>Meu Perfil</strong>.</span>
+      </li>
+      <li>
+        <span class="num">3</span>
+        <span>Role até a secção <strong>Privacidade e dados</strong>.</span>
+      </li>
+      <li>
+        <span class="num">4</span>
+        <span>Toque em <strong>Excluir minha conta</strong>.</span>
+      </li>
+      <li>
+        <span class="num">5</span>
+        <span>Confirme sua <strong>senha</strong>, digite <strong>EXCLUIR</strong> no campo indicado e marque a caixa de confirmação.</span>
+      </li>
+      <li>
+        <span class="num">6</span>
+        <span>Toque em <strong>Excluir conta</strong>. A sessão será encerrada após a exclusão.</span>
+      </li>
+    </ol>
+
+    <div class="warn">
+      <strong>Atenção:</strong> a exclusão da conta no servidor é <strong>irreversível</strong>.
+      Não será possível recuperar CPF, respostas ou dados associados após a confirmação.
+    </div>
+
+    <p style="font-size: 0.95rem; color: var(--muted);">
+      Se a exclusão pelo app não estiver disponível no servidor, o aplicativo informará e poderá
+      oferecer limpar apenas os dados locais do aparelho, com orientação para contacto por e-mail.
+    </p>
+
+    <h3 style="color: var(--accent); font-size: 1rem; margin: 1.5rem 0 0.5rem;">Opção B — Por e-mail (sem acesso ao app)</h3>
+    <ol class="steps">
+      <li>
+        <span class="num">1</span>
+        <span>
+          Envie e-mail para
+          <a href="mailto:marcoa.fer.dev@gmail.com?subject=Paranava%C3%AD%20Sem%20Dor%20%E2%80%94%20Pedido%20de%20exclus%C3%A3o%20de%20conta">marcoa.fer.dev@gmail.com</a>.
+        </span>
+      </li>
+      <li>
+        <span class="num">2</span>
+        <span>Assunto: <strong>Paranavaí Sem Dor — Pedido de exclusão de conta</strong>.</span>
+      </li>
+      <li>
+        <span class="num">3</span>
+        <span>Informe seu <strong>CPF</strong> e, se possível, o <strong>e-mail</strong> usado no cadastro.</span>
+      </li>
+      <li>
+        <span class="num">4</span>
+        <span>Descreva que deseja a exclusão completa da conta e dados no sistema da prefeitura.</span>
+      </li>
+    </ol>
+    <p><strong>Prazo:</strong> conclusão em até <strong>30 dias</strong> (normalmente poucos dias úteis).</p>
+
+    <h2>Limpar apenas dados deste aparelho</h2>
+    <p>
+      No perfil, a opção <strong>Limpar dados deste aparelho</strong> apaga sessão, histórico local,
+      notificações e preferências <strong>sem excluir</strong> a conta no servidor da prefeitura.
+      Use quando quiser sair do dispositivo mantendo o cadastro activo.
+    </p>
+
+    <h2>Dados excluídos no servidor</h2>
+    <div class="card deleted">
+      <h3>Eliminados após exclusão bem-sucedida da conta</h3>
+      <ul>
+        <li>Identificador único da conta (<code>idUser</code>)</li>
+        <li>Nome completo, CPF e e-mail</li>
+        <li>Hash da senha de acesso</li>
+        <li>Status da conta e vínculos de formulários atribuídos</li>
+        <li>Respostas a formulários associadas à conta, conforme política do backend</li>
+        <li>Tokens de autenticação deixam de ser válidos imediatamente</li>
+      </ul>
+    </div>
+
+    <h2>Dados que permanecem no dispositivo</h2>
+    <div class="card kept">
+      <h3>Não apagados automaticamente só pela exclusão no servidor</h3>
+      <ul>
+        <li>Token ou cache de sessão antigo até limpar dados ou reinstalar</li>
+        <li>Histórico local de formulários respondidos (SharedPreferences)</li>
+        <li>Lista de notificações e preferências guardadas no aparelho</li>
+        <li>Credenciais pendentes de validação (se existirem) até limpeza manual</li>
+      </ul>
+      <p style="margin-bottom: 0; margin-top: 0.75rem;">
+        <strong>Android:</strong> Definições → Apps → Paranavaí Sem Dor → Armazenamento → <strong>Limpar dados</strong>,
+        ou desinstale o aplicativo.
+      </p>
+    </div>
+
+    <h2>Período de retenção adicional</h2>
+    <ul>
+      <li><strong>Conta activa:</strong> dados mantidos enquanto a conta existir ou até pedido de exclusão</li>
+      <li><strong>Após exclusão na app:</strong> remoção na base principal assim que o servidor confirmar; sem cópia acessível ao utilizador</li>
+      <li><strong>Backups de infraestrutura:</strong> fragmentos encriptados podem persistir até <strong>30 dias</strong>, depois sobrescritos ou eliminados conforme política do operador</li>
+      <li><strong>Pedidos por e-mail:</strong> registados só pelo tempo necessário para processar e comprovar conformidade (até 30 dias)</li>
+    </ul>
+
+    <h2>Conta aguardando validação</h2>
+    <p>
+      Se você se cadastrou mas a conta ainda não foi aprovada pela prefeitura, pode solicitar exclusão
+      pelo e-mail indicando CPF e e-mail do cadastro. Dados locais de “aguardando validação” são
+      removidos ao limpar dados do app ou desinstalar.
+    </p>
+
+    <div class="contact">
+      <h2>Contacto</h2>
+      <p>Dúvidas sobre exclusão, privacidade ou dados pessoais:</p>
+      <p>
+        <strong>E-mail:</strong>
+        <a href="mailto:marcoa.fer.dev@gmail.com?subject=Paranava%C3%AD%20Sem%20Dor%20%E2%80%94%20Pedido%20de%20exclus%C3%A3o%20de%20conta">marcoa.fer.dev@gmail.com</a>
+      </p>
+      <p style="margin-bottom: 0;">
+        <strong>Assunto sugerido:</strong> Paranavaí Sem Dor — Pedido de exclusão de conta
+      </p>
+    </div>
+
+    <footer>
+      <p>
+        <a href="politica_privacidade.html">Ver também: Política de Privacidade</a>
+      </p>
+    </footer>
+  </main>
+</body>
+</html>

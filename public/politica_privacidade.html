@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Paranavaí Sem Dor — Política de Privacidade</title>
+  <style>
+    :root {
+      --bg: #0d0d0d;
+      --surface: #1a1a1e;
+      --border: #2a2a2e;
+      --text: #e4e4e7;
+      --muted: #71717a;
+      --accent: #42a5f5;
+      --accent-dim: rgba(66, 165, 245, 0.15);
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.65;
+      padding: 1.25rem;
+    }
+
+    main {
+      max-width: 720px;
+      margin: 0 auto;
+      padding-bottom: 3rem;
+    }
+
+    h1 {
+      color: var(--accent);
+      font-size: 1.75rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      margin-bottom: 0.75rem;
+    }
+
+    h2 {
+      font-size: 1.15rem;
+      font-weight: 700;
+      margin: 2rem 0 0.75rem;
+      color: var(--text);
+    }
+
+    h3 {
+      font-size: 0.95rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+      color: var(--accent);
+    }
+
+    .meta {
+      color: var(--muted);
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.25rem;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .meta strong { color: var(--text); }
+
+    p { margin-bottom: 1rem; }
+
+    ul {
+      margin: 0 0 1rem 1.25rem;
+    }
+
+    li { margin-bottom: 0.35rem; }
+
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.15rem 1.25rem;
+      margin-bottom: 1rem;
+    }
+
+    .card p:last-child { margin-bottom: 0; }
+
+    .highlight {
+      background: var(--accent-dim);
+      border-left: 3px solid var(--accent);
+      padding: 0.85rem 1rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1rem 0;
+      font-size: 0.95rem;
+    }
+
+    .contact {
+      background: var(--surface);
+      border: 1px solid var(--accent);
+      border-radius: 12px;
+      padding: 1.25rem;
+      margin-top: 2rem;
+    }
+
+    .contact h2 { margin-top: 0; color: var(--accent); }
+
+    .contact a {
+      color: var(--accent);
+      word-break: break-all;
+    }
+
+    footer {
+      margin-top: 2.5rem;
+      padding-top: 1.25rem;
+      border-top: 1px solid var(--border);
+      font-size: 0.9rem;
+      color: var(--muted);
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Política de Privacidade</h1>
+
+    <div class="meta">
+      <p><strong>Aplicativo:</strong> Paranavaí Sem Dor — participação cidadã e formulários da prefeitura</p>
+      <p><strong>Desenvolvedor:</strong> Marco Ferreira</p>
+      <p><strong>Última atualização:</strong> 30 de junho de 2026</p>
+      <p style="margin-top: 0.75rem; margin-bottom: 0;">
+        Esta política descreve como o aplicativo <strong>Paranavaí Sem Dor</strong> trata dados pessoais,
+        em conformidade com a <strong>LGPD</strong> (Lei nº 13.709/2018) e requisitos da Google Play Console.
+      </p>
+    </div>
+
+    <h2>Introdução</h2>
+    <p>
+      O <strong>Paranavaí Sem Dor</strong> é um aplicativo móvel que permite ao cidadão acessar formulários
+      atribuídos pela prefeitura, acompanhar notificações e participar de iniciativas de participação popular.
+      Respeitamos sua privacidade. Aqui explicamos quais dados são tratados, para quê, com quem são
+      compartilhados e quais são seus direitos como titular de dados.
+    </p>
+
+    <h2>1. Quais dados coletamos</h2>
+
+    <div class="card">
+      <h3>Dados de conta (servidor da prefeitura)</h3>
+      <ul>
+        <li><strong>Nome completo</strong> — informado no cadastro</li>
+        <li><strong>CPF</strong> — usado como identificador de login</li>
+        <li><strong>E-mail</strong> — informado no cadastro e vinculado à conta</li>
+        <li><strong>Senha</strong> — armazenada no servidor apenas em forma protegida (hash); nunca em texto simples</li>
+        <li><strong>Status da conta</strong> — ativa ou aguardando validação pela prefeitura</li>
+        <li><strong>Respostas a formulários</strong> — enviadas ao servidor quando você responde a um formulário atribuído</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>Dados locais no dispositivo</h3>
+      <ul>
+        <li><strong>Token de sessão e dados do usuário logado</strong> — SharedPreferences</li>
+        <li><strong>Histórico local de formulários respondidos</strong> — controle de progresso no aparelho</li>
+        <li><strong>Lista de notificações</strong> — avisos de conta aprovada, formulários novos e lembretes</li>
+        <li><strong>Preferências</strong> — ex.: ativar/desativar lembretes de notificação</li>
+        <li><strong>Credenciais pendentes de validação</strong> — CPF e senha criptografados localmente enquanto a conta aguarda aprovação (para avisar quando for liberada)</li>
+        <li><strong>Registros de atribuição de formulários</strong> — datas usadas para lembretes locais</li>
+      </ul>
+    </div>
+
+    <div class="card">
+      <h3>Dados técnicos mínimos</h3>
+      <ul>
+        <li>Informações básicas do sistema operacional para permissões (internet, notificações)</li>
+        <li>Endereço IP e metadados HTTP ao contactar a API da prefeitura — apenas para entrega e segurança do serviço</li>
+        <li>Consultas periódicas em background (até a cada 15 minutos) para verificar aprovação de conta e novos formulários, quando as notificações estão ativas</li>
+      </ul>
+    </div>
+
+    <div class="highlight">
+      <strong>O Paranavaí Sem Dor NÃO coleta:</strong> localização GPS, lista de contactos, fotos da galeria enviadas ao servidor,
+      dados de saúde, identificadores publicitários, perfis comportamentais para anúncios ou dados de menores
+      de forma intencional.
+    </div>
+
+    <h2>2. Como usamos esses dados</h2>
+    <ul>
+      <li>Criar conta, autenticar com CPF e senha e validar sessão</li>
+      <li>Exibir seu perfil (nome, e-mail, CPF, status da conta)</li>
+      <li>Atribuir e permitir resposta a formulários da prefeitura</li>
+      <li>Enviar notificações locais no dispositivo (conta aprovada, formulário novo, lembretes)</li>
+      <li>Manter preferências e histórico local para melhorar a experiência de uso</li>
+      <li><strong>Não vendemos</strong> seus dados nem fazemos perfilagem comercial ou publicidade</li>
+    </ul>
+
+    <h2>3. Com quem compartilhamos</h2>
+    <ul>
+      <li>
+        <strong>API da prefeitura</strong> (<code>prefeitura.back.renannardi.com</code>) — dados de cadastro,
+        autenticação, formulários e respostas; operado em nome do órgão municipal responsável
+      </li>
+    </ul>
+    <p>
+      <strong>Sem</strong> Firebase Analytics, AdMob, Facebook SDK ou outras plataformas de publicidade.
+      O aplicativo <strong>não exibe anúncios</strong> e não utiliza serviços de rastreamento comercial de terceiros.
+    </p>
+
+    <h2>4. Permissões do dispositivo</h2>
+    <ul>
+      <li><strong>Internet</strong> — login, cadastro, formulários e sincronização com a API</li>
+      <li><strong>Notificações</strong> (Android 13+) — avisos de conta aprovada e formulários atribuídos</li>
+      <li><strong>Execução em background</strong> — verificação periódica de novos formulários e status da conta</li>
+      <li><strong>Armazenamento seguro</strong> — guardar credenciais pendentes de forma criptografada no aparelho</li>
+    </ul>
+    <p>Recusar permissões pode limitar funções (ex.: sem notificações push locais, sem avisos em background).</p>
+
+    <h2>5. Retenção e segurança</h2>
+    <ul>
+      <li>Conta no servidor mantida enquanto existir ou até exclusão solicitada</li>
+      <li>Dados locais mantidos até limpar dados do app, usar “Limpar dados deste aparelho” no perfil ou desinstalar</li>
+      <li>Senha protegida no servidor; token de sessão armazenado localmente no dispositivo</li>
+      <li>Credenciais pendentes de validação removidas após login bem-sucedido ou limpeza/exclusão</li>
+    </ul>
+
+    <h2>6. Direitos do titular (LGPD)</h2>
+    <p>Você pode, nos termos da lei:</p>
+    <ul>
+      <li><strong>Confirmar e acessar</strong> — ver seus dados no perfil do app</li>
+      <li><strong>Corrigir</strong> — dados cadastrais conforme política da prefeitura (contato com o órgão quando necessário)</li>
+      <li><strong>Eliminar</strong> — “Excluir minha conta” no perfil ou pedido por e-mail (<a href="exclusao_conta.html">ver instruções</a>)</li>
+      <li><strong>Revogar consentimento</strong> — desinstalar o app, limpar dados locais e solicitar exclusão no servidor</li>
+      <li><strong>Reclamar</strong> — perante a <strong>ANPD</strong> (Autoridade Nacional de Proteção de Dados)</li>
+    </ul>
+    <p>Prazo de resposta aos pedidos: conforme prazo legal aplicável.</p>
+
+    <h2>7. Crianças</h2>
+    <p>
+      O aplicativo não é destinado a menores de 13 anos. Se souber de cadastro indevido de criança,
+      contacte-nos para orientação sobre remoção.
+    </p>
+
+    <h2>8. Alterações</h2>
+    <p>
+      Esta política pode ser atualizada. A data no topo indica a versão vigente.
+      Alterações relevantes serão refletidas nesta página pública.
+    </p>
+
+    <div class="contact">
+      <h2>9. Contacto</h2>
+      <p>
+        Dúvidas sobre privacidade ou exercício de direitos LGPD:
+      </p>
+      <p>
+        <strong>E-mail:</strong>
+        <a href="mailto:marcoa.fer.dev@gmail.com?subject=Paranava%C3%AD%20Sem%20Dor%20%E2%80%94%20Privacidade%20%2F%20LGPD">marcoa.fer.dev@gmail.com</a>
+      </p>
+      <p style="margin-bottom: 0;">
+        <strong>Assunto sugerido:</strong> Paranavaí Sem Dor — Privacidade / LGPD
+      </p>
+    </div>
+
+    <footer>
+      <p>
+        <a href="exclusao_conta.html">Exclusão de conta e dados</a>
+      </p>
+    </footer>
+  </main>
+</body>
+</html>

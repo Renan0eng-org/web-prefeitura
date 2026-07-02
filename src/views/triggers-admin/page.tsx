@@ -25,7 +25,7 @@ import { Agent, Trigger, TriggerStats, TriggerTestResult } from "@/types/trigger
 import { Bot, Plus, RefreshCw } from "lucide-react"
 import { useCallback, useEffect, useMemo, useState } from "react"
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://semdor.paranavai.pr.gov.br/back'
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'https://prefeitura.back.renannardi.com'
 
 export default function TriggersAdminPage() {
   // Agents state

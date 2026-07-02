@@ -22,7 +22,7 @@ jobs:
       - name: Build da imagem
         run: |
           docker build \
-            --build-arg NEXT_PUBLIC_API_URL="https://semdor.paranavai.pr.gov.br/back" \
+            --build-arg NEXT_PUBLIC_API_URL="https://prefeitura.back.renannardi.com" \
             -t devnardi/web-prefeitura:latest .
 
       - name: Push da imagem

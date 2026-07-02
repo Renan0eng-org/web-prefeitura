@@ -1,6 +1,6 @@
 import axios, { AxiosError, AxiosRequestConfig } from 'axios'
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://prefeitura.back.renannardi.com'
+const BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'https://semdor.paranavai.pr.gov.br/back'
 
 const api = axios.create({
     baseURL: BASE_URL,

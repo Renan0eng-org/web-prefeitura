@@ -13,22 +13,35 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Optional Docker Hub login
+      - name: Login no Docker Hub
         run: |
-          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ] && [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
-            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" --password-stdin
-          else
-            echo "Skipping Docker Hub login: secrets not set"
-          fi
+          echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login \
+            -u "${{ secrets.DOCKERHUB_USERNAME }}" \
+            --password-stdin
 
-      - name: Pull Docker image
-        run: docker pull devnardi/web-prefeitura:latest
+      - name: Build da imagem
+        run: |
+          docker build \
+            --build-arg NEXT_PUBLIC_API_URL="https://semdor.paranavai.pr.gov.br/back" \
+            -t devnardi/web-prefeitura:latest .
 
-      - name: Stop and remove existing container
+      - name: Push da imagem
+        run: |
+          docker push devnardi/web-prefeitura:latest
+
+      - name: Remover container antigo
         run: |
           docker rm -f web-prefeitura || true
 
-      - name: Run container
+      - name: Remover imagem local
+        run: |
+          docker rmi devnardi/web-prefeitura:latest || true
+
+      - name: Baixar imagem atualizada
+        run: |
+          docker pull devnardi/web-prefeitura:latest
+
+      - name: Subir novo container
         env:
           NEXT_PUBLIC_API_URL: ${{ secrets.NEXT_PUBLIC_API_URL }}
         run: |
@@ -36,9 +49,10 @@ jobs:
             --name web-prefeitura \
             --restart unless-stopped \
             -p 3000:3000 \
+            -e NODE_ENV=production \
             -e NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL}" \
             devnardi/web-prefeitura:latest
 
-      - name: Prune unused images
+      - name: Limpar imagens não utilizadas
         if: always()
-        run: docker image prune -f
+        run: docker image prune -af

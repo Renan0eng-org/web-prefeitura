@@ -1,267 +1,203 @@
 "use client"
 
 import { NivelAcessoDialog } from "@/components/access-level/nivel-acesso-dialog"
-import { Badge } from "@/components/ui/badge"
+import { PermissaoMatrix } from "@/components/access-level/permissao-matrix"
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
-import ColumnsDropdown from '@/components/ui/columns-dropdown'
 import ConfirmDialog from "@/components/ui/confirm-dialog"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAlert } from "@/hooks/use-alert"
-import { useAuth } from "@/hooks/use-auth"; // Importa o useAuth
+import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
-import { MenuAcesso, NivelAcesso } from "@/types/access-level"
-import { MoreHorizontal, PlusCircle, Settings2 } from "lucide-react"
+import { MenuAcesso, NivelAcesso, NivelAcessoComPermissoes } from "@/types/access-level"
+import { Edit, PlusCircle, Trash2 } from "lucide-react"
 import * as React from "react"
-import { GerenciarMenusNivelDialog } from "../../../components/access-level/gerenciar-menus-nivel-dialog"
-
-// Tipo para NivelAcesso COM os menus
-type NivelAcessoComMenus = NivelAcesso & { menus: MenuAcesso[] }
 
 export function GerenciarNiveisAcesso() {
-  const [niveis, setNiveis] = React.useState<NivelAcessoComMenus[]>([])
-  const [todosMenus, setTodosMenus] = React.useState<MenuAcesso[]>([])
-  const [isLoading, setIsLoading] = React.useState(true)
-  const [isNivelDialogOpen, setIsNivelDialogOpen] = React.useState(false)
-  const [isMenuDialogOpen, setIsMenuDialogOpen] = React.useState(false)
-  const [editingNivel, setEditingNivel] = React.useState<NivelAcessoComMenus | null>(null)
-  const [visibleColumns, setVisibleColumns] = React.useState<Record<string, boolean>>({ nome: true, menus: true, acoes: true })
+    const [niveis, setNiveis] = React.useState<NivelAcessoComPermissoes[]>([])
+    const [todosMenus, setTodosMenus] = React.useState<MenuAcesso[]>([])
+    const [isLoading, setIsLoading] = React.useState(true)
+    const [selectedNivelId, setSelectedNivelId] = React.useState<string>("")
+    const [isNivelDialogOpen, setIsNivelDialogOpen] = React.useState(false)
+    const [editingNivel, setEditingNivel] = React.useState<NivelAcesso | null>(null)
+    const [confirmOpen, setConfirmOpen] = React.useState(false)
 
-  const { setAlert } = useAlert()
-  const { getPermissions } = useAuth() // Pega a função de permissão
+    const { setAlert } = useAlert()
+    const { getPermissions } = useAuth()
 
-  // Define o slug desta tela e busca as permissões
-  // (Assumindo "acesso" para a página inteira)
-  const permissions = React.useMemo(
-    () => getPermissions("acesso"),
-    [getPermissions]
-  )
+    const permissions = React.useMemo(
+        () => getPermissions("acesso"),
+        [getPermissions]
+    )
 
-  const fetchData = async () => {
-    try {
-      setIsLoading(true)
-      // Buscamos os níveis (com seus menus) e TODOS os menus disponíveis
-      const [niveisResponse, menusResponse] = await Promise.all([
-        api.get('/admin/acesso/niveis'),
-        api.get('/admin/acesso/menus')
-      ])
-      setNiveis(niveisResponse.data)
-      setTodosMenus(menusResponse.data)
-    } catch (err: any) {
-      setAlert(err.response?.data?.message || "Erro ao carregar dados.", "error")
-    } finally {
-      setIsLoading(false)
+    const fetchData = async () => {
+        try {
+            setIsLoading(true)
+            const [niveisResponse, menusResponse] = await Promise.all([
+                api.get('/admin/acesso/niveis'),
+                api.get('/admin/acesso/menus'),
+            ])
+            setNiveis(niveisResponse.data)
+            setTodosMenus(menusResponse.data)
+
+            if (!selectedNivelId && niveisResponse.data.length > 0) {
+                setSelectedNivelId(String(niveisResponse.data[0].idNivelAcesso))
+            }
+        } catch (err: any) {
+            setAlert(err.response?.data?.message || "Erro ao carregar dados.", "error")
+        } finally {
+            setIsLoading(false)
+        }
     }
-  }
 
-  React.useEffect(() => {
-    fetchData()
-  }, [])
+    React.useEffect(() => {
+        fetchData()
+    }, [])
 
-  const handleAddNew = () => {
-    setEditingNivel(null)
-    setIsNivelDialogOpen(true)
-  }
+    const selectedNivel = React.useMemo(
+        () => niveis.find(n => String(n.idNivelAcesso) === selectedNivelId) || null,
+        [niveis, selectedNivelId]
+    )
 
-  const handleEdit = (nivel: NivelAcessoComMenus) => {
-    setEditingNivel(nivel)
-    setIsNivelDialogOpen(true)
-  }
-
-  const handleManageMenus = (nivel: NivelAcessoComMenus) => {
-    setEditingNivel(nivel)
-    setIsMenuDialogOpen(true)
-  }
-
-  const [confirmOpen, setConfirmOpen] = React.useState(false)
-  const [pendingNivelId, setPendingNivelId] = React.useState<number | null>(null)
-
-  const performDelete = async (id: number) => {
-    try {
-      await api.delete(`/admin/acesso/niveis/${id}`)
-      setAlert("Nível excluído com sucesso!", "success")
-      fetchData()
-    } catch (err: any) {
-      setAlert(err.response?.data?.message || "Erro ao excluir nível.", "error")
+    const handleAddNew = () => {
+        setEditingNivel(null)
+        setIsNivelDialogOpen(true)
     }
-  }
 
-  const handleConfirmDelete = () => {
-    if (!pendingNivelId) return
-    performDelete(pendingNivelId)
-    setPendingNivelId(null)
-    setConfirmOpen(false)
-  }
+    const handleEdit = () => {
+        if (selectedNivel) {
+            setEditingNivel(selectedNivel)
+            setIsNivelDialogOpen(true)
+        }
+    }
 
-  const onDataChanged = () => {
-    fetchData()
-    setIsNivelDialogOpen(false)
-    setIsMenuDialogOpen(false)
-  }
+    const performDelete = async () => {
+        if (!selectedNivel) return
+        try {
+            await api.delete(`/admin/acesso/niveis/${selectedNivel.idNivelAcesso}`)
+            setAlert("Nível excluído com sucesso!", "success")
+            setSelectedNivelId("")
+            fetchData()
+        } catch (err: any) {
+            setAlert(err.response?.data?.message || "Erro ao excluir nível.", "error")
+        }
+    }
 
-  // Bloqueia a tela inteira se não tiver permissão de visualizar
-  if (isLoading) {
+    const onNivelDialogDataChanged = () => {
+        fetchData()
+        setIsNivelDialogOpen(false)
+    }
+
+    if (isLoading) {
+        return (
+            <Card>
+                <CardHeader>
+                    <Skeleton className="h-6 w-1/3" />
+                    <Skeleton className="h-4 w-2/3 mt-2" />
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <Skeleton className="h-10 w-full" />
+                    <Skeleton className="h-64 w-full" />
+                </CardContent>
+            </Card>
+        )
+    }
+
+    if (!permissions?.visualizar) {
+        return (
+            <Card>
+                <CardHeader>
+                    <CardTitle>Acesso Negado</CardTitle>
+                    <CardDescription>Você não tem permissão para visualizar esta seção.</CardDescription>
+                </CardHeader>
+            </Card>
+        )
+    }
+
     return (
-      <div className="min-h-[280px]">
         <Card>
-          <CardHeader>
-            <div>
-              <Skeleton className="h-6 w-1/3" />
-              <Skeleton className="h-4 w-2/3 mt-2" />
-            </div>
-            <div>
-              <Skeleton className="h-9 w-28" />
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-full" />
-              {Array.from({ length: 5 }).map((_, i) => (
-                <div key={i} className="py-2">
-                  <Skeleton className="h-12 w-full" />
+            <CardHeader>
+                <div className="flex flex-col gap-1">
+                    <CardTitle>Permissões por Nível</CardTitle>
+                    <CardDescription>
+                        Selecione um nível de acesso e configure as permissões para cada menu do sistema.
+                    </CardDescription>
                 </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-    )
-  }
+            </CardHeader>
+            <CardContent className="space-y-6">
+                <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
+                    <Select value={selectedNivelId} onValueChange={setSelectedNivelId}>
+                        <SelectTrigger className="w-full sm:w-[280px]">
+                            <SelectValue placeholder="Selecione um nível..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {niveis.map(nivel => (
+                                <SelectItem key={nivel.idNivelAcesso} value={String(nivel.idNivelAcesso)}>
+                                    {nivel.nome}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
 
-  if (!permissions?.visualizar) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Acesso Negado</CardTitle>
-          <CardDescription>
-            Você não tem permissão para visualizar esta seção.
-          </CardDescription>
-        </CardHeader>
-      </Card>
-    )
-  }
-
-  return (
-    <Card>
-      <CardHeader className="flex flex-row items-center justify-between">
-        <div>
-          <CardTitle>Níveis de Acesso</CardTitle>
-          <CardDescription>
-            Crie os níveis (cargos) e gerencie quais menus eles podem acessar.
-          </CardDescription>
-        </div>
-        <div className="flex items-center gap-2 flex-wrap">
-            <ColumnsDropdown
-              columns={visibleColumns}
-              onChange={(c: Record<string, boolean>) => setVisibleColumns(c as Record<string, boolean>)}
-              labels={{ nome: 'Nome', menus: 'Menus Vinculados', acoes: 'Ações' }}
-              contentClassName="p-2"
-              buttonLabel={<><Settings2 className="h-4 w-4" /> Colunas</>}
-            />
-          {/* Controla o botão "Novo" */}
-          {permissions?.criar && (
-            <Button onClick={handleAddNew}>
-              <PlusCircle className="w-4 h-4 mr-2" />
-              Novo Nível
-            </Button>
-          )}
-        </div>
-      </CardHeader>
-      <CardContent>
-        <Table>
-          <TableHeader>
-            <TableRow>
-              {visibleColumns.nome && <TableHead>Nome</TableHead>}
-              {visibleColumns.menus && <TableHead>Menus Vinculados</TableHead>}
-              {/* Controla a coluna de "Ações" */}
-              {visibleColumns.acoes && (permissions?.editar || permissions?.excluir) && (
-                <TableHead className="w-[64px] text-right">Ações</TableHead>
-              )}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {niveis.map((nivel) => (
-              <TableRow key={nivel.idNivelAcesso}>
-                {visibleColumns.nome && (
-                  <TableCell>
-                    <div className="font-medium">{nivel.nome}</div>
-                    <div className="text-xs text-muted-foreground">{nivel.descricao}</div>
-                  </TableCell>
-                )}
-                {visibleColumns.menus && (
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {nivel.menus?.length === 0 && <span className="text-xs text-muted-foreground">Nenhum</span>}
-                      {nivel.menus?.map(menu => (
-                        <Badge key={menu.idMenuAcesso} variant="secondary">{menu.nome}</Badge>
-                      ))}
+                    <div className="flex items-center gap-2 flex-wrap">
+                        {permissions?.criar && (
+                            <Button variant="outline" size="sm" onClick={handleAddNew}>
+                                <PlusCircle className="w-4 h-4 mr-1" />
+                                Novo Nível
+                            </Button>
+                        )}
+                        {permissions?.editar && selectedNivel && (
+                            <Button variant="outline" size="sm" onClick={handleEdit}>
+                                <Edit className="w-4 h-4 mr-1" />
+                                Editar
+                            </Button>
+                        )}
+                        {permissions?.excluir && selectedNivel && (
+                            <Button variant="outline" size="sm" className="text-destructive hover:text-destructive" onClick={() => setConfirmOpen(true)}>
+                                <Trash2 className="w-4 h-4 mr-1" />
+                                Excluir
+                            </Button>
+                        )}
                     </div>
-                  </TableCell>
-                )}
-                {/* Controla a célula de "Ações" */}
-                {visibleColumns.acoes && (permissions?.editar || permissions?.excluir) && (
-                  <TableCell className="text-right">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button variant="ghost" size="icon">
-                          <MoreHorizontal className="h-4 w-4" />
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent align="end">
-                        {/* Controla cada item do menu */}
-                        {permissions?.editar && (
-                          <DropdownMenuItem onClick={() => handleManageMenus(nivel)}>
-                            Gerenciar Menus
-                          </DropdownMenuItem>
-                        )}
-                        {permissions?.editar && (
-                          <DropdownMenuItem onClick={() => handleEdit(nivel)}>
-                            Editar Nível
-                          </DropdownMenuItem>
-                        )}
-                        {permissions?.excluir && (
-                          <DropdownMenuItem onClick={() => { setPendingNivelId(nivel.idNivelAcesso); setConfirmOpen(true) }} className="text-destructive">
-                            Excluir
-                          </DropdownMenuItem>
-                        )}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-                  </TableCell>
-                )}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </CardContent>
+                </div>
 
-      {/* Diálogos */}
-      <NivelAcessoDialog
-        isOpen={isNivelDialogOpen}
-        onOpenChange={setIsNivelDialogOpen}
-        nivel={editingNivel}
-        onDataChanged={onDataChanged}
-      />
-      {editingNivel && (
-        <GerenciarMenusNivelDialog
-          isOpen={isMenuDialogOpen}
-          onOpenChange={setIsMenuDialogOpen}
-          nivel={editingNivel}
-          todosMenus={todosMenus}
-          onDataChanged={onDataChanged}
-        />
-      )}
-      <ConfirmDialog
-        open={confirmOpen}
-        title="Excluir Nível"
-        description="Tem certeza que deseja excluir este nível?"
-        intent="destructive"
-        confirmLabel="Excluir"
-        cancelLabel="Cancelar"
-        onConfirm={handleConfirmDelete}
-        onCancel={() => { setConfirmOpen(false); setPendingNivelId(null) }}
-      />
-    </Card>
-  )
+                {selectedNivel ? (
+                    <>
+                        {selectedNivel.descricao && (
+                            <p className="text-sm text-muted-foreground">{selectedNivel.descricao}</p>
+                        )}
+                        <PermissaoMatrix
+                            nivelId={selectedNivel.idNivelAcesso}
+                            todosMenus={todosMenus}
+                            permissoes={selectedNivel.permissoes}
+                            canEdit={!!permissions?.editar}
+                            onSaved={fetchData}
+                        />
+                    </>
+                ) : (
+                    <div className="py-8 text-center text-muted-foreground">
+                        <p>Selecione um nível de acesso para configurar suas permissões.</p>
+                    </div>
+                )}
+            </CardContent>
+
+            <NivelAcessoDialog
+                isOpen={isNivelDialogOpen}
+                onOpenChange={setIsNivelDialogOpen}
+                nivel={editingNivel}
+                onDataChanged={onNivelDialogDataChanged}
+            />
+            <ConfirmDialog
+                open={confirmOpen}
+                title="Excluir Nível"
+                description={`Tem certeza que deseja excluir o nível "${selectedNivel?.nome}"? Usuários vinculados perderão esse nível.`}
+                intent="destructive"
+                confirmLabel="Excluir"
+                cancelLabel="Cancelar"
+                onConfirm={() => { performDelete(); setConfirmOpen(false) }}
+                onCancel={() => setConfirmOpen(false)}
+            />
+        </Card>
+    )
 }

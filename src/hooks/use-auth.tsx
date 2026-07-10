@@ -71,8 +71,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         setUser(data)
       } catch (err) {
         console.error("Nenhuma sessão válida encontrada.", err)
-        if (path !== '/auth/login' && path !== '/auth/sign-up') {
-          router.push('/auth/login')
+        if (path?.startsWith('/admin')) {
+          const redirect = encodeURIComponent(path)
+          router.push(`/auth/login?redirect=${redirect}`)
         }
         setUser(null)
       } finally {
@@ -164,6 +165,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const getPermissions = useCallback((slug: string): MenuPermission | null => {
     return permissionsMap.get(slug) || null;
   }, [permissionsMap]);
+
+  const isAdminRoute = path?.startsWith('/admin')
+
+  if (isAdminRoute && loading) {
+    return (
+      <AuthContext.Provider value={{ user, accessToken, loading, login, logout, getPermissions }}>
+        <div className="min-h-screen flex items-center justify-center bg-background">
+          <div className="flex flex-col items-center gap-4">
+            <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
+            <p className="text-sm text-muted-foreground">Carregando...</p>
+          </div>
+        </div>
+      </AuthContext.Provider>
+    )
+  }
 
   return (
     <AuthContext.Provider value={{ user, accessToken, loading, login, logout, getPermissions }}>

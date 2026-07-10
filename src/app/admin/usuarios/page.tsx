@@ -17,7 +17,7 @@ import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
 import { NivelAcesso, UserComNivel } from "@/types/access-level"
-import { Filter, MoreHorizontal, PlusCircle, RefreshCcw, Settings2 } from "lucide-react"
+import { Filter, Loader2, Mail, MoreHorizontal, PlusCircle, RefreshCcw, Settings2 } from "lucide-react"
 import * as React from "react"
 
 export default function UsuariosPage() {
@@ -57,7 +57,12 @@ export default function UsuariosPage() {
     const { getPermissions } = useAuth()
 
     const permissions = React.useMemo(
-        () => getPermissions("gerenciar-usuarios"), // Use o slug correto
+        () => getPermissions("gerenciar-usuarios"),
+        [getPermissions]
+    )
+
+    const permBoasVindas = React.useMemo(
+        () => getPermissions("boas-vindas"),
         [getPermissions]
     )
 
@@ -126,6 +131,20 @@ export default function UsuariosPage() {
     const handleDelete = async (user: UserComNivel) => {
         setPendingUser(user)
         setConfirmOpen(true)
+    }
+
+    const [sendingWelcome, setSendingWelcome] = React.useState<string | null>(null)
+
+    const handleSendWelcome = async (user: UserComNivel) => {
+        setSendingWelcome(user.idUser)
+        try {
+            await api.post(`/admin/users/${user.idUser}/welcome`)
+            setAlert("E-mail de boas-vindas enviado com sucesso!", "success")
+        } catch (err: any) {
+            setAlert(err.response?.data?.message || "Erro ao enviar e-mail de boas-vindas.", "error")
+        } finally {
+            setSendingWelcome(null)
+        }
     }
 
     const [confirmOpen, setConfirmOpen] = React.useState(false)
@@ -402,6 +421,21 @@ export default function UsuariosPage() {
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
+                                                {permBoasVindas?.visualizar && (
+                                                    <DropdownMenuItem
+                                                        onClick={() => {
+                                                            setTimeout(() => handleSendWelcome(user), 50)
+                                                        }}
+                                                        disabled={sendingWelcome === user.idUser}
+                                                    >
+                                                        {sendingWelcome === user.idUser ? (
+                                                            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                                        ) : (
+                                                            <Mail className="h-4 w-4 mr-2" />
+                                                        )}
+                                                        Boas Vindas
+                                                    </DropdownMenuItem>
+                                                )}
                                                 <DropdownMenuItem
                                                     onClick={() => {
                                                         setTimeout(() => handleEdit(user), 50)

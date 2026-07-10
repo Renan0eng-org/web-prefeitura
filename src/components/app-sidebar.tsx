@@ -13,47 +13,35 @@ import {
   SidebarMenuItem,
 } from "@/components/ui/sidebar"
 import { useAuth } from "@/hooks/use-auth"
-import { data } from "@/lib/nav"
+import { data, NavGroup } from "@/lib/nav"
 import { NavUser } from "./nav-user"
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-  // const [sideItems, setSideItems] = React.useState<Menu>({ navMain: [], flow: [] })
   const { user } = useAuth()
 
-  const filteredMenu = React.useMemo(() => {
+  const filteredGroups = React.useMemo(() => {
     if (!user?.nivel_acesso?.menus) {
-      return { navMain: [], flow: [] };
+      return [];
     }
 
     const userPermissions = new Set(
       user.nivel_acesso.menus
-        .filter(permission => permission.visualizar)
-        .map(permission => permission.slug)
+        .filter((permission: any) => permission.visualizar)
+        .map((permission: any) => permission.slug)
     );
 
-    const filterRecursive = (items: any[]) => {
-      return items.reduce((acc, item) => {
+    return data.navGroups.reduce<NavGroup[]>((acc, group) => {
+      const filteredItems = group.items.filter(item => {
         const isPublic = !item.nivel_acesso;
-        const hasPermission = userPermissions.has(item.nivel_acesso);
+        return isPublic || userPermissions.has(item.nivel_acesso);
+      });
 
-        if (isPublic || hasPermission) {
-          const newItem = { ...item };
+      if (filteredItems.length > 0) {
+        acc.push({ label: group.label, items: filteredItems });
+      }
 
-          if (item.items) {
-            newItem.items = filterRecursive(item.items);
-          }
-
-          acc.push(newItem);
-        }
-
-        return acc;
-      }, []);
-    };
-
-    return {
-      navMain: filterRecursive(data.navMain),
-      flow: filterRecursive(data.flow),
-    };
+      return acc;
+    }, []);
   }, [user]);
 
   return (
@@ -63,7 +51,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           <SidebarMenuItem>
             <SidebarMenuButton size="lg" asChild>
               <a href="/admin">
-                <div className="flex aspect-square size-8 items-center justify-center rounded-lg  text-text">
+                <div className="flex aspect-square size-8 items-center justify-center rounded-lg text-text">
                   <img src="/logo.webp" alt="Logo" className="h-8 w-8" />
                 </div>
                 <div className="grid flex-1 text-left text-sm leading-tight">
@@ -83,8 +71,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         </SidebarMenu>
       </SidebarHeader>
       <SidebarContent>
-        {filteredMenu.flow.length > 0 && <NavMain items={filteredMenu.flow} title="Fluxos" />}
-        {filteredMenu.navMain.length > 0 && <NavMain items={filteredMenu.navMain} title="Menu" />}
+        {filteredGroups.map((group) => (
+          <NavMain key={group.label} items={group.items} title={group.label} />
+        ))}
       </SidebarContent>
       <SidebarFooter>
         <NavUser />
@@ -92,4 +81,3 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
     </Sidebar>
   )
 }
-

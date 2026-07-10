@@ -13,7 +13,6 @@ export function ChatFloatButton() {
     ? getPermissions('chat-ai')
     : null
 
-  // Só mostra o botão se o usuário tiver permissão de visualizar
   if (authLoading || !permissions?.visualizar) {
     return null
   }
@@ -25,7 +24,7 @@ export function ChatFloatButton() {
         "fixed z-30 flex items-center justify-center rounded-full shadow-lg transition-all duration-300 text-white touch-manipulation",
         isOpen
           ? "right-4 top-4 h-10 w-10 bg-red-500 hover:bg-red-600 active:bg-red-700 md:h-12 md:w-12 md:right-4 md:top-4 hidden"
-          : "right-4 bottom-6 h-14 w-14 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 md:h-12 md:w-12 md:right-6 md:bottom-6"
+          : "right-4 bottom-[88px] h-14 w-14 bg-blue-600 hover:bg-blue-700 active:bg-blue-800 md:bottom-6 md:h-12 md:w-12 md:right-6"
       )}
       title={isOpen ? "Fechar chat" : "Abrir chat"}
     >

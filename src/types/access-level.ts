@@ -8,11 +8,22 @@ export type MenuAcesso = {
   idMenuAcesso: number;
   nome: string;
   slug: string;
+}
+
+export type NivelMenuPermissao = {
+  id: number;
+  nivelAcessoId: number;
+  menuAcessoId: number;
   visualizar: boolean;
   criar: boolean;
   editar: boolean;
   excluir: boolean;
   relatorio: boolean;
+  menu_acesso: MenuAcesso;
+}
+
+export type NivelAcessoComPermissoes = NivelAcesso & {
+  permissoes: NivelMenuPermissao[];
 }
 
 export enum EnumUserType {
@@ -30,15 +41,11 @@ export type User = {
   cpf: string | null;
   cep: string | null;
   phone: string | null;
-  created: string; 
-  updated: string | null; 
+  created: string;
+  updated: string | null;
   active: boolean;
   nivelAcessoId: number;
   type: EnumUserType;
-}
-
-export type MenuAcessoComNiveis = MenuAcesso & {
-  nivel_acesso: NivelAcesso[]
 }
 
 export type UserComNivel = User & {
@@ -48,7 +55,7 @@ export type UserComNivel = User & {
 export type UserFormData = {
     name: string;
     email: string;
-    password?: string; 
+    password?: string;
     passwordConfirmation?: string;
     avatar?: string | null;
     cpf: string;

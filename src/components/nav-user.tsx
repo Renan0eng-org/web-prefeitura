@@ -2,7 +2,8 @@
 
 import {
   ChevronsUpDown,
-  LogOut
+  LogOut,
+  UserPen
 } from "lucide-react"
 
 import {
@@ -94,6 +95,13 @@ export function NavUser() {
                 </div>
               </div>
             </DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => router.push('/admin/minha-conta')}
+            >
+              <UserPen />
+              Minha Conta
+            </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={() => {

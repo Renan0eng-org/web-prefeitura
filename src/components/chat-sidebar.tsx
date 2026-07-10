@@ -21,13 +21,12 @@ interface ChatHistory {
   messages: any[]
 }
 
-// Função para renderizar markdown básico
 const renderMarkdown = (text: string) => {
   const elements: React.ReactNode[] = []
   let key = 0
 
   const lines = text.split('\n')
-  
+
   lines.forEach((line, lineIndex) => {
     if (lineIndex > 0) {
       elements.push(<br key={`br-${key++}`} />)
@@ -102,7 +101,7 @@ export function ChatSidebar() {
     ? getPermissions('chat-ai')
     : null
 
-  const [messages, setMessages] = React.useState<Message[]>([
+  const [messages, setMessages] = useState<Message[]>([
     {
       id: "1",
       text: "Olá! Como posso ajudá-lo?",
@@ -110,7 +109,7 @@ export function ChatSidebar() {
       timestamp: new Date(),
     },
   ])
-  const [inputValue, setInputValue] = React.useState("")
+  const [inputValue, setInputValue] = useState("")
   const [currentChatId, setCurrentChatId] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [sidebarWidth, setSidebarWidth] = useState(600)
@@ -118,21 +117,26 @@ export function ChatSidebar() {
   const [showHistory, setShowHistory] = useState(false)
   const [chatHistory, setChatHistory] = useState<ChatHistory[]>([])
   const [loadingHistory, setLoadingHistory] = useState(false)
+  const [initError, setInitError] = useState(false)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const sidebarRef = useRef<HTMLDivElement>(null)
+  const chatIdRef = useRef<string | null>(null)
+  const hasInitialized = useRef(false)
 
   const MIN_WIDTH = 280
   const MAX_WIDTH = 600
 
-  // Auto-resize textarea
+  // Keep ref in sync with state
+  useEffect(() => {
+    chatIdRef.current = currentChatId
+  }, [currentChatId])
+
   const adjustTextareaHeight = useCallback(() => {
     const textarea = textareaRef.current
     if (textarea) {
       textarea.style.height = "auto"
-      const lineHeight = 20
-      const maxLines = 3
-      const maxHeight = lineHeight * maxLines + 16
+      const maxHeight = 120
       const newHeight = Math.min(textarea.scrollHeight, maxHeight)
       textarea.style.height = `${newHeight}px`
     }
@@ -142,7 +146,13 @@ export function ChatSidebar() {
     adjustTextareaHeight()
   }, [inputValue, adjustTextareaHeight])
 
-  // Resize handlers (desktop only)
+  // Focus input when chat opens
+  useEffect(() => {
+    if (isOpen && textareaRef.current && !showHistory) {
+      setTimeout(() => textareaRef.current?.focus(), 300)
+    }
+  }, [isOpen, showHistory])
+
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if (isMobile) return
     e.preventDefault()
@@ -158,9 +168,7 @@ export function ChatSidebar() {
       setSidebarWidth(Math.max(MIN_WIDTH, Math.min(MAX_WIDTH, newWidth)))
     }
 
-    const handleMouseUp = () => {
-      setIsResizing(false)
-    }
+    const handleMouseUp = () => setIsResizing(false)
 
     if (isResizing) {
       document.addEventListener("mousemove", handleMouseMove)
@@ -177,7 +185,6 @@ export function ChatSidebar() {
     }
   }, [isResizing, isMobile])
 
-  // Lock body scroll on mobile when chat is open
   useEffect(() => {
     if (isMobile && isOpen) {
       document.body.style.overflow = "hidden"
@@ -187,9 +194,10 @@ export function ChatSidebar() {
     return () => { document.body.style.overflow = "" }
   }, [isMobile, isOpen])
 
-  // Carregar último chat ou criar novo ao abrir
+  // Initialize chat when opened
   useEffect(() => {
-    if (isOpen && !currentChatId) {
+    if (isOpen && !hasInitialized.current) {
+      hasInitialized.current = true
       loadLastChatOrCreate()
     }
   }, [isOpen])
@@ -205,20 +213,19 @@ export function ChatSidebar() {
   const loadLastChatOrCreate = async () => {
     try {
       setLoadingHistory(true)
+      setInitError(false)
       const response = await api.get("/chats")
       const chats = response.data as ChatHistory[]
       setChatHistory(chats)
 
       if (chats.length > 0) {
-        // Carregar o último chat
         await loadChat(chats[0].idChat)
       } else {
-        // Criar novo chat se não houver nenhum
         await createNewChat()
       }
     } catch (error) {
       console.error("Erro ao carregar chats:", error)
-      await createNewChat()
+      setInitError(true)
     } finally {
       setLoadingHistory(false)
     }
@@ -241,7 +248,7 @@ export function ChatSidebar() {
       const response = await api.get(`/chats/${chatId}`)
       const chat = response.data as ChatHistory
       setCurrentChatId(chat.idChat)
-      
+
       if (chat.messages && chat.messages.length > 0) {
         const loadedMessages: Message[] = chat.messages.map((msg: any) => ({
           id: msg.idMessage,
@@ -251,16 +258,15 @@ export function ChatSidebar() {
         }))
         setMessages(loadedMessages)
       } else {
-        setMessages([
-          {
-            id: "1",
-            text: "Olá! Como posso ajudá-lo?",
-            sender: "bot",
-            timestamp: new Date(),
-          },
-        ])
+        setMessages([{
+          id: "1",
+          text: "Olá! Como posso ajudá-lo?",
+          sender: "bot",
+          timestamp: new Date(),
+        }])
       }
       setShowHistory(false)
+      setInitError(false)
     } catch (error) {
       console.error("Erro ao carregar chat:", error)
     }
@@ -269,42 +275,60 @@ export function ChatSidebar() {
   const createNewChat = async () => {
     try {
       const response = await api.post("/chats", { title: "Nova Conversa" })
-      setCurrentChatId(response.data.idChat)
-      setMessages([
-        {
-          id: "1",
-          text: "Olá! Como posso ajudá-lo?",
-          sender: "bot",
-          timestamp: new Date(),
-        },
-      ])
+      const newChatId = response.data.idChat
+      setCurrentChatId(newChatId)
+      setMessages([{
+        id: "1",
+        text: "Olá! Como posso ajudá-lo?",
+        sender: "bot",
+        timestamp: new Date(),
+      }])
       setShowHistory(false)
-      // Atualizar histórico
+      setInitError(false)
       loadChatHistory()
+      return newChatId
     } catch (error) {
       console.error("Erro ao criar chat:", error)
+      setInitError(true)
+      return null
     }
   }
 
-  const handleSendMessage = async (e: React.FormEvent) => {
-    e.preventDefault()
-    if (inputValue.trim() === "" || !currentChatId || loading) return
+  const ensureChatId = async (): Promise<string | null> => {
+    if (chatIdRef.current) return chatIdRef.current
+    const newId = await createNewChat()
+    return newId
+  }
 
-    const messageContent = inputValue.trim()
+  const handleSendMessage = async () => {
+    const text = inputValue.trim()
+    if (text === "" || loading) return
+
+    setLoading(true)
+
+    const chatId = await ensureChatId()
+    if (!chatId) {
+      setLoading(false)
+      return
+    }
+
     const userMessage: Message = {
       id: Date.now().toString(),
-      text: messageContent,
+      text,
       sender: "user",
       timestamp: new Date(),
     }
 
     setMessages((prev) => [...prev, userMessage])
     setInputValue("")
-    setLoading(true)
+
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "42px"
+    }
 
     try {
-      const response = await api.post(`/chats/${currentChatId}/messages`, {
-        content: messageContent,
+      const response = await api.post(`/chats/${chatId}/messages`, {
+        content: text,
       })
 
       const botMessage: Message = {
@@ -314,26 +338,30 @@ export function ChatSidebar() {
         timestamp: new Date(response.data.assistantMessage.createdAt),
       }
       setMessages((prev) => [...prev, botMessage])
-      // Atualizar histórico após enviar mensagem
       loadChatHistory()
     } catch (error) {
       console.error("Erro ao enviar mensagem:", error)
-      const botMessage: Message = {
+      setMessages((prev) => [...prev, {
         id: (Date.now() + 1).toString(),
         text: "Desculpe, houve um erro ao processar sua mensagem. Tente novamente.",
         sender: "bot",
         timestamp: new Date(),
-      }
-      setMessages((prev) => [...prev, botMessage])
+      }])
     } finally {
       setLoading(false)
+      setTimeout(() => textareaRef.current?.focus(), 100)
     }
+  }
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    handleSendMessage()
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault()
-      handleSendMessage(e as unknown as React.FormEvent)
+      handleSendMessage()
     }
   }
 
@@ -347,12 +375,12 @@ export function ChatSidebar() {
   const deleteChat = async (chatId: string) => {
     try {
       await api.delete(`/chats/${chatId}`)
-      // Se deletou o chat atual, criar um novo
       if (currentChatId === chatId) {
         setCurrentChatId(null)
+        chatIdRef.current = null
+        hasInitialized.current = false
         await loadLastChatOrCreate()
       } else {
-        // Apenas atualiza o histórico
         loadChatHistory()
       }
     } catch (error) {
@@ -360,14 +388,15 @@ export function ChatSidebar() {
     }
   }
 
-  // Só mostra a sidebar se o usuário tiver permissão de visualizar
   if (authLoading || !permissions?.visualizar) {
     return null
   }
 
+  const canSend = inputValue.trim().length > 0 && !loading
+
   return (
     <>
-      {/* Overlay - visible on all screens when open */}
+      {/* Overlay */}
       {isOpen && (
         <div
           className="fixed inset-0 z-50 bg-black/50 md:bg-black/30"
@@ -375,15 +404,13 @@ export function ChatSidebar() {
         />
       )}
 
-      {/* Chat Sidebar - fullscreen on mobile, panel on desktop */}
+      {/* Chat Sidebar */}
       <div
         ref={sidebarRef}
         style={isMobile ? undefined : { width: `${sidebarWidth}px` }}
         className={cn(
           "fixed flex flex-col bg-white shadow-lg transform transition-transform duration-300 ease-in-out z-[60]",
-          // Mobile: fullscreen
           "inset-0 w-full h-full",
-          // Desktop: right panel
           "md:inset-auto md:right-0 md:top-0 md:h-screen",
           isOpen ? "translate-x-0" : "translate-x-full"
         )}
@@ -405,7 +432,7 @@ export function ChatSidebar() {
         )}
 
         {/* Header */}
-        <div className="flex items-center justify-between border-b p-3 md:p-4 shrink-0">
+        <div className="flex items-center justify-between border-b p-3 md:p-4 shrink-0 bg-white">
           <div className="flex items-center gap-2">
             {showHistory ? (
               <button
@@ -423,7 +450,15 @@ export function ChatSidebar() {
               <h2 className="font-semibold text-gray-900">
                 {showHistory ? "Histórico" : "Assistente IA"}
               </h2>
-              {!showHistory && <p className="text-xs text-gray-500">Online</p>}
+              {!showHistory && (
+                <div className="flex items-center gap-1.5">
+                  <span className="relative flex h-2 w-2">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500" />
+                  </span>
+                  <p className="text-xs text-gray-500">Online</p>
+                </div>
+              )}
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -513,7 +548,17 @@ export function ChatSidebar() {
         ) : (
           <>
             {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 scrollable min-h-0">
+            <div className="flex-1 overflow-y-auto p-3 md:p-4 space-y-3 md:space-y-4 scrollable min-h-0 bg-gray-50/50">
+              {initError && (
+                <div className="flex justify-center">
+                  <button
+                    onClick={() => { hasInitialized.current = false; loadLastChatOrCreate() }}
+                    className="text-sm text-blue-600 hover:text-blue-800 underline"
+                  >
+                    Erro ao conectar. Toque para tentar novamente.
+                  </button>
+                </div>
+              )}
               {messages.map((message) => (
                 <div
                   key={message.id}
@@ -524,10 +569,10 @@ export function ChatSidebar() {
                 >
                   <div
                     className={cn(
-                      "max-w-[90%] md:max-w-[85%] px-3 md:px-4 py-2 rounded-lg",
+                      "max-w-[85%] md:max-w-[80%] px-3.5 py-2.5 rounded-2xl shadow-sm",
                       message.sender === "user"
-                        ? "bg-blue-600 text-white rounded-br-none"
-                        : "bg-gray-200 text-gray-900 rounded-bl-none"
+                        ? "bg-blue-600 text-white rounded-br-md"
+                        : "bg-white text-gray-900 rounded-bl-md border border-gray-100"
                     )}
                   >
                     <p className="text-sm whitespace-pre-wrap break-words leading-relaxed">
@@ -535,10 +580,10 @@ export function ChatSidebar() {
                     </p>
                     <span
                       className={cn(
-                        "text-[10px] md:text-xs block mt-1",
+                        "text-[10px] md:text-xs block mt-1 text-right",
                         message.sender === "user"
-                          ? "text-blue-100"
-                          : "text-gray-500"
+                          ? "text-blue-200"
+                          : "text-gray-400"
                       )}
                     >
                       {message.timestamp.toLocaleTimeString([], {
@@ -551,21 +596,21 @@ export function ChatSidebar() {
               ))}
               {loading && (
                 <div className="flex justify-start">
-                    <div className="bg-gray-200 text-gray-900 rounded-lg rounded-bl-none px-4 py-3">
-                      <div className="flex items-center gap-1">
-                        <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                        <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                        <span className="w-2 h-2 bg-gray-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                      </div>
+                  <div className="bg-white text-gray-900 rounded-2xl rounded-bl-md px-4 py-3 shadow-sm border border-gray-100">
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <span className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
                   </div>
                 </div>
               )}
               <div ref={messagesEndRef} />
             </div>
 
-              {/* Input - safe area padding on mobile for notch/home indicator */}
-              <div className="border-t p-3 md:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-4 shrink-0 bg-white">
-              <form onSubmit={handleSendMessage} className="flex gap-2 items-end">
+            {/* Input area */}
+            <div className="border-t p-3 md:p-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] md:pb-4 shrink-0 bg-white">
+              <form onSubmit={handleFormSubmit} className="flex items-end gap-2">
                 <textarea
                   ref={textareaRef}
                   value={inputValue}
@@ -574,13 +619,18 @@ export function ChatSidebar() {
                   placeholder="Digite sua mensagem..."
                   disabled={loading}
                   rows={1}
-                    className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:bg-gray-100 resize-none overflow-hidden"
-                    style={{ minHeight: "40px", maxHeight: "76px" }}
+                  className="flex-1 min-w-0 rounded-xl border border-gray-300 px-3 py-2.5 text-base md:text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 resize-none overflow-y-auto"
+                  style={{ minHeight: "42px", maxHeight: "120px" }}
                 />
                 <button
                   type="submit"
-                  disabled={loading}
-                    className="rounded-lg bg-blue-600 p-2.5 text-white hover:bg-blue-700 active:bg-blue-800 disabled:bg-gray-400 shrink-0 touch-manipulation"
+                  disabled={!canSend}
+                  className={cn(
+                    "rounded-xl p-2.5 text-white shrink-0 touch-manipulation transition-colors h-[42px] w-[42px] flex items-center justify-center",
+                    canSend
+                      ? "bg-blue-600 hover:bg-blue-700 active:bg-blue-800"
+                      : "bg-gray-300 cursor-not-allowed"
+                  )}
                 >
                   {loading ? (
                     <Loader className="h-5 w-5 animate-spin" />
@@ -589,6 +639,9 @@ export function ChatSidebar() {
                   )}
                 </button>
               </form>
+              <p className="text-[10px] text-gray-400 mt-1.5 text-center">
+                Enter para enviar · Shift+Enter para nova linha
+              </p>
             </div>
           </>
         )}

@@ -86,7 +86,7 @@ export default function PaginaAcessos() {
                     {perms.niveis?.visualizar && (
                         <TabsTrigger value="niveis" className="md:justify-start">
                             <ShieldCheck className="h-4 mr-2" />
-                            Níveis de Acesso
+                            Permissões por Nível
                         </TabsTrigger>
                     )}
                     {perms.menus?.visualizar && (

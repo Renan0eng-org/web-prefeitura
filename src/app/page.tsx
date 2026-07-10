@@ -1,5 +1,20 @@
-import { ArrowRight, BarChart3, Brain, Heart, MapPin, Shield, Users } from "lucide-react";
+import { ArrowRight, BarChart3, Brain, Download, Heart, MapPin, Shield, Smartphone, Users } from "lucide-react";
 import Link from "next/link";
+
+const DEVELOPERS = [
+  {
+    name: "Renan Nardi",
+    role: "Programador Full Stack",
+    company: "TSP — The Silicon Partners",
+    photo: "/renan.png",
+  },
+  {
+    name: "Marco",
+    role: "Programador Full Stack",
+    company: "Amed Saúde",
+    photo: "/marco.png",
+  },
+];
 
 export default function LandingPage() {
   return (
@@ -11,6 +26,12 @@ export default function LandingPage() {
             <span className="text-lg font-bold text-primary-500">PVAI SEM DOR</span>
           </div>
           <nav className="flex items-center gap-3">
+            <a
+              href="#download"
+              className="hidden rounded-lg px-4 py-2 text-sm font-semibold text-neutrals-700 transition hover:bg-neutral-100 sm:inline-flex"
+            >
+              Baixar App
+            </a>
             <Link
               href="/auth/login"
               className="rounded-lg px-4 py-2 text-sm font-semibold text-primary-500 transition hover:bg-primary-50"
@@ -183,6 +204,87 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="download" className="py-16 sm:py-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="grid items-center gap-12 lg:grid-cols-2">
+            <div className="flex items-center justify-center order-2 lg:order-1">
+              <div className="relative">
+                <div className="absolute -inset-6 rounded-[3rem] bg-gradient-to-br from-primary-100 to-secondary-100 blur-2xl" />
+                <div className="relative mx-auto h-[520px] w-[260px] rounded-[2.5rem] border-[10px] border-neutrals-900 bg-neutrals-900 shadow-2xl">
+                  <div className="absolute left-1/2 top-0 z-10 h-6 w-32 -translate-x-1/2 rounded-b-2xl bg-neutrals-900" />
+                  <div className="flex h-full w-full flex-col items-center justify-center gap-6 overflow-hidden rounded-[1.8rem] bg-gradient-to-br from-primary-500 via-primary-600 to-secondary-500 px-6 text-center">
+                    <img src="/logo.webp" alt="App PVAI Sem Dor" className="h-24 w-24 drop-shadow-lg" />
+                    <div>
+                      <p className="text-2xl font-bold text-white">PVAI SEM DOR</p>
+                      <p className="mt-1 text-sm text-white/80">Saúde na palma da sua mão</p>
+                    </div>
+                    <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-white/15 px-4 py-2 text-xs font-medium text-white backdrop-blur-sm">
+                      <Smartphone className="h-4 w-4" />
+                      App Android
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div className="order-1 lg:order-2">
+              <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary-50 px-4 py-2 text-sm font-medium text-primary-500">
+                <Smartphone className="h-4 w-4" />
+                Aplicativo móvel
+              </div>
+              <h2 className="mb-4 text-3xl font-bold text-neutrals-900 sm:text-4xl">
+                Baixe nosso aplicativo
+              </h2>
+              <p className="mb-8 leading-relaxed text-neutrals-600">
+                Leve o <strong>PVAI Sem Dor</strong> no seu bolso. Com o aplicativo você
+                acompanha seus atendimentos, responde às triagens e recebe orientações
+                de forma prática, direto do seu celular.
+              </p>
+              <a
+                href="/prefeitura.apk"
+                download
+                className="inline-flex items-center gap-3 rounded-xl bg-primary-500 px-8 py-3.5 text-base font-bold text-white shadow-lg transition hover:bg-primary-600 hover:shadow-xl"
+              >
+                <Download className="h-5 w-5" />
+                Baixar APK
+              </a>
+              <p className="mt-4 text-xs text-neutrals-500">
+                Compatível com Android. Após o download, permita a instalação de fontes externas.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section id="desenvolvedores" className="bg-neutral-50 py-16 sm:py-24">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="mb-12 text-center">
+            <h2 className="mb-3 text-3xl font-bold text-neutrals-900 sm:text-4xl">
+              Desenvolvedores
+            </h2>
+            <p className="mx-auto max-w-2xl text-neutrals-600">
+              Conheça os responsáveis pelo desenvolvimento do sistema.
+            </p>
+          </div>
+          <div className="mx-auto grid max-w-2xl gap-6 sm:grid-cols-2">
+            {DEVELOPERS.map((dev) => (
+              <div
+                key={dev.name}
+                className="flex flex-col items-center rounded-2xl border border-neutral-200 bg-white p-8 text-center transition hover:border-primary-200 hover:shadow-lg"
+              >
+                <img
+                  src={dev.photo}
+                  alt={dev.name}
+                  className="mb-4 h-28 w-28 rounded-full object-cover ring-4 ring-primary-50"
+                />
+                <h3 className="text-lg font-bold text-neutrals-900">{dev.name}</h3>
+                <p className="mt-1 text-sm font-medium text-primary-500">{dev.role}</p>
+                <p className="mt-1 text-sm text-neutrals-500">{dev.company}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>

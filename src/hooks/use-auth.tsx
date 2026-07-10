@@ -40,6 +40,7 @@ export type User = {
   updated: Date | null;
   active: boolean;
   nivelAcessoId: number;
+  emailVerified?: boolean;
 }
 
 type AuthContextType = {

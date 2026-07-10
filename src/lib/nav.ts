@@ -11,7 +11,8 @@ import {
     Stethoscope,
     User,
     UserCheck,
-    UserPlus
+    UserPlus,
+    Users
 } from "lucide-react";
 
 export type NavItem = {
@@ -116,6 +117,13 @@ export const data = {
           icon: Shield,
           isActive: false,
           nivel_acesso: "acesso",
+        },
+        {
+          title: "Grupos",
+          url: "/admin/grupos",
+          icon: Users,
+          isActive: false,
+          nivel_acesso: "grupos",
         },
         {
           title: "Ativação de Usuários",

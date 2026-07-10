@@ -2,6 +2,7 @@
 import { GlobalAlert } from "@/components/Alert";
 import { AppSidebar } from "@/components/app-sidebar";
 import { BreadcrumbDynamic } from "@/components/Breadcrumb";
+import { EmailVerificationBanner } from "@/components/email-verification-banner";
 import { ChatFloatButton } from "@/components/chat-float-button";
 import { ChatSidebar } from "@/components/chat-sidebar";
 import { MobileBottomNav } from "@/components/mobile-bottom-nav";
@@ -30,6 +31,7 @@ export default async function RootLayout({
             <SidebarProvider>
               <AppSidebar />
               <SidebarInset>
+                <EmailVerificationBanner />
                 <header className="flex h-14 md:h-16 shrink-0 items-center gap-2 text-text">
                   <div className="flex items-center gap-2 px-3 md:px-4 w-full">
                     {/* Mobile: logo + trigger */}

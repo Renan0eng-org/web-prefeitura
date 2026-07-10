@@ -48,7 +48,7 @@ export function SignUpForm({
     try {
       const { confirmPassword, ...user } = data;
       api.post("/auth/register-web", user).then(() => {
-        setAlert("Cadastro realizado com sucesso! Por favor, faça o login.")
+        setAlert("Cadastro realizado! Enviamos um e-mail de verificação para sua caixa de entrada.")
         router.push("/auth/login")
       }).catch((error: any) => {
         if (error.response && error.response.data && error.response.data.message) {

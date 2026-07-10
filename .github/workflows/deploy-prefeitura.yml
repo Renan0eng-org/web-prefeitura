@@ -24,7 +24,7 @@ jobs:
       - name: Build Docker image
         run: |
           docker build \
-            --build-arg NEXT_PUBLIC_API_URL="${{ secrets.PREFEITURA_API_URL }}" \
+            --build-arg NEXT_PUBLIC_API_URL="https://semdor.paranavai.pr.gov.br/back" \
             -t devnardi/web-prefeitura:prefeitura .
 
       - name: Push Docker image

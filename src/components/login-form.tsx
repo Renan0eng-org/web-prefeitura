@@ -49,7 +49,8 @@ export function LoginForm() {
     try {
       setLoading(true);
       await login(data.email, data.password);
-      router.push(redirect || "/admin");
+      // Navegacao "real" (nao client-side) para o proxy reavaliar com a cookie ja setada
+      window.location.href = redirect || "/admin";
     } catch (err: any) {
       console.error(err);
     } finally {

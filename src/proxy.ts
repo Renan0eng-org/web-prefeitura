@@ -7,11 +7,6 @@ export function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
     const hasSession = request.cookies.has(COOKIE_NAME);
 
-    // Raiz -> /admin
-    if (pathname === '/') {
-        return NextResponse.redirect(new URL('/admin', request.url));
-    }
-
     // Protege /admin: sem sessao -> login (guardando a rota de origem)
     if (pathname.startsWith('/admin') && !hasSession) {
         const loginUrl = new URL('/auth/login', request.url);
@@ -28,5 +23,6 @@ export function proxy(request: NextRequest) {
 }
 
 export const config = {
-    matcher: ['/', '/admin/:path*', '/auth/:path*'],
+    // '/' fica de fora de proposito: e a landing publica.
+    matcher: ['/admin/:path*', '/auth/:path*'],
 };

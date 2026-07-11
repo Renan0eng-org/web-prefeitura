@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAlert } from "@/hooks/use-alert";
 import { useAuth } from "@/hooks/use-auth";
 import api from "@/services/api";
-import { Eye, EyeOff, Loader2, Save, Shield } from "lucide-react";
+import { Eye, EyeOff, Loader2, Save, Shield, Stethoscope } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,6 +21,9 @@ const profileSchema = z.object({
   cpf: z.string().optional(),
   phone: z.string().optional().nullable(),
   cep: z.string().optional().nullable(),
+  crm: z.string().optional().nullable(),
+  especialidade: z.string().optional().nullable(),
+  cargaHoraria: z.string().optional().nullable(),
 });
 
 type ProfileForm = z.infer<typeof profileSchema>;
@@ -38,6 +41,7 @@ type PasswordForm = z.infer<typeof passwordSchema>;
 
 export default function MyAccountPage() {
   const { user, loading } = useAuth();
+  const isMedico = (user as any)?.type === "MEDICO";
   const { setAlert } = useAlert();
   const [savingProfile, setSavingProfile] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
@@ -52,6 +56,9 @@ export default function MyAccountPage() {
       cpf: "",
       phone: "",
       cep: "",
+      crm: "",
+      especialidade: "",
+      cargaHoraria: "",
     },
   });
 
@@ -72,6 +79,9 @@ export default function MyAccountPage() {
         cpf: user.cpf || "",
         phone: user.phone || "",
         cep: user.cep || "",
+        crm: (user as any).crm || "",
+        especialidade: (user as any).especialidade || "",
+        cargaHoraria: (user as any).cargaHoraria ? String((user as any).cargaHoraria) : "",
       });
     }
   }, [user]);
@@ -79,7 +89,15 @@ export default function MyAccountPage() {
   const onProfileSubmit = async (data: ProfileForm) => {
     try {
       setSavingProfile(true);
-      await api.patch("/auth/profile", data);
+      const payload: any = {
+        name: data.name, email: data.email, cpf: data.cpf, phone: data.phone, cep: data.cep,
+      };
+      if (isMedico) {
+        payload.crm = data.crm || undefined;
+        payload.especialidade = data.especialidade || undefined;
+        payload.cargaHoraria = data.cargaHoraria ? Number(data.cargaHoraria) : undefined;
+      }
+      await api.patch("/auth/profile", payload);
       setAlert("Dados atualizados com sucesso!", "success");
     } catch (err: any) {
       setAlert(err.response?.data?.message || "Erro ao atualizar dados.", "error");
@@ -165,6 +183,32 @@ export default function MyAccountPage() {
                     <Input id="cep" {...profileForm.register("cep")} placeholder="00000-000" />
                   </div>
                 </div>
+
+                {isMedico && (
+                  <>
+                    <Separator />
+                    <div>
+                      <div className="mb-3 flex items-center gap-2">
+                        <Stethoscope className="h-4 w-4 text-primary" />
+                        <h3 className="text-sm font-semibold">Dados de Médico</h3>
+                      </div>
+                      <div className="grid gap-4 sm:grid-cols-2">
+                        <div className="space-y-2">
+                          <Label htmlFor="crm">CRM</Label>
+                          <Input id="crm" {...profileForm.register("crm")} placeholder="PR-00000" />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="cargaHoraria">Carga horária (h/semana)</Label>
+                          <Input id="cargaHoraria" type="number" {...profileForm.register("cargaHoraria")} placeholder="40" />
+                        </div>
+                        <div className="space-y-2 sm:col-span-2">
+                          <Label htmlFor="especialidade">Especialidade</Label>
+                          <Input id="especialidade" {...profileForm.register("especialidade")} placeholder="Clínica Geral" />
+                        </div>
+                      </div>
+                    </div>
+                  </>
+                )}
 
                 <Separator />
 

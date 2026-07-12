@@ -2,6 +2,8 @@
 import { AlertItem, useAlert } from "@/hooks/use-alert";
 import { cva } from "class-variance-authority";
 import { Terminal } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { Alert, AlertDescription, AlertTitle } from "./ui/alert";
 
 // Keep visual style of single alert, but remove absolute from the variant
@@ -21,25 +23,31 @@ const alertVariants = cva("w-fit max-w-full p-4 rounded-lg shadow-lg", {
 
 export function GlobalAlert() {
   const { alerts, removeAlert } = useAlert();
+  const [mounted, setMounted] = useState(false);
 
-  if (!alerts || alerts.length === 0) return null;
+  useEffect(() => setMounted(true), []);
 
-  // Container placed at top-right, stacking alerts vertically
-  return (
-    <div className="absolute top-4 right-4 z-50 flex flex-col items-end gap-3">
+  if (!mounted || !alerts || alerts.length === 0) return null;
+
+  // Renderiza num portal no <body> com z-index acima de qualquer modal/overlay,
+  // garantindo que os alertas fiquem sempre na primeira camada da tela.
+  return createPortal(
+    <div className="fixed top-4 right-4 z-[9999] flex flex-col items-end gap-3 pointer-events-none">
       {alerts.map((a: AlertItem) => (
-        <Alert key={a.id} className={alertVariants({ type: a.type })}>
+        <Alert key={a.id} className={`${alertVariants({ type: a.type })} pointer-events-auto`}>
           <Terminal className="h-4 w-4" />
           <AlertTitle className="font-bold text-neutral-800">Atenção !!</AlertTitle>
           <AlertDescription className="font-bold text-neutral-800">{a.message}</AlertDescription>
           <button
             onClick={() => removeAlert(a.id)}
             className="absolute top-0 right-0 p-2 text-xl text-gray-700 hover:text-gray-900"
+            aria-label="Fechar alerta"
           >
             X
           </button>
         </Alert>
       ))}
-    </div>
+    </div>,
+    document.body
   );
 }

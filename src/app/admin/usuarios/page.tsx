@@ -17,7 +17,7 @@ import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
 import { NivelAcesso, UserComNivel } from "@/types/access-level"
-import { Filter, Loader2, Mail, MoreHorizontal, PlusCircle, RefreshCcw, Settings2 } from "lucide-react"
+import { Filter, Loader2, Mail, MoreHorizontal, PlusCircle, RefreshCcw, RotateCcw, Settings2, Trash2 } from "lucide-react"
 import * as React from "react"
 
 export default function UsuariosPage() {
@@ -31,6 +31,7 @@ export default function UsuariosPage() {
     const [filterAccessLevel, setFilterAccessLevel] = React.useState<string>('')
     const [filterType, setFilterType] = React.useState<string>('')
     const [filterActive, setFilterActive] = React.useState<boolean | null>(null)
+    const [filterDeleted, setFilterDeleted] = React.useState(false)
     const [page, setPage] = React.useState(1)
     const [pageSize, setPageSize] = React.useState(10)
     
@@ -75,7 +76,8 @@ export default function UsuariosPage() {
             if (filterAccessLevel && filterAccessLevel !== 'all') params.accessLevel = filterAccessLevel
             if (filterType && filterType !== 'all') params.type = filterType
             if (filterActive !== null) params.active = filterActive
-            
+            if (filterDeleted) params.deleted = 'true'
+
             const [usersResponse, niveisResponse] = await Promise.all([
                 api.get('/admin/users', { params }),
                 api.get('/admin/acesso/niveis')
@@ -89,7 +91,7 @@ export default function UsuariosPage() {
             setLoaderRefresh(false)
             setIsLoading(false)
         }
-    }, [filterName, filterAccessLevel, filterType, filterActive])
+    }, [filterName, filterAccessLevel, filterType, filterActive, filterDeleted])
 
     React.useEffect(() => {
         if (permissions?.visualizar) {
@@ -157,6 +159,16 @@ export default function UsuariosPage() {
             fetchData()
         } catch (err: any) {
             setAlert(err.response?.data?.message || "Erro ao excluir usuário.", "error")
+        }
+    }
+
+    const handleRestore = async (user: UserComNivel) => {
+        try {
+            await api.post(`/admin/users/${user.idUser}/restaurar`)
+            setAlert("Usuário restaurado com sucesso!", "success")
+            fetchData()
+        } catch (err: any) {
+            setAlert(err.response?.data?.message || "Erro ao restaurar usuário.", "error")
         }
     }
 
@@ -255,7 +267,13 @@ export default function UsuariosPage() {
                         <Filter className="h-4 w-4" />
                         Filtros
                     </Button>
-                    {permissions?.criar && (
+                    {permissions?.excluir && (
+                        <Button variant={filterDeleted ? "default" : "outline"} size="sm" onClick={() => setFilterDeleted(v => !v)}>
+                            <Trash2 className="h-4 w-4" />
+                            {filterDeleted ? "Ativos" : "Excluídos"}
+                        </Button>
+                    )}
+                    {permissions?.criar && !filterDeleted && (
                         <Button onClick={handleAddNew}>
                             <PlusCircle className="w-4 h-4" />
                             Novo Usuário
@@ -421,6 +439,14 @@ export default function UsuariosPage() {
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
+                                                {filterDeleted ? (
+                                                    permissions?.excluir && (
+                                                        <DropdownMenuItem onClick={() => setTimeout(() => handleRestore(user), 50)}>
+                                                            <RotateCcw className="h-4 w-4 mr-2" />Restaurar
+                                                        </DropdownMenuItem>
+                                                    )
+                                                ) : (
+                                                  <>
                                                 {permBoasVindas?.visualizar && (
                                                     <DropdownMenuItem
                                                         onClick={() => {
@@ -451,6 +477,8 @@ export default function UsuariosPage() {
                                                 >
                                                     Excluir
                                                 </DropdownMenuItem>
+                                                  </>
+                                                )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>

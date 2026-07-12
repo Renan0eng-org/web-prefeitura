@@ -27,8 +27,8 @@ type Plantao = {
     doctor: { idUser: string; name: string; especialidade?: string | null } | null
 }
 
-const START_HOUR = 6
-const END_HOUR = 23
+const START_HOUR = 0
+const END_HOUR = 24
 const HOUR_PX = 44
 const DAYS = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"]
 
@@ -54,10 +54,11 @@ export default function EscalaPage() {
     const [busy, setBusy] = React.useState<string | null>(null)
 
     const [createOpen, setCreateOpen] = React.useState(false)
-    const [form, setForm] = React.useState({ open: true, doctorId: "", setor: "Triagem", date: "", start: "07:00", end: "13:00" })
+    const [form, setForm] = React.useState({ open: false, doctorId: "", setor: "Triagem", date: "", start: "07:00", end: "13:00" })
     const [saving, setSaving] = React.useState(false)
 
     const [detail, setDetail] = React.useState<Plantao | null>(null)
+    const [showDeleted, setShowDeleted] = React.useState(false)
 
     const { setAlert } = useAlert()
     const { getPermissions, user } = useAuth()
@@ -72,7 +73,7 @@ export default function EscalaPage() {
             const from = weekStart.toISOString()
             const to = addDays(weekStart, 7).toISOString()
             const [pRes, mRes] = await Promise.all([
-                api.get(`/admin/escala?from=${from}&to=${to}`),
+                api.get(`/admin/escala?from=${from}&to=${to}${showDeleted ? "&deleted=true" : ""}`),
                 api.get("/admin/medicos").catch(() => ({ data: [] })),
             ])
             setPlantoes(pRes.data)
@@ -82,7 +83,7 @@ export default function EscalaPage() {
         } finally {
             setIsLoading(false)
         }
-    }, [weekStart, setAlert])
+    }, [weekStart, setAlert, showDeleted])
 
     React.useEffect(() => {
         if (permissions?.visualizar) fetchData()
@@ -169,12 +170,17 @@ export default function EscalaPage() {
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekStart(addDays(weekStart, -7))}><ChevronLeft className="h-4 w-4" /></Button>
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekStart(addDays(weekStart, 7))}><ChevronRight className="h-4 w-4" /></Button>
                     <span className="text-sm font-semibold capitalize min-w-[130px] text-center">{monthLabel}</span>
-                    {permissions?.criar && <Button size="sm" onClick={() => { setForm(f => ({ ...f, date: days[0].toISOString().slice(0, 10) })); setCreateOpen(true) }}><PlusCircle className="h-4 w-4" />Novo Plantão</Button>}
+                    {permissions?.excluir && (
+                        <Button variant={showDeleted ? "default" : "outline"} size="sm" onClick={() => setShowDeleted(v => !v)}>
+                            <Trash2 className="h-4 w-4" />{showDeleted ? "Ativos" : "Excluídos"}
+                        </Button>
+                    )}
+                    {permissions?.criar && !showDeleted && <Button size="sm" onClick={() => { setForm(f => ({ ...f, date: days[0].toISOString().slice(0, 10) })); setCreateOpen(true) }}><PlusCircle className="h-4 w-4" />Novo Plantão</Button>}
                 </div>
             </div>
 
             {/* Mercado de plantões abertos */}
-            {abertos.length > 0 && (
+            {!showDeleted && abertos.length > 0 && (
                 <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
                     <div className="flex items-center gap-2 mb-2 text-sm font-semibold text-amber-800">
                         <HandHelping className="h-4 w-4" /> Plantões disponíveis ({abertos.length})
@@ -285,6 +291,14 @@ export default function EscalaPage() {
                                 {detail.doctor?.especialidade && <span className="text-sm text-muted-foreground">{detail.doctor.especialidade}</span>}
                             </div>
                             <DialogFooter className="flex-wrap gap-2">
+                                {showDeleted ? (
+                                    permissions?.excluir && (
+                                        <Button disabled={busy === detail.id} onClick={() => doAction(detail.id, "restaurar")}>
+                                            <Undo2 className="h-4 w-4" />Restaurar
+                                        </Button>
+                                    )
+                                ) : (
+                                  <>
                                 {detail.status === "Aberto" && isMedico && (
                                     <Button disabled={busy === detail.id} onClick={() => doAction(detail.id, "pegar")}>
                                         <HandHelping className="h-4 w-4" />Pegar plantão
@@ -309,6 +323,8 @@ export default function EscalaPage() {
                                     <Button variant="outline" className="text-destructive hover:text-destructive" disabled={busy === detail.id} onClick={() => removePlantao(detail.id)}>
                                         <Trash2 className="h-4 w-4" />Remover
                                     </Button>
+                                )}
+                                  </>
                                 )}
                             </DialogFooter>
                         </>

@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
-import { Loader2, Pencil, PlusCircle, Power, Stethoscope } from "lucide-react"
+import { Loader2, Pencil, PlusCircle, Power, RotateCcw, Stethoscope, Trash2 } from "lucide-react"
 import * as React from "react"
 
 type Medico = {
@@ -43,6 +43,7 @@ export default function MedicosPage() {
     const [medicos, setMedicos] = React.useState<Medico[]>([])
     const [grupos, setGrupos] = React.useState<any[]>([])
     const [isLoading, setIsLoading] = React.useState(true)
+    const [showDeleted, setShowDeleted] = React.useState(false)
 
     const [dialogOpen, setDialogOpen] = React.useState(false)
     const [editing, setEditing] = React.useState<Medico | null>(null)
@@ -59,7 +60,7 @@ export default function MedicosPage() {
     const fetchData = React.useCallback(async () => {
         try {
             const [medicosRes, gruposRes] = await Promise.all([
-                api.get("/admin/medicos"),
+                api.get(`/admin/medicos${showDeleted ? "?deleted=true" : ""}`),
                 api.get("/admin/grupos").catch(() => ({ data: [] })),
             ])
             setMedicos(medicosRes.data)
@@ -69,7 +70,7 @@ export default function MedicosPage() {
         } finally {
             setIsLoading(false)
         }
-    }, [setAlert])
+    }, [setAlert, showDeleted])
 
     React.useEffect(() => {
         if (permissions?.visualizar) fetchData()
@@ -133,13 +134,23 @@ export default function MedicosPage() {
         if (!pendingDelete) return
         try {
             await api.delete(`/admin/medicos/${pendingDelete.idUser}`)
-            setAlert("Médico desativado!", "success")
+            setAlert("Médico removido!", "success")
             fetchData()
         } catch (err: any) {
-            setAlert(err.response?.data?.message || "Erro ao desativar.", "error")
+            setAlert(err.response?.data?.message || "Erro ao remover.", "error")
         } finally {
             setConfirmOpen(false)
             setPendingDelete(null)
+        }
+    }
+
+    const handleRestore = async (id: string) => {
+        try {
+            await api.post(`/admin/medicos/${id}/restaurar`)
+            setAlert("Médico restaurado!", "success")
+            fetchData()
+        } catch (err: any) {
+            setAlert(err.response?.data?.message || "Erro ao restaurar.", "error")
         }
     }
 
@@ -154,7 +165,14 @@ export default function MedicosPage() {
         <div className="p-2 md:p-4 lg:p-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-3">
                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">Corpo Clínico</h1>
-                {permissions?.criar && <Button onClick={openCreate}><PlusCircle className="w-4 h-4" />Novo Médico</Button>}
+                <div className="flex items-center gap-2">
+                    {permissions?.excluir && (
+                        <Button variant={showDeleted ? "default" : "outline"} size="sm" onClick={() => setShowDeleted(v => !v)}>
+                            <Trash2 className="w-4 h-4" />{showDeleted ? "Ativos" : "Excluídos"}
+                        </Button>
+                    )}
+                    {permissions?.criar && !showDeleted && <Button onClick={openCreate}><PlusCircle className="w-4 h-4" />Novo Médico</Button>}
+                </div>
             </div>
             <p className="text-sm text-muted-foreground mb-6">Cadastrar um médico cria um usuário do tipo <b>Médico</b> com acesso ao sistema (atendimentos, plantão e fila).</p>
 
@@ -198,15 +216,25 @@ export default function MedicosPage() {
                                     <TableCell><Badge variant={STATUS[m.medicoStatus || "Ativo"]?.variant}>{STATUS[m.medicoStatus || "Ativo"]?.label}</Badge></TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-1">
-                                            {permissions?.editar && (
-                                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEdit(m)}>
-                                                    <Pencil className="h-4 w-4" />
-                                                </Button>
-                                            )}
-                                            {permissions?.excluir && (
-                                                <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => { setPendingDelete(m); setConfirmOpen(true) }} title="Desativar">
-                                                    <Power className="h-4 w-4" />
-                                                </Button>
+                                            {showDeleted ? (
+                                                permissions?.excluir && (
+                                                    <Button variant="outline" size="sm" onClick={() => handleRestore(m.idUser)}>
+                                                        <RotateCcw className="h-4 w-4" />Restaurar
+                                                    </Button>
+                                                )
+                                            ) : (
+                                                <>
+                                                    {permissions?.editar && (
+                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEdit(m)}>
+                                                            <Pencil className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                    {permissions?.excluir && (
+                                                        <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => { setPendingDelete(m); setConfirmOpen(true) }} title="Remover">
+                                                            <Power className="h-4 w-4" />
+                                                        </Button>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                     </TableCell>

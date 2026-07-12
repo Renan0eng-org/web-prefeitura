@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
-import { ArrowDownCircle, ArrowUpCircle, Loader2, Pencil, PlusCircle, Trash2 } from "lucide-react"
+import { ArrowDownCircle, ArrowUpCircle, Loader2, Pencil, PlusCircle, RotateCcw, Trash2 } from "lucide-react"
 import * as React from "react"
 
 type Supply = {
@@ -36,6 +36,7 @@ const STATUS: Record<string, { label: string; cls: string }> = {
 export default function EstoquePage() {
     const [supplies, setSupplies] = React.useState<Supply[]>([])
     const [isLoading, setIsLoading] = React.useState(true)
+    const [showDeleted, setShowDeleted] = React.useState(false)
 
     const [dialogOpen, setDialogOpen] = React.useState(false)
     const [editing, setEditing] = React.useState<Supply | null>(null)
@@ -55,14 +56,14 @@ export default function EstoquePage() {
 
     const fetchData = React.useCallback(async () => {
         try {
-            const { data } = await api.get("/admin/estoque")
+            const { data } = await api.get(`/admin/estoque${showDeleted ? "?deleted=true" : ""}`)
             setSupplies(data)
         } catch (err: any) {
             setAlert(err.response?.data?.message || "Erro ao carregar estoque.", "error")
         } finally {
             setIsLoading(false)
         }
-    }, [setAlert])
+    }, [setAlert, showDeleted])
 
     React.useEffect(() => {
         if (permissions?.visualizar) fetchData()
@@ -133,6 +134,16 @@ export default function EstoquePage() {
         }
     }
 
+    const handleRestore = async (id: string) => {
+        try {
+            await api.post(`/admin/estoque/${id}/restaurar`)
+            setAlert("Insumo restaurado!", "success")
+            fetchData()
+        } catch (err: any) {
+            setAlert(err.response?.data?.message || "Erro ao restaurar.", "error")
+        }
+    }
+
     if (isLoading) {
         return <div className="p-2 md:p-4 lg:p-8"><Skeleton className="h-8 w-1/3 mb-6" /><Skeleton className="h-64 w-full rounded-xl" /></div>
     }
@@ -144,7 +155,14 @@ export default function EstoquePage() {
         <div className="p-2 md:p-4 lg:p-8">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-2 gap-3">
                 <h1 className="text-xl sm:text-2xl lg:text-3xl font-bold tracking-tight">Estoque de Insumos</h1>
-                {permissions?.criar && <Button onClick={openCreate}><PlusCircle className="w-4 h-4" />Novo Insumo</Button>}
+                <div className="flex items-center gap-2">
+                    {permissions?.excluir && (
+                        <Button variant={showDeleted ? "default" : "outline"} size="sm" onClick={() => setShowDeleted(v => !v)}>
+                            <Trash2 className="w-4 h-4" />{showDeleted ? "Ativos" : "Excluídos"}
+                        </Button>
+                    )}
+                    {permissions?.criar && !showDeleted && <Button onClick={openCreate}><PlusCircle className="w-4 h-4" />Novo Insumo</Button>}
+                </div>
             </div>
             <p className="text-sm text-muted-foreground mb-6">Saldo, lote e validade dos insumos, com entradas e saídas e alerta de estoque mínimo.</p>
 
@@ -178,16 +196,26 @@ export default function EstoquePage() {
                                     <TableCell><span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${STATUS[s.status].cls}`}>{STATUS[s.status].label}</span></TableCell>
                                     <TableCell>
                                         <div className="flex items-center gap-1">
-                                            {permissions?.editar && (
-                                                <Button variant="outline" size="sm" className="h-8" onClick={() => { setMovOpen(s); setMov({ type: "Entrada", quantity: "", reason: "" }) }}>
-                                                    Movimentar
-                                                </Button>
-                                            )}
-                                            {permissions?.editar && (
-                                                <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEdit(s)}><Pencil className="h-4 w-4" /></Button>
-                                            )}
-                                            {permissions?.excluir && (
-                                                <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => { setPendingDelete(s); setConfirmOpen(true) }}><Trash2 className="h-4 w-4" /></Button>
+                                            {showDeleted ? (
+                                                permissions?.excluir && (
+                                                    <Button variant="outline" size="sm" onClick={() => handleRestore(s.id)}>
+                                                        <RotateCcw className="h-4 w-4" />Restaurar
+                                                    </Button>
+                                                )
+                                            ) : (
+                                                <>
+                                                    {permissions?.editar && (
+                                                        <Button variant="outline" size="sm" className="h-8" onClick={() => { setMovOpen(s); setMov({ type: "Entrada", quantity: "", reason: "" }) }}>
+                                                            Movimentar
+                                                        </Button>
+                                                    )}
+                                                    {permissions?.editar && (
+                                                        <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => openEdit(s)}><Pencil className="h-4 w-4" /></Button>
+                                                    )}
+                                                    {permissions?.excluir && (
+                                                        <Button variant="outline" size="icon" className="h-8 w-8 text-destructive hover:text-destructive" onClick={() => { setPendingDelete(s); setConfirmOpen(true) }}><Trash2 className="h-4 w-4" /></Button>
+                                                    )}
+                                                </>
                                             )}
                                         </div>
                                     </TableCell>

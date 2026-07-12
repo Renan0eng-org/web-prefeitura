@@ -17,7 +17,7 @@ import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
 import { cn } from "@/lib/utils"
-import { Filter, MoreHorizontal, Plus, RefreshCcw, Settings2, LogOut, Undo2, UserCheck, Pencil, Trash2 } from "lucide-react"
+import { Filter, MoreHorizontal, Plus, RefreshCcw, RotateCcw, Settings2, LogOut, Undo2, UserCheck, Pencil, Trash2 } from "lucide-react"
 import Link from "next/link"
 import * as React from "react"
 import { DateRange } from "react-day-picker"
@@ -40,6 +40,7 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
     const [filterActive, setFilterActive] = React.useState<boolean | null>(null)
     const [filterAutoCadastro, setFilterAutoCadastro] = React.useState<boolean | null>(null)
     const [filterAlta, setFilterAlta] = React.useState<boolean | null>(null)
+    const [filterDeleted, setFilterDeleted] = React.useState(false)
     const [page, setPage] = React.useState(1)
     const [pageSize, setPageSize] = React.useState(initialPageSize)
     const [total, setTotal] = React.useState(0)
@@ -139,7 +140,8 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
             if (filterActive !== null) params.active = filterActive
             if (filterAutoCadastro !== null) params.autoCadastro = filterAutoCadastro
             if (filterAlta !== null) params.alta = filterAlta
-            
+            if (filterDeleted) params.deleted = 'true'
+
             const res = await api.get('/patients', { params })
             const payload = res.data
             
@@ -163,7 +165,7 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
 
     React.useEffect(() => {
         if (permissions?.visualizar) fetchPatients({ page, pageSize })
-    }, [permissions?.visualizar, page, pageSize, filterName, filterEmail, filterCpf, filterBirthDateRange, filterSexo, filterUnidade, filterMedicamentos, filterExames, filterExamesDetalhes, filterAlergias, filterActive, filterAutoCadastro, filterAlta])
+    }, [permissions?.visualizar, page, pageSize, filterName, filterEmail, filterCpf, filterBirthDateRange, filterSexo, filterUnidade, filterMedicamentos, filterExames, filterExamesDetalhes, filterAlergias, filterActive, filterAutoCadastro, filterAlta, filterDeleted])
 
     const applyFilters = React.useCallback(() => {
         setPage(1)
@@ -196,6 +198,16 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
     const [confirmOpen, setConfirmOpen] = React.useState(false)
     const [pendingPatient, setPendingPatient] = React.useState<any | null>(null)
     const [actionType, setActionType] = React.useState<'delete' | 'accept' | 'alta' | 'reverter-alta'>('delete')
+
+    const handleRestore = async (user: any) => {
+        try {
+            await api.post(`/patients/${user.idUser}/restaurar`)
+            setAlert('Paciente restaurado com sucesso!', 'success')
+            fetchPatients({ page, pageSize })
+        } catch (err: any) {
+            setAlert(err.response?.data?.message || 'Erro ao restaurar paciente', 'error')
+        }
+    }
 
     const performDelete = async (user: any) => {
         try {
@@ -287,7 +299,13 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
                         <Filter className="h-4 w-4" />
                         Filtros
                     </Button>
-                    {permissions?.criar && (
+                    {permissions?.excluir && (
+                        <Button variant={filterDeleted ? "default" : "outline"} size="sm" onClick={() => { setPage(1); setFilterDeleted(v => !v) }}>
+                            <Trash2 className="h-4 w-4" />
+                            {filterDeleted ? "Ativos" : "Excluídos"}
+                        </Button>
+                    )}
+                    {permissions?.criar && !filterDeleted && (
                         <Link href="/admin/registrar-paciente">
                             <Button>
                                 <Plus className="h-4 w-4" />
@@ -535,9 +553,14 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
                                                 </Button>
                                             </DropdownMenuTrigger>
                                             <DropdownMenuContent align="end">
-                                                {/* <DropdownMenuItem asChild>
-                                                    <Link href={`/admin/patients/${u.idUser}`}>Visualizar</Link>
-                                                </DropdownMenuItem> */}
+                                                {filterDeleted ? (
+                                                    permissions?.excluir && (
+                                                        <DropdownMenuItem onSelect={() => setTimeout(() => handleRestore(u), 50)}>
+                                                            <RotateCcw className="mr-2 h-4 w-4" />Restaurar
+                                                        </DropdownMenuItem>
+                                                    )
+                                                ) : (
+                                                  <>
                                                 {u.autoCadastro && permissions?.editar && (
                                                     <DropdownMenuItem onSelect={() => setTimeout(() => { setPendingPatient(u); setConfirmOpen(true); setActionType('accept') }, 50)}>
                                                         <UserCheck className="mr-2 h-4 w-4" />
@@ -564,6 +587,8 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
                                                     {permissions?.excluir && (
                                                     <DropdownMenuItem className="text-destructive" onSelect={() => setTimeout(() => { setPendingPatient(u); setConfirmOpen(true); setActionType('delete') }, 50)}><Trash2 className="mr-2 h-4 w-4" />Excluir</DropdownMenuItem>
                                                     )}
+                                                  </>
+                                                )}
                                             </DropdownMenuContent>
                                         </DropdownMenu>
                                     </TableCell>}

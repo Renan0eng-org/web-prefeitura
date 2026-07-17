@@ -46,6 +46,7 @@ export type User = {
   active: boolean;
   nivelAcessoId: number;
   type: EnumUserType;
+  locaisAtendimento?: string[];
 }
 
 export type UserComNivel = User & {
@@ -91,4 +92,5 @@ export type UserFormData = {
     nivelAcessoId: number;
     type: EnumUserType;
     active: boolean;
+    locaisAtendimento?: string[];
 };

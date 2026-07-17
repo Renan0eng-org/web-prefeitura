@@ -14,7 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { useAuth } from '@/hooks/use-auth'
 import api from "@/services/api"
-import { Edit, FilePlus, Filter, List, ListChecks, MoreVertical, RefreshCcw, Settings2, Trash2, UserPlus } from "lucide-react"
+import { Edit, FilePlus, Filter, List, ListChecks, MoreHorizontal, RefreshCcw, RotateCcw, Settings2, Trash2, UserPlus } from "lucide-react"
 import Link from "next/link"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { DateRange } from 'react-day-picker'
@@ -59,6 +59,7 @@ export default function FormulariosTab() {
 
     // Filters
     const [showFilters, setShowFilters] = useState(false)
+    const [filterDeleted, setFilterDeleted] = useState(false)
     const [filterTitle, setFilterTitle] = useState<string>('')
     const [filterDescription, setFilterDescription] = useState<string>('')
     const [filterDateRange, setFilterDateRange] = useState<DateRange | undefined>(undefined)
@@ -78,6 +79,7 @@ export default function FormulariosTab() {
         isScreening?: boolean
         responsesMin?: number
         responsesMax?: number
+        deleted?: boolean
     }) => {
         try {
             setIsLoading(true)
@@ -94,6 +96,7 @@ export default function FormulariosTab() {
                 if (typeof filters.isScreening === 'boolean') params.isScreening = filters.isScreening
                 if (typeof filters.responsesMin === 'number') params.responsesMin = filters.responsesMin
                 if (typeof filters.responsesMax === 'number') params.responsesMax = filters.responsesMax
+                if (filters.deleted) params.deleted = 'true'
             }
             const response = await api.get(`/forms`, { params })
             const payload = response.data
@@ -114,24 +117,34 @@ export default function FormulariosTab() {
     const [confirmOpen, setConfirmOpen] = useState(false)
     const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null)
 
+    const buildFilters = useCallback(() => ({
+        title: filterTitle || undefined,
+        description: filterDescription || undefined,
+        from: filterDateRange?.from ? filterDateRange.from.toISOString() : undefined,
+        to: filterDateRange?.to ? filterDateRange.to.toISOString() : undefined,
+        createdFrom: filterCreatedDateRange?.from ? filterCreatedDateRange.from.toISOString() : undefined,
+        createdTo: filterCreatedDateRange?.to ? filterCreatedDateRange.to.toISOString() : undefined,
+        isScreening: typeof filterScreening === 'boolean' ? filterScreening : undefined,
+        responsesMin: typeof filterResponsesMin === 'number' ? filterResponsesMin : undefined,
+        responsesMax: typeof filterResponsesMax === 'number' ? filterResponsesMax : undefined,
+        deleted: filterDeleted,
+    }), [filterTitle, filterDescription, filterDateRange, filterCreatedDateRange, filterScreening, filterResponsesMin, filterResponsesMax, filterDeleted])
+
     const performDelete = async (id: string) => {
         try {
             await api.delete(`/forms/${id}`)
-            fetchForms({ 
-                page, 
-                pageSize, 
-            },
-            {
-                title: filterTitle || undefined,
-                description: filterDescription || undefined,
-                from: filterDateRange?.from ? filterDateRange.from.toISOString() : undefined,
-                to: filterDateRange?.to ? filterDateRange.to.toISOString() : undefined,
-                isScreening: typeof filterScreening === 'boolean' ? filterScreening : undefined,
-                responsesMin: typeof filterResponsesMin === 'number' ? filterResponsesMin : undefined,
-                responsesMax: typeof filterResponsesMax === 'number' ? filterResponsesMax : undefined,
-            })
+            fetchForms({ page, pageSize }, buildFilters())
         } catch (err) {
             console.error("Erro ao excluir:", err)
+        }
+    }
+
+    const restoreForm = async (id: string) => {
+        try {
+            await api.post(`/forms/${id}/restaurar`)
+            fetchForms({ page, pageSize }, buildFilters())
+        } catch (err) {
+            console.error("Erro ao restaurar formulário:", err)
         }
     }
 
@@ -145,16 +158,7 @@ export default function FormulariosTab() {
     const handleToggleScreening = async (id: string) => {
         try {
             await api.post(`/forms/${id}/toggle-screening`)
-            const filters = {
-                title: filterTitle || undefined,
-                description: filterDescription || undefined,
-                from: filterDateRange?.from ? filterDateRange.from.toISOString() : undefined,
-                to: filterDateRange?.to ? filterDateRange.to.toISOString() : undefined,
-                isScreening: typeof filterScreening === 'boolean' ? filterScreening : undefined,
-                responsesMin: typeof filterResponsesMin === 'number' ? filterResponsesMin : undefined,
-                responsesMax: typeof filterResponsesMax === 'number' ? filterResponsesMax : undefined,
-            }
-            fetchForms({ page, pageSize }, filters)
+            fetchForms({ page, pageSize }, buildFilters())
         } catch (err) {
             console.error("Erro ao alternar screening:", err)
         }
@@ -165,20 +169,9 @@ export default function FormulariosTab() {
 
     useEffect(() => {
         if (permissions?.visualizar) {
-            const filters = {
-                title: filterTitle || undefined,
-                description: filterDescription || undefined,
-                from: filterDateRange?.from ? filterDateRange.from.toISOString() : undefined,
-                to: filterDateRange?.to ? filterDateRange.to.toISOString() : undefined,
-                createdFrom: filterCreatedDateRange?.from ? filterCreatedDateRange.from.toISOString() : undefined,
-                createdTo: filterCreatedDateRange?.to ? filterCreatedDateRange.to.toISOString() : undefined,
-                isScreening: typeof filterScreening === 'boolean' ? filterScreening : undefined,
-                responsesMin: typeof filterResponsesMin === 'number' ? filterResponsesMin : undefined,
-                responsesMax: typeof filterResponsesMax === 'number' ? filterResponsesMax : undefined,
-            }
-            fetchForms({ page, pageSize }, filters)
+            fetchForms({ page, pageSize }, buildFilters())
         }
-    }, [page, pageSize, permissions?.visualizar, filterTitle, filterDescription, filterDateRange, filterCreatedDateRange, filterScreening, filterResponsesMin, filterResponsesMax])
+    }, [page, pageSize, permissions?.visualizar, filterTitle, filterDescription, filterDateRange, filterCreatedDateRange, filterScreening, filterResponsesMin, filterResponsesMax, filterDeleted])
     const applyFilters = useCallback(() => {
         setPage(1)
         // fetch will be triggered by useEffect
@@ -223,7 +216,11 @@ export default function FormulariosTab() {
                         <Filter className="h-4 w-4" />
                         Filtros
                     </Button>
-                    {permissions?.criar && (
+                    <Button variant={filterDeleted ? "default" : "outline"} size="sm" onClick={() => { setPage(1); setFilterDeleted(v => !v) }}>
+                        <RotateCcw className="h-4 w-4" />
+                        {filterDeleted ? "Ativos" : "Excluídos"}
+                    </Button>
+                    {permissions?.criar && !filterDeleted && (
                         <Link href={'/admin/criar-formulario'} >
                             <Button className="text-white">
                                 <FilePlus className="h-4 w-4" />
@@ -384,53 +381,65 @@ export default function FormulariosTab() {
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button variant="ghost" size="icon" className="rounded-full">
-                                                        <MoreVertical className="h-4 w-4" />
+                                                        <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                                     <DropdownMenuSeparator />
-                                                    {permissions?.editar && (
-                                                        <DropdownMenuItem asChild>
-                                                            <Link href={`/admin/criar-formulario/${form.idForm}`}>
-                                                                <Edit className="mr-2 h-4 w-4" />
-                                                                Editar Formulário
-                                                            </Link>
-                                                        </DropdownMenuItem>
-                                                    )}
-                                                    <DropdownMenuItem asChild>
-                                                        <Link href={`/admin/responder-formulario/${form.idForm}`}>
-                                                            <List className="mr-2 h-4 w-4" />
-                                                            Responder Formulário
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem asChild>
-                                                        <Link href={`/admin/atribuir-usuarios/${form.idForm}`}>
-                                                            <UserPlus className="mr-2 h-4 w-4" />
-                                                            Atribuir Usuários
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem asChild>
-                                                        <Link href={`/admin/criar-formulario/${form.idForm}/respostas`} className="cursor-pointer">
-                                                            <ListChecks className="mr-2 h-4 w-4" />
-                                                            <span>Ver Respostas</span>
-                                                        </Link>
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuItem
-                                                        onSelect={() => handleToggleScreening(form.idForm)}
-                                                    >
-                                                        <Settings2 className="mr-2 h-4 w-4" />
-                                                        {form.isScreening ? 'Desativar Triagem' : 'Ativar Triagem'}
-                                                    </DropdownMenuItem>
-                                                    <DropdownMenuSeparator />
-                                                    {permissions?.excluir && (
-                                                        <DropdownMenuItem
-                                                            className="text-destructive focus:bg-destructive focus:text-destructive-foreground cursor-pointer"
-                                                            onSelect={() => setTimeout(() => { setPendingDeleteId(form.idForm); setConfirmOpen(true) }, 50)}
-                                                        >
-                                                            <Trash2 className="mr-2 h-4 w-4" />
-                                                            Excluir
-                                                        </DropdownMenuItem>
+                                                    {filterDeleted ? (
+                                                        permissions?.excluir && (
+                                                            <DropdownMenuItem onSelect={() => setTimeout(() => restoreForm(form.idForm), 50)}>
+                                                                <RotateCcw className="mr-2 h-4 w-4" />Restaurar
+                                                            </DropdownMenuItem>
+                                                        )
+                                                    ) : (
+                                                        <>
+                                                            {permissions?.editar && (
+                                                                <DropdownMenuItem asChild>
+                                                                    <Link href={`/admin/criar-formulario/${form.idForm}`}>
+                                                                        <Edit className="mr-2 h-4 w-4" />
+                                                                        Editar Formulário
+                                                                    </Link>
+                                                                </DropdownMenuItem>
+                                                            )}
+                                                            <DropdownMenuItem asChild>
+                                                                <Link href={`/admin/responder-formulario/${form.idForm}`}>
+                                                                    <List className="mr-2 h-4 w-4" />
+                                                                    Responder Formulário
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem asChild>
+                                                                <Link href={`/admin/atribuir-usuarios/${form.idForm}`}>
+                                                                    <UserPlus className="mr-2 h-4 w-4" />
+                                                                    Atribuir Usuários
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem asChild>
+                                                                <Link href={`/admin/criar-formulario/${form.idForm}/respostas`} className="cursor-pointer">
+                                                                    <ListChecks className="mr-2 h-4 w-4" />
+                                                                    <span>Ver Respostas</span>
+                                                                </Link>
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem
+                                                                onSelect={() => handleToggleScreening(form.idForm)}
+                                                            >
+                                                                <Settings2 className="mr-2 h-4 w-4" />
+                                                                {form.isScreening ? 'Desativar Triagem' : 'Ativar Triagem'}
+                                                            </DropdownMenuItem>
+                                                            {permissions?.excluir && (
+                                                                <>
+                                                                    <DropdownMenuSeparator />
+                                                                    <DropdownMenuItem
+                                                                        className="text-destructive focus:bg-destructive focus:text-destructive-foreground cursor-pointer"
+                                                                        onSelect={() => setTimeout(() => { setPendingDeleteId(form.idForm); setConfirmOpen(true) }, 50)}
+                                                                    >
+                                                                        <Trash2 className="mr-2 h-4 w-4" />
+                                                                        Excluir
+                                                                    </DropdownMenuItem>
+                                                                </>
+                                                            )}
+                                                        </>
                                                     )}
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
@@ -459,7 +468,7 @@ export default function FormulariosTab() {
                 onConfirm={handleConfirmDelete}
                 onCancel={() => setConfirmOpen(false)}
                 title="Excluir formulário"
-                description="Tem certeza que deseja excluir este formulário? Esta ação não pode ser desfeita."
+                description="Tem certeza que deseja excluir este formulário? Você poderá restaurá-lo depois na visão de excluídos."
                 confirmLabel="Excluir"
             />
         </>

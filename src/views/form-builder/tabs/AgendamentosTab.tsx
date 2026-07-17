@@ -18,7 +18,7 @@ import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
 
-import { Check, Edit, Eraser, Eye, Filter, MoreVertical, RefreshCcw, Settings2, Stethoscope, Trash } from "lucide-react"
+import { Check, Edit, Eraser, Eye, Filter, MoreHorizontal, Plus, RefreshCcw, RotateCcw, Settings2, Stethoscope, Trash } from "lucide-react"
 import { useRouter } from "next/navigation"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { DateRange } from 'react-day-picker'
@@ -33,7 +33,9 @@ export default function AgendamentosTab() {
     const totalPages = Math.max(1, Math.ceil(total / pageSize))
     const [selectedAppointment, setSelectedAppointment] = useState<any | null>(null)
     const [isAgendarOpen, setIsAgendarOpen] = useState(false)
+    const [isNewAgendarOpen, setIsNewAgendarOpen] = useState(false)
     const [visibleOnly, setVisibleOnly] = useState(false)
+    const [filterDeleted, setFilterDeleted] = useState(false)
     const router = useRouter()
     const [visibleColumns, setVisibleColumns] = useState<Record<string, boolean>>(() => {
         try {
@@ -100,6 +102,7 @@ export default function AgendamentosTab() {
         createdFrom?: string
         createdTo?: string
         status?: string
+        deleted?: boolean
     }) => {
         try {
             setIsLoading(true)
@@ -114,6 +117,7 @@ export default function AgendamentosTab() {
                 if (filters.createdFrom) params.createdFrom = filters.createdFrom
                 if (filters.createdTo) params.createdTo = filters.createdTo
                 if (filters.status) params.status = filters.status
+                if (filters.deleted) params.deleted = 'true'
             }
             const res = await api.get('/appointments', { params })
             const data = res.data?.data ?? res.data ?? []
@@ -136,7 +140,7 @@ export default function AgendamentosTab() {
             setIsLoading(true)
             await api.delete(`/appointments/${id}`)
             setAlert('Agendamento excluído com sucesso.', 'success')
-            await fetchAppointments({ page, pageSize })
+            await fetchAppointments({ page, pageSize }, buildFilters())
         } catch (err) {
             console.error('Erro ao excluir agendamento:', err)
             setAlert('Erro ao excluir agendamento.', 'error')
@@ -150,6 +154,20 @@ export default function AgendamentosTab() {
         performDelete(pendingDeleteId)
         setPendingDeleteId(null)
         setConfirmOpen(false)
+    }
+
+    const restoreAppointment = async (id: string) => {
+        try {
+            setIsLoading(true)
+            await api.post(`/appointments/${id}/restaurar`)
+            setAlert('Agendamento restaurado com sucesso.', 'success')
+            await fetchAppointments({ page, pageSize }, buildFilters())
+        } catch (err: any) {
+            console.error('Erro ao restaurar agendamento:', err)
+            setAlert(err.response?.data?.message || 'Erro ao restaurar agendamento.', 'error')
+        } finally {
+            setIsLoading(false)
+        }
     }
 
     const confirmAppointment = async (id: string) => {
@@ -184,6 +202,17 @@ export default function AgendamentosTab() {
         }
     }
 
+    const buildFilters = useCallback(() => ({
+        patientName: filterPatientName || undefined,
+        doctorName: filterDoctorName || undefined,
+        scheduledFrom: filterScheduledDateRange?.from ? filterScheduledDateRange.from.toISOString() : undefined,
+        scheduledTo: filterScheduledDateRange?.to ? filterScheduledDateRange.to.toISOString() : undefined,
+        createdFrom: filterCreatedDateRange?.from ? filterCreatedDateRange.from.toISOString() : undefined,
+        createdTo: filterCreatedDateRange?.to ? filterCreatedDateRange.to.toISOString() : undefined,
+        status: filterStatus || undefined,
+        deleted: filterDeleted,
+    }), [filterPatientName, filterDoctorName, filterScheduledDateRange, filterCreatedDateRange, filterStatus, filterDeleted])
+
     const applyFilters = useCallback(() => {
         setPage(1)
     }, [])
@@ -207,19 +236,10 @@ export default function AgendamentosTab() {
     useEffect(() => {
         // when page or pageSize changes, reload
         if (agendamentoPerm?.visualizar) {
-            const filters = {
-                patientName: filterPatientName || undefined,
-                doctorName: filterDoctorName || undefined,
-                scheduledFrom: filterScheduledDateRange?.from ? filterScheduledDateRange.from.toISOString() : undefined,
-                scheduledTo: filterScheduledDateRange?.to ? filterScheduledDateRange.to.toISOString() : undefined,
-                createdFrom: filterCreatedDateRange?.from ? filterCreatedDateRange.from.toISOString() : undefined,
-                createdTo: filterCreatedDateRange?.to ? filterCreatedDateRange.to.toISOString() : undefined,
-                status: filterStatus || undefined,
-            }
-            fetchAppointments({ page, pageSize }, filters)
+            fetchAppointments({ page, pageSize }, buildFilters())
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, pageSize, filterPatientName, filterDoctorName, filterScheduledDateRange, filterCreatedDateRange, filterStatus])
+    }, [page, pageSize, filterPatientName, filterDoctorName, filterScheduledDateRange, filterCreatedDateRange, filterStatus, filterDeleted])
 
     return (
         <div>
@@ -250,6 +270,16 @@ export default function AgendamentosTab() {
                         filename="agendamentos.xlsx"
                         sheetName="Agendamentos"
                     />
+                    {agendamentoPerm?.criar && !filterDeleted && (
+                        <Button size="sm" onClick={() => setIsNewAgendarOpen(true)}>
+                            <Plus className="h-4 w-4" />
+                            Novo Agendamento
+                        </Button>
+                    )}
+                    <Button variant={filterDeleted ? "default" : "outline"} size="sm" onClick={() => { setPage(1); setFilterDeleted(v => !v) }}>
+                        <RotateCcw className="h-4 w-4" />
+                        {filterDeleted ? "Ativos" : "Excluídos"}
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => setShowFilters(v => !v)}>
                         <Filter className="h-4 w-4" />
                         Filtros
@@ -359,12 +389,18 @@ export default function AgendamentosTab() {
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button variant="ghost" size="icon" className="rounded-full">
-                                                        <MoreVertical className="h-4 w-4" />
+                                                        <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                                     <DropdownMenuSeparator />
+                                                    {filterDeleted ? (
+                                                        <DropdownMenuItem onSelect={() => setTimeout(() => restoreAppointment(a.id), 50)}>
+                                                            <RotateCcw className="mr-2 h-4 w-4" />Restaurar
+                                                        </DropdownMenuItem>
+                                                    ) : (
+                                                        <>
                                                     {agendamentoPerm?.visualizar && (
                                                         <DropdownMenuItem onClick={() => {
                                                             setSelectedAppointment(a)
@@ -414,7 +450,8 @@ export default function AgendamentosTab() {
                                                             </DropdownMenuItem>
                                                         </>
                                                     )}
-
+                                                        </>
+                                                    )}
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>}
@@ -423,7 +460,9 @@ export default function AgendamentosTab() {
                             )}
                             {appointments.length === 0 && !isLoading && (
                                 <TableRow>
-                                    <TableCell colSpan={visibleCount} className="text-center text-muted-foreground">Nenhum agendamento encontrado.</TableCell>
+                                    <TableCell colSpan={visibleCount} className="text-center text-muted-foreground">
+                                        {filterDeleted ? 'Nenhum agendamento excluído encontrado.' : 'Nenhum agendamento encontrado.'}
+                                    </TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
@@ -447,6 +486,11 @@ export default function AgendamentosTab() {
                             }}
                         />
                     )}
+                    <AgendarConsultaDialog
+                        isOpen={isNewAgendarOpen}
+                        onOpenChange={(open) => setIsNewAgendarOpen(open)}
+                        onScheduled={() => fetchAppointments({ page, pageSize }, buildFilters())}
+                    />
                     <ConfirmDialog
                         open={confirmOpen}
                         title="Excluir Agendamento"

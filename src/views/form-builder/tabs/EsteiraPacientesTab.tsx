@@ -4,6 +4,7 @@ import AgendarConsultaDialog from "@/components/appointments/AgendarConsultaDial
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import ColumnsDropdown from '@/components/ui/columns-dropdown'
+import ConfirmDialog from "@/components/ui/confirm-dialog"
 import { DateRangePicker } from '@/components/ui/date-range-piker'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Input } from '@/components/ui/input'
@@ -15,7 +16,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAlert } from "@/hooks/use-alert"
 import api from "@/services/api"
 import axios, { AxiosError } from "axios"
-import { Calendar, Eye, Filter, ListStart, MoreVertical, RefreshCcw, Settings2 } from "lucide-react"
+import { Calendar, Eye, Filter, ListStart, MoreHorizontal, RefreshCcw, RotateCcw, Settings2, Trash } from "lucide-react"
 import Link from "next/link"
 import { useCallback, useEffect, useState } from "react"
 import { DateRange } from 'react-day-picker'
@@ -28,6 +29,7 @@ export default function EsteiraPacientesTab() {
     const [pageSize, setPageSize] = useState(10)
     const [total, setTotal] = useState(0)
     const totalPages = Math.max(1, Math.ceil(total / pageSize))
+    const [filterDeleted, setFilterDeleted] = useState(false)
     const [visibleColumnsEsteira, setVisibleColumnsEsteira] = useState(() => {
         try {
             const raw = localStorage.getItem('esteira_visible_columns')
@@ -56,6 +58,10 @@ export default function EsteiraPacientesTab() {
     const [filterScoreMin, setFilterScoreMin] = useState<number | undefined>(undefined)
     const [filterScoreMax, setFilterScoreMax] = useState<number | undefined>(undefined)
 
+    // Confirm dialog for delete
+    const [confirmOpen, setConfirmOpen] = useState(false)
+    const [pendingDeleteId, setPendingDeleteId] = useState<{ formId: string; responseId: string } | null>(null)
+
     const fetchResponses = async (opts?: { page?: number; pageSize?: number }, filters?: {
         formTitle?: string
         patientName?: string
@@ -64,6 +70,7 @@ export default function EsteiraPacientesTab() {
         isScreening?: boolean
         scoreMin?: number
         scoreMax?: number
+        deleted?: boolean
     }) => {
         try {
             setIsLoading(true)
@@ -78,6 +85,7 @@ export default function EsteiraPacientesTab() {
                 if (typeof filters.isScreening === 'boolean') params.isScreening = filters.isScreening
                 if (typeof filters.scoreMin === 'number') params.scoreMin = filters.scoreMin
                 if (typeof filters.scoreMax === 'number') params.scoreMax = filters.scoreMax
+                if (filters.deleted) params.deleted = 'true'
             }
             const res = await api.get("/forms/responses/list", { params })
             const data = res.data?.data ?? res.data ?? []
@@ -99,6 +107,52 @@ export default function EsteiraPacientesTab() {
         }
     }
 
+    const performDelete = async (formId: string, responseId: string) => {
+        try {
+            setIsLoading(true)
+            await api.delete(`/forms/${formId}/responses/${responseId}`)
+            setAlert('Resposta excluída com sucesso.', 'success')
+            await fetchResponses({ page, pageSize }, buildFilters())
+        } catch (err: any) {
+            console.error('Erro ao excluir resposta:', err)
+            setAlert(err.response?.data?.message || 'Erro ao excluir resposta.', 'error')
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const handleConfirmDelete = () => {
+        if (!pendingDeleteId) return
+        performDelete(pendingDeleteId.formId, pendingDeleteId.responseId)
+        setPendingDeleteId(null)
+        setConfirmOpen(false)
+    }
+
+    const restoreResponse = async (responseId: string) => {
+        try {
+            setIsLoading(true)
+            await api.post(`/forms/responses/${responseId}/restaurar`)
+            setAlert('Resposta restaurada com sucesso.', 'success')
+            await fetchResponses({ page, pageSize }, buildFilters())
+        } catch (err: any) {
+            console.error('Erro ao restaurar resposta:', err)
+            setAlert(err.response?.data?.message || 'Erro ao restaurar resposta.', 'error')
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
+    const buildFilters = useCallback(() => ({
+        formTitle: filterFormTitle || undefined,
+        patientName: filterPatientName || undefined,
+        from: filterDateRange?.from ? filterDateRange.from.toISOString() : undefined,
+        to: filterDateRange?.to ? filterDateRange.to.toISOString() : undefined,
+        isScreening: typeof filterScreening === 'boolean' ? filterScreening : undefined,
+        scoreMin: typeof filterScoreMin === 'number' ? filterScoreMin : undefined,
+        scoreMax: typeof filterScoreMax === 'number' ? filterScoreMax : undefined,
+        deleted: filterDeleted,
+    }), [filterFormTitle, filterPatientName, filterDateRange, filterScreening, filterScoreMin, filterScoreMax, filterDeleted])
+
     const applyFilters = useCallback(() => {
         setPage(1)
     }, [])
@@ -114,17 +168,8 @@ export default function EsteiraPacientesTab() {
     }, [])
 
     useEffect(() => {
-        const filters = {
-            formTitle: filterFormTitle || undefined,
-            patientName: filterPatientName || undefined,
-            from: filterDateRange?.from ? filterDateRange.from.toISOString() : undefined,
-            to: filterDateRange?.to ? filterDateRange.to.toISOString() : undefined,
-            isScreening: typeof filterScreening === 'boolean' ? filterScreening : undefined,
-            scoreMin: typeof filterScoreMin === 'number' ? filterScoreMin : undefined,
-            scoreMax: typeof filterScoreMax === 'number' ? filterScoreMax : undefined,
-        }
-        fetchResponses({ page, pageSize }, filters)
-    }, [page, pageSize, filterFormTitle, filterPatientName, filterDateRange, filterScreening, filterScoreMin, filterScoreMax])
+        fetchResponses({ page, pageSize }, buildFilters())
+    }, [page, pageSize, filterFormTitle, filterPatientName, filterDateRange, filterScreening, filterScoreMin, filterScoreMax, filterDeleted])
 
     return (
         <>
@@ -141,6 +186,10 @@ export default function EsteiraPacientesTab() {
                     <Button variant="outline" size="sm" onClick={() => fetchResponses()}>
                         <RefreshCcw className="w-4 h-4" />
                         Atualizar
+                    </Button>
+                    <Button variant={filterDeleted ? "default" : "outline"} size="sm" onClick={() => { setPage(1); setFilterDeleted(v => !v) }}>
+                        <RotateCcw className="h-4 w-4" />
+                        {filterDeleted ? "Ativos" : "Excluídos"}
                     </Button>
                     <Button variant="outline" size="sm" onClick={() => setShowFilters(v => !v)}>
                         <Filter className="h-4 w-4" />
@@ -278,42 +327,65 @@ export default function EsteiraPacientesTab() {
                                     <DropdownMenu>
                                         <DropdownMenuTrigger asChild>
                                             <Button variant="ghost" size="icon" className="rounded-full">
-                                                <MoreVertical className="h-4 w-4" />
+                                                <MoreHorizontal className="h-4 w-4" />
                                             </Button>
                                         </DropdownMenuTrigger>
                                         <DropdownMenuContent align="end">
                                             <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                             <DropdownMenuSeparator />
-                                            <DropdownMenuItem asChild>
-                                                <Link
-                                                    href={`/admin/criar-formulario/${response.form?.idForm}/respostas/${response.idResponse}`}
-                                                    className="cursor-pointer"
-                                                >
-                                                    <Eye className="mr-2 h-4 w-4" />
-                                                    <span>Visualizar Resposta</span>
-                                                </Link>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onSelect={() => { setSelectedResponse(response); setIsAgendarOpen(true); }}>
-                                                <button className="flex items-center w-full text-left">
-                                                    <Calendar className="mr-2 h-4 w-4" />
-                                                    <span>Agendar Consulta</span>
-                                                </button>
-                                            </DropdownMenuItem>
-                                            <DropdownMenuItem onSelect={() => {
-                                                setSelectedResponse(response);
-                                                setIsAgendarOpen(true);
-                                                setFerrals(true);
-                                            }}>
-                                                <button className="flex items-center w-full text-left">
-                                                    <ListStart className="mr-2 h-4 w-4" />
-                                                    <span>Encaminhar</span>
-                                                </button>
-                                            </DropdownMenuItem>
+                                            {filterDeleted ? (
+                                                <DropdownMenuItem onSelect={() => setTimeout(() => restoreResponse(response.idResponse), 50)}>
+                                                    <RotateCcw className="mr-2 h-4 w-4" />Restaurar
+                                                </DropdownMenuItem>
+                                            ) : (
+                                                <>
+                                                    <DropdownMenuItem asChild>
+                                                        <Link
+                                                            href={`/admin/criar-formulario/${response.form?.idForm}/respostas/${response.idResponse}`}
+                                                            className="cursor-pointer"
+                                                        >
+                                                            <Eye className="mr-2 h-4 w-4" />
+                                                            <span>Visualizar Resposta</span>
+                                                        </Link>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => { setSelectedResponse(response); setIsAgendarOpen(true); }}>
+                                                        <button className="flex items-center w-full text-left">
+                                                            <Calendar className="mr-2 h-4 w-4" />
+                                                            <span>Agendar Consulta</span>
+                                                        </button>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuItem onSelect={() => {
+                                                        setSelectedResponse(response);
+                                                        setIsAgendarOpen(true);
+                                                        setFerrals(true);
+                                                    }}>
+                                                        <button className="flex items-center w-full text-left">
+                                                            <ListStart className="mr-2 h-4 w-4" />
+                                                            <span>Encaminhar</span>
+                                                        </button>
+                                                    </DropdownMenuItem>
+                                                    <DropdownMenuSeparator />
+                                                    <DropdownMenuItem className="text-destructive" onClick={() => setTimeout(() => {
+                                                        setPendingDeleteId({ formId: response.form?.idForm, responseId: response.idResponse });
+                                                        setConfirmOpen(true)
+                                                    }, 50)}>
+                                                        <Trash className="mr-2 h-4 w-4" />
+                                                        <span>Excluir Resposta</span>
+                                                    </DropdownMenuItem>
+                                                </>
+                                            )}
                                         </DropdownMenuContent>
                                     </DropdownMenu>
                                 </TableCell>}
                             </TableRow>)
                         })
+                    )}
+                    {formsResponses.length === 0 && !isLoading && (
+                        <TableRow>
+                            <TableCell colSpan={visibleCount} className="text-center text-muted-foreground">
+                                {filterDeleted ? 'Nenhuma resposta excluída encontrada.' : 'Nenhuma resposta encontrada.'}
+                            </TableCell>
+                        </TableRow>
                     )}
                 </TableBody>
             </Table>
@@ -343,12 +415,21 @@ export default function EsteiraPacientesTab() {
                     }}
                     response={selectedResponse}
                     onScheduled={() => {
-                        // refresh responses after scheduling if needed
                         fetchResponses()
                     }}
                     ferrals={ferrals}
                 />
             )}
+            <ConfirmDialog
+                open={confirmOpen}
+                title="Excluir Resposta"
+                description="Tem certeza que deseja excluir esta resposta do formulário?"
+                intent="destructive"
+                confirmLabel="Excluir"
+                cancelLabel="Cancelar"
+                onConfirm={handleConfirmDelete}
+                onCancel={() => { setConfirmOpen(false); setPendingDeleteId(null) }}
+            />
         </>
     )
 }

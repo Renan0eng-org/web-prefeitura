@@ -63,7 +63,16 @@ export default function EscalaPage() {
     const { setAlert } = useAlert()
     const { getPermissions, user } = useAuth()
     const permissions = React.useMemo(() => getPermissions("escala"), [getPermissions])
+    const escalaAdminPerm = React.useMemo(() => getPermissions("escala-admin"), [getPermissions])
     const isMedico = (user as any)?.type === "MEDICO"
+    // "Escala de Plantão Admin": pode criar/editar/excluir e gerir qualquer plantão.
+    const isEscalaAdmin = !!escalaAdminPerm?.visualizar
+    const canView = !!permissions?.visualizar || isEscalaAdmin
+    // Check-in / check-out / devolução: só o médico do próprio plantão ou um admin da escala.
+    const canManageShift = React.useCallback(
+        (p: Plantao) => isEscalaAdmin || (!!p.doctorId && p.doctorId === (user as any)?.idUser),
+        [isEscalaAdmin, user],
+    )
 
     const days = React.useMemo(() => Array.from({ length: 7 }, (_, i) => addDays(weekStart, i)), [weekStart])
     const hours = React.useMemo(() => Array.from({ length: END_HOUR - START_HOUR }, (_, i) => START_HOUR + i), [])
@@ -86,9 +95,9 @@ export default function EscalaPage() {
     }, [weekStart, setAlert, showDeleted])
 
     React.useEffect(() => {
-        if (permissions?.visualizar) fetchData()
+        if (canView) fetchData()
         else setIsLoading(false)
-    }, [permissions?.visualizar, fetchData])
+    }, [canView, fetchData])
 
     const doAction = async (id: string, path: string) => {
         setBusy(id)
@@ -153,7 +162,7 @@ export default function EscalaPage() {
     if (isLoading) {
         return <div className="p-2 md:p-4 lg:p-8"><Skeleton className="h-8 w-1/3 mb-6" /><Skeleton className="h-[600px] w-full rounded-xl" /></div>
     }
-    if (!permissions?.visualizar) {
+    if (!canView) {
         return <div className="p-2 md:p-4 lg:p-8"><p className="text-muted-foreground">Você não tem permissão para visualizar esta seção.</p></div>
     }
 
@@ -170,12 +179,12 @@ export default function EscalaPage() {
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekStart(addDays(weekStart, -7))}><ChevronLeft className="h-4 w-4" /></Button>
                     <Button variant="outline" size="icon" className="h-8 w-8" onClick={() => setWeekStart(addDays(weekStart, 7))}><ChevronRight className="h-4 w-4" /></Button>
                     <span className="text-sm font-semibold capitalize min-w-[130px] text-center">{monthLabel}</span>
-                    {permissions?.excluir && (
+                    {escalaAdminPerm?.excluir && (
                         <Button variant={showDeleted ? "default" : "outline"} size="sm" onClick={() => setShowDeleted(v => !v)}>
                             <Trash2 className="h-4 w-4" />{showDeleted ? "Ativos" : "Excluídos"}
                         </Button>
                     )}
-                    {permissions?.criar && !showDeleted && <Button size="sm" onClick={() => { setForm(f => ({ ...f, date: days[0].toISOString().slice(0, 10) })); setCreateOpen(true) }}><PlusCircle className="h-4 w-4" />Novo Plantão</Button>}
+                    {escalaAdminPerm?.criar && !showDeleted && <Button size="sm" onClick={() => { setForm(f => ({ ...f, date: days[0].toISOString().slice(0, 10) })); setCreateOpen(true) }}><PlusCircle className="h-4 w-4" />Novo Plantão</Button>}
                 </div>
             </div>
 
@@ -292,7 +301,7 @@ export default function EscalaPage() {
                             </div>
                             <DialogFooter className="flex-wrap gap-2">
                                 {showDeleted ? (
-                                    permissions?.excluir && (
+                                    escalaAdminPerm?.excluir && (
                                         <Button disabled={busy === detail.id} onClick={() => doAction(detail.id, "restaurar")}>
                                             <Undo2 className="h-4 w-4" />Restaurar
                                         </Button>
@@ -304,22 +313,22 @@ export default function EscalaPage() {
                                         <HandHelping className="h-4 w-4" />Pegar plantão
                                     </Button>
                                 )}
-                                {detail.status === "Agendado" && permissions?.editar && (
+                                {detail.status === "Agendado" && canManageShift(detail) && (
                                     <Button disabled={busy === detail.id} onClick={() => doAction(detail.id, "checkin")}>
                                         <LogIn className="h-4 w-4" />Check-in
                                     </Button>
                                 )}
-                                {detail.status === "EmAndamento" && permissions?.editar && (
+                                {detail.status === "EmAndamento" && canManageShift(detail) && (
                                     <Button variant="outline" disabled={busy === detail.id} onClick={() => doAction(detail.id, "checkout")}>
                                         <LogOut className="h-4 w-4" />Check-out
                                     </Button>
                                 )}
-                                {(detail.status === "Agendado" || detail.status === "EmAndamento") && permissions?.editar && (
+                                {(detail.status === "Agendado" || detail.status === "EmAndamento") && canManageShift(detail) && (
                                     <Button variant="outline" disabled={busy === detail.id} onClick={() => doAction(detail.id, "liberar")}>
                                         <Undo2 className="h-4 w-4" />Devolver ao mercado
                                     </Button>
                                 )}
-                                {permissions?.excluir && (
+                                {escalaAdminPerm?.excluir && (
                                     <Button variant="outline" className="text-destructive hover:text-destructive" disabled={busy === detail.id} onClick={() => removePlantao(detail.id)}>
                                         <Trash2 className="h-4 w-4" />Remover
                                     </Button>

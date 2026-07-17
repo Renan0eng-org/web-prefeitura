@@ -10,6 +10,7 @@ interface Professional {
     name: string
     email: string
     type: string
+    locaisAtendimento?: string[]
 }
 
 interface ProfessionalSelectProps {
@@ -18,10 +19,12 @@ interface ProfessionalSelectProps {
     disabled?: boolean
     filterFn?: (professionals: Professional[]) => Professional[]
     placeholder?: string
+    // Notifica o profissional selecionado (objeto completo) — usado para ler locais de atendimento.
+    onProfessionalChange?: (professional: Professional | null) => void
 }
 
 export const ProfessionalSelect = React.forwardRef<HTMLButtonElement, ProfessionalSelectProps>(
-    ({ value, onChange, disabled = false, placeholder, filterFn }, ref) => {
+    ({ value, onChange, disabled = false, placeholder, filterFn, onProfessionalChange }, ref) => {
         const [professionals, setProfessionals] = React.useState<Professional[]>([])
         const [loading, setLoading] = React.useState(false)
         const { setAlert } = useAlert()
@@ -53,8 +56,23 @@ export const ProfessionalSelect = React.forwardRef<HTMLButtonElement, Profession
             fetchProfessionals()
         }, [filterFn])
 
+        // Ao carregar a lista (ou quando o value muda externamente), informa o profissional selecionado.
+        React.useEffect(() => {
+            if (!onProfessionalChange) return
+            const found = professionals.find((p) => p.idUser === value) ?? null
+            onProfessionalChange(found)
+            // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, [professionals, value])
+
+        const handleChange = (idUser: string) => {
+            onChange(idUser)
+            if (onProfessionalChange) {
+                onProfessionalChange(professionals.find((p) => p.idUser === idUser) ?? null)
+            }
+        }
+
         return (
-            <Select onValueChange={onChange} value={value} disabled={disabled || loading}>
+            <Select onValueChange={handleChange} value={value} disabled={disabled || loading}>
                 <SelectTrigger ref={ref}>
                     <SelectValue placeholder={loading ? 'Carregando...' : placeholder || 'Selecione um profissional'} />
                 </SelectTrigger>

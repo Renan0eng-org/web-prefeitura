@@ -17,7 +17,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
-import { Edit, Eye, Filter, MoreVertical, RefreshCcw, Settings2, Trash } from "lucide-react"
+import { Edit, Eye, Filter, MoreHorizontal, Plus, RefreshCcw, RotateCcw, Settings2, Trash } from "lucide-react"
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { DateRange } from 'react-day-picker'
 
@@ -31,7 +31,9 @@ export default function EncaminhamentosTab() {
     const totalPages = Math.max(1, Math.ceil(total / pageSize))
     const [selectedItem, setSelectedItem] = useState<any | null>(null)
     const [isDialogOpen, setIsDialogOpen] = useState(false)
+    const [isNewDialogOpen, setIsNewDialogOpen] = useState(false)
     const [visibleOnly, setVisibleOnly] = useState(false)
+    const [filterDeleted, setFilterDeleted] = useState(false)
     const [visibleColumns, setVisibleColumns] = useState(() => {
         try {
             const raw = localStorage.getItem('encaminhamentos_visible_columns')
@@ -78,6 +80,7 @@ export default function EncaminhamentosTab() {
         createdFrom?: string
         createdTo?: string
         status?: string
+        deleted?: boolean
     }) => {
         try {
             setIsLoading(true)
@@ -92,6 +95,7 @@ export default function EncaminhamentosTab() {
                 if (filters.createdFrom) params.createdFrom = filters.createdFrom
                 if (filters.createdTo) params.createdTo = filters.createdTo
                 if (filters.status) params.status = filters.status
+                if (filters.deleted) params.deleted = 'true'
             }
             const res = await api.get('/appointments/referrals', { params })
             const data = res.data?.data ?? res.data ?? []
@@ -116,7 +120,7 @@ export default function EncaminhamentosTab() {
             setIsLoading(true)
             await api.delete(`/appointments/${id}`)
             setAlert('Encaminhamento excluído com sucesso.', 'success')
-            await fetchItems({ page, pageSize })
+            await fetchItems({ page, pageSize }, buildFilters())
         } catch (err) {
             console.error('Erro ao excluir encaminhamento:', err)
             setAlert('Erro ao excluir encaminhamento.', 'error')
@@ -132,6 +136,20 @@ export default function EncaminhamentosTab() {
         setConfirmOpen(false)
     }
 
+    const restoreItem = async (id: string) => {
+        try {
+            setIsLoading(true)
+            await api.post(`/appointments/${id}/restaurar`)
+            setAlert('Encaminhamento restaurado com sucesso.', 'success')
+            await fetchItems({ page, pageSize }, buildFilters())
+        } catch (err: any) {
+            console.error('Erro ao restaurar encaminhamento:', err)
+            setAlert(err.response?.data?.message || 'Erro ao restaurar encaminhamento.', 'error')
+        } finally {
+            setIsLoading(false)
+        }
+    }
+
     const { getPermissions } = useAuth()
 
     const encaminhamentoPerm = useMemo(() => {
@@ -140,6 +158,17 @@ export default function EncaminhamentosTab() {
     }, [getPermissions])
 
     const didFetchRef = useRef(false)
+
+    const buildFilters = useCallback(() => ({
+        patientName: filterPatientName || undefined,
+        professionalName: filterProfessionalName || undefined,
+        scheduledFrom: filterScheduledDateRange?.from ? filterScheduledDateRange.from.toISOString() : undefined,
+        scheduledTo: filterScheduledDateRange?.to ? filterScheduledDateRange.to.toISOString() : undefined,
+        createdFrom: filterCreatedDateRange?.from ? filterCreatedDateRange.from.toISOString() : undefined,
+        createdTo: filterCreatedDateRange?.to ? filterCreatedDateRange.to.toISOString() : undefined,
+        status: filterStatus || undefined,
+        deleted: filterDeleted,
+    }), [filterPatientName, filterProfessionalName, filterScheduledDateRange, filterCreatedDateRange, filterStatus, filterDeleted])
 
     const applyFilters = useCallback(() => {
         setPage(1)
@@ -163,19 +192,10 @@ export default function EncaminhamentosTab() {
 
     useEffect(() => {
         if (encaminhamentoPerm?.visualizar) {
-            const filters = {
-                patientName: filterPatientName || undefined,
-                professionalName: filterProfessionalName || undefined,
-                scheduledFrom: filterScheduledDateRange?.from ? filterScheduledDateRange.from.toISOString() : undefined,
-                scheduledTo: filterScheduledDateRange?.to ? filterScheduledDateRange.to.toISOString() : undefined,
-                createdFrom: filterCreatedDateRange?.from ? filterCreatedDateRange.from.toISOString() : undefined,
-                createdTo: filterCreatedDateRange?.to ? filterCreatedDateRange.to.toISOString() : undefined,
-                status: filterStatus || undefined,
-            }
-            fetchItems({ page, pageSize }, filters)
+            fetchItems({ page, pageSize }, buildFilters())
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [page, pageSize, filterPatientName, filterProfessionalName, filterScheduledDateRange, filterCreatedDateRange, filterStatus])
+    }, [page, pageSize, filterPatientName, filterProfessionalName, filterScheduledDateRange, filterCreatedDateRange, filterStatus, filterDeleted])
 
     return (
         <div>
@@ -206,6 +226,16 @@ export default function EncaminhamentosTab() {
                         filename="encaminhamentos.xlsx"
                         sheetName="Encaminhamentos"
                     />
+                    {encaminhamentoPerm?.criar && !filterDeleted && (
+                        <Button size="sm" onClick={() => setIsNewDialogOpen(true)}>
+                            <Plus className="h-4 w-4" />
+                            Novo Encaminhamento
+                        </Button>
+                    )}
+                    <Button variant={filterDeleted ? "default" : "outline"} size="sm" onClick={() => { setPage(1); setFilterDeleted(v => !v) }}>
+                        <RotateCcw className="h-4 w-4" />
+                        {filterDeleted ? "Ativos" : "Excluídos"}
+                    </Button>
                     <Button variant="outline" size="sm" onClick={() => setShowFilters(v => !v)}>
                         <Filter className="h-4 w-4" />
                         Filtros
@@ -244,20 +274,20 @@ export default function EncaminhamentosTab() {
                                     }}
                                 >
                                     <div className="flex items-center gap-2">
-                                        <RadioGroupItem value="Pendente" id="status-pending" />
-                                        <Label htmlFor="status-pending">Pendente</Label>
+                                        <RadioGroupItem value="Pendente" id="enc-status-pending" />
+                                        <Label htmlFor="enc-status-pending">Pendente</Label>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <RadioGroupItem value="Confirmado" id="status-confirmed" />
-                                        <Label htmlFor="status-confirmed">Confirmado</Label>
+                                        <RadioGroupItem value="Confirmado" id="enc-status-confirmed" />
+                                        <Label htmlFor="enc-status-confirmed">Confirmado</Label>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <RadioGroupItem value="Cancelado" id="status-cancelled" />
-                                        <Label htmlFor="status-cancelled">Cancelado</Label>
+                                        <RadioGroupItem value="Cancelado" id="enc-status-cancelled" />
+                                        <Label htmlFor="enc-status-cancelled">Cancelado</Label>
                                     </div>
                                     <div className="flex items-center gap-2">
-                                        <RadioGroupItem value="TODOS" id="status-todos" />
-                                        <Label htmlFor="status-todos">Todos</Label>
+                                        <RadioGroupItem value="TODOS" id="enc-status-todos" />
+                                        <Label htmlFor="enc-status-todos">Todos</Label>
                                     </div>
                                 </RadioGroup>
                             </div>
@@ -307,7 +337,7 @@ export default function EncaminhamentosTab() {
                                         {visibleColumns.agendamento && <TableCell>{a.scheduledAt ? new Date(a.scheduledAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</TableCell>}
                                         {visibleColumns.criacao && <TableCell>{a.createdAt ? new Date(a.createdAt).toLocaleString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '—'}</TableCell>}
                                         {visibleColumns.status && <TableCell>
-                                            <Badge variant={a.status === 'CONFIRMED' ? 'secondary' : a.status === 'CANCELLED' ? 'destructive' : 'outline'}>
+                                            <Badge variant={a.status === 'Confirmado' ? 'secondary' : a.status === 'Cancelado' ? 'destructive' : 'outline'}>
                                                 {a.status ?? 'PENDENTE'}
                                             </Badge>
                                         </TableCell>}
@@ -315,12 +345,18 @@ export default function EncaminhamentosTab() {
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
                                                     <Button variant="ghost" size="icon" className="rounded-full">
-                                                        <MoreVertical className="h-4 w-4" />
+                                                        <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
                                                 <DropdownMenuContent align="end">
                                                     <DropdownMenuLabel>Ações</DropdownMenuLabel>
                                                     <DropdownMenuSeparator />
+                                                    {filterDeleted ? (
+                                                        <DropdownMenuItem onSelect={() => setTimeout(() => restoreItem(a.id), 50)}>
+                                                            <RotateCcw className="mr-2 h-4 w-4" />Restaurar
+                                                        </DropdownMenuItem>
+                                                    ) : (
+                                                        <>
                                                     {encaminhamentoPerm?.visualizar && (
                                                         <DropdownMenuItem onClick={() => {
                                                             setSelectedItem(a)
@@ -349,6 +385,8 @@ export default function EncaminhamentosTab() {
                                                             </DropdownMenuItem>
                                                         </>
                                                     )}
+                                                        </>
+                                                    )}
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
                                         </TableCell>}
@@ -357,7 +395,9 @@ export default function EncaminhamentosTab() {
                             )}
                             {items.length === 0 && !isLoading && (
                                 <TableRow>
-                                    <TableCell colSpan={visibleCount} className="text-center text-muted-foreground">Nenhum encaminhamento encontrado.</TableCell>
+                                    <TableCell colSpan={visibleCount} className="text-center text-muted-foreground">
+                                        {filterDeleted ? 'Nenhum encaminhamento excluído encontrado.' : 'Nenhum encaminhamento encontrado.'}
+                                    </TableCell>
                                 </TableRow>
                             )}
                         </TableBody>
@@ -381,6 +421,12 @@ export default function EncaminhamentosTab() {
                             ferrals={true}
                         />
                     )}
+                    <AgendarConsultaDialog
+                        isOpen={isNewDialogOpen}
+                        onOpenChange={(open) => setIsNewDialogOpen(open)}
+                        onScheduled={() => fetchItems({ page, pageSize }, buildFilters())}
+                        ferrals={true}
+                    />
                     <ConfirmDialog
                         open={confirmOpen}
                         title="Excluir Encaminhamento"
@@ -404,4 +450,3 @@ export default function EncaminhamentosTab() {
         </div>
     )
 }
-

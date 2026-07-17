@@ -17,7 +17,8 @@ import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
 import { cn } from "@/lib/utils"
-import { Filter, MoreHorizontal, Plus, RefreshCcw, RotateCcw, Settings2, LogOut, Undo2, UserCheck, Pencil, Trash2 } from "lucide-react"
+import AgendarConsultaDialog from "@/components/appointments/AgendarConsultaDialog"
+import { Calendar, Filter, MoreHorizontal, Plus, RefreshCcw, RotateCcw, Settings2, LogOut, Undo2, UserCheck, Pencil, Trash2 } from "lucide-react"
 import Link from "next/link"
 import * as React from "react"
 import { DateRange } from "react-day-picker"
@@ -117,6 +118,10 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
     const { getPermissions } = useAuth()
 
     const permissions = React.useMemo(() => getPermissions("paciente"), [getPermissions])
+    const agendamentoPerm = React.useMemo(() => getPermissions("agendamentos") ?? getPermissions("agendamento"), [getPermissions])
+
+    const [agendarPatient, setAgendarPatient] = React.useState<any | null>(null)
+    const [isAgendarOpen, setIsAgendarOpen] = React.useState(false)
 
     const fetchPatients = async (opts?: { page?: number; pageSize?: number }) => {
         try {
@@ -572,6 +577,12 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
                                                         <DropdownMenuItem><Pencil className="mr-2 h-4 w-4" />Editar</DropdownMenuItem>
                                                     </Link>
                                                 )}
+                                                {agendamentoPerm?.criar && (
+                                                    <DropdownMenuItem onSelect={() => setTimeout(() => { setAgendarPatient(u); setIsAgendarOpen(true) }, 50)}>
+                                                        <Calendar className="mr-2 h-4 w-4" />
+                                                        Agendar Consulta
+                                                    </DropdownMenuItem>
+                                                )}
                                                 {permissions?.editar && !u.alta && (
                                                     <DropdownMenuItem onSelect={() => setTimeout(() => { setPendingPatient(u); setConfirmOpen(true); setActionType('alta') }, 50)}>
                                                         <LogOut className="mr-2 h-4 w-4" />
@@ -616,6 +627,17 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
                     />
                 </div>
             </div>
+
+            {agendarPatient && (
+                <AgendarConsultaDialog
+                    isOpen={isAgendarOpen}
+                    onOpenChange={(open) => {
+                        setIsAgendarOpen(open)
+                        if (!open) setAgendarPatient(null)
+                    }}
+                    patient={agendarPatient}
+                />
+            )}
 
             <ConfirmDialog
                 open={confirmOpen}

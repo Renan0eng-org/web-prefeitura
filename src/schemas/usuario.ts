@@ -15,6 +15,7 @@ export const userCreateFormSchema = z
     nivelAcessoId: z.string().min(1, "Nível de Acesso é obrigatório."),
     type: z.nativeEnum(EnumUserType),
     active: z.boolean(),
+    locaisAtendimento: z.array(z.string()).optional(),
   })
   .refine((data) => data.password === data.passwordConfirmation, {
     message: "As senhas não coincidem.",
@@ -35,6 +36,7 @@ export const userUpdateFormSchema = z.object({
   nivelAcessoId: z.string().min(1, "Nível de Acesso é obrigatório."),
   type: z.nativeEnum(EnumUserType),
   active: z.boolean(),
+  locaisAtendimento: z.array(z.string()).optional(),
 })
 
   .refine((data) => {

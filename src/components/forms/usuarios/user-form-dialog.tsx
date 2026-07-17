@@ -18,13 +18,14 @@ import {
     FormMessage
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { useAlert } from "@/hooks/use-alert"
 import { userCreateFormSchema, userUpdateFormSchema } from "@/schemas/usuario"
 import api from "@/services/api"
 import { EnumUserType, NivelAcesso, UserComNivel, UserFormData } from "@/types/access-level"
 import { zodResolver } from "@hookform/resolvers/zod"
-import { Loader2 } from "lucide-react"
+import { Loader2, Plus, Trash2 } from "lucide-react"
 import * as React from "react"
 import { useForm } from "react-hook-form"
 import { z } from "zod"
@@ -66,6 +67,7 @@ export function UserFormDialog({
             nivelAcessoId: "1",
             type: EnumUserType.USUARIO,
             active: true,
+            locaisAtendimento: [],
         },
     })
 
@@ -82,6 +84,7 @@ export function UserFormDialog({
                 nivelAcessoId: String(userToEdit.nivel_acesso.idNivelAcesso),
                 type: userToEdit.type,
                 active: userToEdit.active,
+                locaisAtendimento: userToEdit.locaisAtendimento ?? [],
             })
         } else {
             form.reset({
@@ -94,6 +97,7 @@ export function UserFormDialog({
                 nivelAcessoId: "1",
                 type: EnumUserType.USUARIO,
                 active: true,
+                locaisAtendimento: [],
             })
         }
     }, [userToEdit, form, isOpen,])
@@ -107,6 +111,20 @@ export function UserFormDialog({
         }
     }, [form, niveisAcesso, form.watch("type")]);
 
+    const watchType = form.watch("type")
+    const isProfessional = watchType === EnumUserType.MEDICO || watchType === EnumUserType.USUARIO
+    const locais: string[] = (form.watch("locaisAtendimento") as string[] | undefined) ?? []
+
+    const addLocal = () => form.setValue("locaisAtendimento", [...locais, ""])
+    const updateLocal = (index: number, value: string) => {
+        const next = [...locais]
+        next[index] = value
+        form.setValue("locaisAtendimento", next)
+    }
+    const removeLocal = (index: number) => {
+        form.setValue("locaisAtendimento", locais.filter((_, i) => i !== index))
+    }
+
     async function onSubmit(values: z.infer<typeof schema>) {
         setIsSubmitting(true);
 
@@ -114,6 +132,10 @@ export function UserFormDialog({
             ...values,
             nivelAcessoId: parseInt(values.nivelAcessoId, 10),
             cpf: values.cpf ?? "111.111.111-11",
+            // remove locais em branco antes de enviar
+            locaisAtendimento: ((values as any).locaisAtendimento as string[] | undefined ?? [])
+                .map((l) => l.trim())
+                .filter((l) => l.length > 0),
         } as UserFormData;
         delete payload.passwordConfirmation;
 
@@ -278,6 +300,36 @@ export function UserFormDialog({
                                 )}
                             />
                         </div>
+
+                        {isProfessional && (
+                            <div className="space-y-2">
+                                <div className="flex items-center justify-between">
+                                    <Label>Locais de Atendimento</Label>
+                                    <Button type="button" variant="outline" size="sm" onClick={addLocal}>
+                                        <Plus className="h-4 w-4" />
+                                        Adicionar
+                                    </Button>
+                                </div>
+                                <p className="text-xs text-muted-foreground">
+                                    Unidades/endereços onde o profissional atende. Ficam disponíveis ao agendar uma consulta presencial.
+                                </p>
+                                {locais.length === 0 && (
+                                    <p className="text-sm text-muted-foreground">Nenhum local cadastrado.</p>
+                                )}
+                                {locais.map((local, index) => (
+                                    <div key={index} className="flex items-center gap-2">
+                                        <Input
+                                            value={local}
+                                            onChange={(e) => updateLocal(index, e.target.value)}
+                                            placeholder="Ex.: UBS Central - Rua X, 123"
+                                        />
+                                        <Button type="button" variant="ghost" size="icon" onClick={() => removeLocal(index)}>
+                                            <Trash2 className="h-4 w-4 text-destructive" />
+                                        </Button>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
                         <DialogFooter>
                             <Button type="button" variant="ghost" onClick={() => handleOpenChange(false)} disabled={isSubmitting}>

@@ -46,6 +46,31 @@ const sameDay = (a: Date, b: Date) => a.getFullYear() === b.getFullYear() && a.g
 const hourFloat = (iso: string) => { const d = new Date(iso); return d.getHours() + d.getMinutes() / 60 }
 const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })
 
+// --- Interações de arraste no calendário ---
+const SNAP_MIN = 15
+const MAX_MIN = (END_HOUR - START_HOUR) * 60
+const clampMin = (m: number) => Math.max(0, Math.min(MAX_MIN, m))
+const snapMin = (m: number) => Math.round(m / SNAP_MIN) * SNAP_MIN
+const minToTime = (m: number) => `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`
+const startMinOf = (iso: string) => { const d = new Date(iso); return d.getHours() * 60 + d.getMinutes() }
+const isoAt = (day: Date, min: number) => new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.floor(min / 60), min % 60, 0).toISOString()
+const dateInput = (day: Date) => `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`
+const isEditableStatus = (s: Status) => s === "Aberto" || s === "Agendado"
+
+type DragKind = "create" | "move" | "duplicate" | "resize-top" | "resize-bottom"
+type DragState = {
+    kind: DragKind
+    plantao?: Plantao
+    originDay: number
+    anchorMin: number      // create: min do pointerdown | move/resize: início original
+    durationMin: number    // move/duplicate: duração do evento
+    grabOffsetMin: number  // move/duplicate: (min do ponteiro - início) no momento do grab
+    curDay: number
+    curStartMin: number
+    curEndMin: number
+    moved: boolean
+}
+
 export default function EscalaPage() {
     const [weekStart, setWeekStart] = React.useState(() => startOfWeek(new Date()))
     const [plantoes, setPlantoes] = React.useState<Plantao[]>([])
@@ -59,6 +84,12 @@ export default function EscalaPage() {
 
     const [detail, setDetail] = React.useState<Plantao | null>(null)
     const [showDeleted, setShowDeleted] = React.useState(false)
+
+    // Grade de interação (arraste para criar/mover/redimensionar/duplicar).
+    const gridRef = React.useRef<HTMLDivElement | null>(null)
+    const [drag, setDrag] = React.useState<DragState | null>(null)
+    const dragRef = React.useRef<DragState | null>(null)
+    const setDragState = (d: DragState | null) => { dragRef.current = d; setDrag(d) }
 
     const { setAlert } = useAlert()
     const { getPermissions, user } = useAuth()
@@ -98,6 +129,114 @@ export default function EscalaPage() {
         if (canView) fetchData()
         else setIsLoading(false)
     }, [canView, fetchData])
+
+    // Permissões das interações de calendário.
+    const canCreateShift = !!escalaAdminPerm?.criar && !showDeleted
+    const canEditShift = !!escalaAdminPerm?.editar && !showDeleted
+
+    const pointerToGrid = (clientX: number, clientY: number) => {
+        const rect = gridRef.current?.getBoundingClientRect()
+        if (!rect) return { day: 0, min: 0 }
+        const colW = rect.width / 7
+        const day = Math.max(0, Math.min(6, Math.floor((clientX - rect.left) / colW)))
+        const min = clampMin(snapMin(((clientY - rect.top) / HOUR_PX) * 60))
+        return { day, min }
+    }
+
+    // Arrastar em área vazia -> criar plantão (abre modal com o horário selecionado).
+    const startCreateDrag = (e: React.PointerEvent) => {
+        if (!canCreateShift || e.button !== 0) return
+        if ((e.target as HTMLElement).closest("[data-plantao]")) return
+        const { day, min } = pointerToGrid(e.clientX, e.clientY)
+        setDragState({ kind: "create", originDay: day, anchorMin: min, durationMin: 0, grabOffsetMin: 0, curDay: day, curStartMin: min, curEndMin: min, moved: false })
+    }
+
+    // Arrastar o corpo do evento -> mover (ou duplicar com Alt).
+    const startEventDrag = (e: React.PointerEvent, p: Plantao, di: number) => {
+        if (!canEditShift || !isEditableStatus(p.status) || e.button !== 0) return
+        e.stopPropagation()
+        const { min } = pointerToGrid(e.clientX, e.clientY)
+        const s = startMinOf(p.startsAt), en = startMinOf(p.endsAt)
+        const duplicate = e.altKey && !!escalaAdminPerm?.criar
+        setDragState({ kind: duplicate ? "duplicate" : "move", plantao: p, originDay: di, anchorMin: s, durationMin: en - s, grabOffsetMin: min - s, curDay: di, curStartMin: s, curEndMin: en, moved: false })
+    }
+
+    // Arrastar as bordas -> redimensionar o tempo.
+    const startResizeDrag = (e: React.PointerEvent, p: Plantao, di: number, edge: "top" | "bottom") => {
+        if (!canEditShift || !isEditableStatus(p.status) || e.button !== 0) return
+        e.stopPropagation()
+        const s = startMinOf(p.startsAt), en = startMinOf(p.endsAt)
+        setDragState({ kind: edge === "top" ? "resize-top" : "resize-bottom", plantao: p, originDay: di, anchorMin: s, durationMin: en - s, grabOffsetMin: 0, curDay: di, curStartMin: s, curEndMin: en, moved: false })
+    }
+
+    // Listeners globais durante um arraste (move + up).
+    React.useEffect(() => {
+        const onMove = (e: PointerEvent) => {
+            const d = dragRef.current
+            if (!d) return
+            e.preventDefault()
+            const rect = gridRef.current?.getBoundingClientRect()
+            if (!rect) return
+            const colW = rect.width / 7
+            const day = Math.max(0, Math.min(6, Math.floor((e.clientX - rect.left) / colW)))
+            const min = clampMin(snapMin(((e.clientY - rect.top) / HOUR_PX) * 60))
+            let next: DragState
+            if (d.kind === "create") {
+                next = { ...d, curDay: d.originDay, curStartMin: Math.min(d.anchorMin, min), curEndMin: Math.max(d.anchorMin, min), moved: Math.abs(min - d.anchorMin) >= SNAP_MIN }
+            } else if (d.kind === "move" || d.kind === "duplicate") {
+                const ns = Math.max(0, Math.min(clampMin(min - d.grabOffsetMin), MAX_MIN - d.durationMin))
+                next = { ...d, curDay: day, curStartMin: ns, curEndMin: ns + d.durationMin, moved: d.moved || day !== d.originDay || Math.abs(ns - d.anchorMin) >= SNAP_MIN }
+            } else if (d.kind === "resize-top") {
+                next = { ...d, curStartMin: Math.max(0, Math.min(min, d.curEndMin - SNAP_MIN)), moved: true }
+            } else {
+                next = { ...d, curEndMin: Math.min(MAX_MIN, Math.max(min, d.curStartMin + SNAP_MIN)), moved: true }
+            }
+            dragRef.current = next
+            setDrag(next)
+        }
+        const finalizeDrag = async (d: DragState) => {
+            if (!d.moved) {
+                // Clique simples (sem arraste): abre o detalhe.
+                if ((d.kind === "move" || d.kind === "duplicate") && d.plantao) setDetail(d.plantao)
+                return
+            }
+            if (d.kind === "create") {
+                setForm({ open: false, doctorId: "", setor: "Triagem", date: dateInput(days[d.originDay]), start: minToTime(d.curStartMin), end: minToTime(d.curEndMin) })
+                setCreateOpen(true)
+                return
+            }
+            const startsAt = isoAt(days[d.curDay], d.curStartMin)
+            const endsAt = isoAt(days[d.curDay], d.curEndMin)
+            try {
+                if (d.plantao) setBusy(d.plantao.id)
+                if (d.kind === "duplicate" && d.plantao) {
+                    await api.post("/admin/escala", { doctorId: d.plantao.doctorId || undefined, setor: d.plantao.setor, startsAt, endsAt })
+                    setAlert("Plantão duplicado!", "success")
+                } else if (d.plantao) {
+                    await api.put(`/admin/escala/${d.plantao.id}`, { startsAt, endsAt })
+                    setAlert("Plantão atualizado!", "success")
+                }
+                await fetchData()
+            } catch (err: any) {
+                setAlert(err.response?.data?.message || "Erro ao salvar o plantão.", "error")
+            } finally {
+                setBusy(null)
+            }
+        }
+        const onUp = () => {
+            const d = dragRef.current
+            if (!d) return
+            dragRef.current = null
+            setDrag(null)
+            void finalizeDrag(d)
+        }
+        window.addEventListener("pointermove", onMove)
+        window.addEventListener("pointerup", onUp)
+        return () => {
+            window.removeEventListener("pointermove", onMove)
+            window.removeEventListener("pointerup", onUp)
+        }
+    }, [days, fetchData, setAlert])
 
     const doAction = async (id: string, path: string) => {
         setBusy(id)
@@ -212,13 +351,18 @@ export default function EscalaPage() {
             )}
 
             {/* Legenda */}
-            <div className="flex flex-wrap gap-3 mb-3 text-xs">
+            <div className="flex flex-wrap gap-3 mb-2 text-xs">
                 {(Object.keys(STATUS_STYLE) as Status[]).map(s => (
                     <span key={s} className="flex items-center gap-1.5 text-muted-foreground">
                         <span className={`h-2.5 w-2.5 rounded-sm ${STATUS_STYLE[s].dot}`} />{STATUS_STYLE[s].label}
                     </span>
                 ))}
             </div>
+            {(canCreateShift || canEditShift) && (
+                <p className="text-xs text-muted-foreground mb-3">
+                    Arraste em um espaço livre para criar um plantão. Arraste um plantão pelo meio para movê-lo de dia/horário, pelas bordas para esticar ou encurtar, e segure <kbd className="px-1 rounded border bg-muted">Alt</kbd> ao arrastar para duplicar.
+                </p>
+            )}
 
             {/* Calendário */}
             <div className="rounded-xl border bg-card overflow-hidden">
@@ -239,7 +383,7 @@ export default function EscalaPage() {
                         </div>
 
                         {/* corpo */}
-                        <div className="flex" style={{ height: (END_HOUR - START_HOUR) * HOUR_PX }}>
+                        <div className={`flex ${drag ? "select-none" : ""}`} style={{ height: (END_HOUR - START_HOUR) * HOUR_PX }}>
                             {/* gutter de horas */}
                             <div className="w-14 shrink-0 relative">
                                 {hours.map((h, i) => (
@@ -249,12 +393,13 @@ export default function EscalaPage() {
                                 ))}
                             </div>
 
-                            {/* colunas dos dias */}
+                            {/* grade dos dias (área de interação por arraste) */}
+                            <div ref={gridRef} className="flex flex-1 relative" onPointerDown={startCreateDrag}>
                             {days.map((d, di) => {
                                 const eventos = plantoes.filter(p => sameDay(new Date(p.startsAt), d))
                                 const today = sameDay(d, now)
                                 return (
-                                    <div key={di} className="flex-1 relative border-l"
+                                    <div key={di} className={`flex-1 relative border-l ${canCreateShift ? "cursor-crosshair" : ""}`}
                                         style={{ backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR_PX - 1}px, var(--border, #e5e7eb) ${HOUR_PX - 1}px, var(--border, #e5e7eb) ${HOUR_PX}px)` }}>
                                         {today && nowTop >= 0 && nowTop <= (END_HOUR - START_HOUR) * HOUR_PX && (
                                             <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top: nowTop }}>
@@ -264,8 +409,26 @@ export default function EscalaPage() {
                                         {eventos.map(p => {
                                             const st = eventStyle(p)
                                             const style = STATUS_STYLE[p.status]
+                                            const interactive = canEditShift && isEditableStatus(p.status)
+                                            const dimmed = !!drag && drag.plantao?.id === p.id && drag.kind !== "duplicate"
+                                            if (interactive) {
+                                                return (
+                                                    <div key={p.id} data-plantao
+                                                        className={`absolute left-0.5 right-0.5 z-10 rounded-md overflow-hidden shadow-sm hover:shadow transition ${style.box} ${dimmed ? "opacity-30" : ""}`}
+                                                        style={{ top: st.top, height: st.height, cursor: "grab" }}
+                                                        onPointerDown={(e) => startEventDrag(e, p, di)}
+                                                        title="Arraste para mover · bordas p/ redimensionar · Alt p/ duplicar">
+                                                        <div className="absolute top-0 left-0 right-0 h-2 z-20 cursor-ns-resize" onPointerDown={(e) => startResizeDrag(e, p, di, "top")} />
+                                                        <div className="px-1.5 py-1 pointer-events-none">
+                                                            <div className="text-[11px] font-semibold leading-tight truncate">{p.doctor?.name || style.label}</div>
+                                                            <div className="text-[10px] leading-tight truncate opacity-80">{p.setor} · {fmtTime(p.startsAt)}–{fmtTime(p.endsAt)}</div>
+                                                        </div>
+                                                        <div className="absolute bottom-0 left-0 right-0 h-2 z-20 cursor-ns-resize" onPointerDown={(e) => startResizeDrag(e, p, di, "bottom")} />
+                                                    </div>
+                                                )
+                                            }
                                             return (
-                                                <button key={p.id} onClick={() => setDetail(p)}
+                                                <button key={p.id} data-plantao onClick={() => setDetail(p)}
                                                     className={`absolute left-0.5 right-0.5 z-10 rounded-md px-1.5 py-1 text-left overflow-hidden shadow-sm hover:shadow transition ${style.box}`}
                                                     style={{ top: st.top, height: st.height }}>
                                                     <div className="text-[11px] font-semibold leading-tight truncate">{p.doctor?.name || style.label}</div>
@@ -273,9 +436,19 @@ export default function EscalaPage() {
                                                 </button>
                                             )
                                         })}
+                                        {/* preview do arraste (criar/mover/redimensionar/duplicar) */}
+                                        {drag && drag.curDay === di && (
+                                            <div className="absolute left-0.5 right-0.5 z-30 rounded-md border-2 border-dashed border-primary bg-primary/10 pointer-events-none"
+                                                style={{ top: (drag.curStartMin / 60) * HOUR_PX, height: Math.max(14, ((drag.curEndMin - drag.curStartMin) / 60) * HOUR_PX) }}>
+                                                <div className="text-[10px] px-1 text-primary font-semibold leading-tight">
+                                                    {minToTime(drag.curStartMin)}–{minToTime(drag.curEndMin)}{drag.kind === "duplicate" ? " (cópia)" : ""}
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )
                             })}
+                            </div>
                         </div>
                     </div>
                 </div>

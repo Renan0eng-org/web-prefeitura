@@ -30,7 +30,7 @@ const config: Config = {
     		},
     		colors: {
     			background: {
-    				DEFAULT: '#E6E6E6',
+    				DEFAULT: 'hsl(var(--background))',
     				foreground: '#eeeeee',
     				background: '#515151',
     				white: '#FFFFFF',
@@ -41,7 +41,7 @@ const config: Config = {
     			},
     			foreground: 'hsl(var(--foreground))',
     			card: {
-    				DEFAULT: '#eeeeee',
+    				DEFAULT: 'hsl(var(--card))',
     				foreground: 'hsl(var(--card-foreground))'
     			},
     			popover: {
@@ -144,12 +144,12 @@ const config: Config = {
     				foreground: 'hsl(var(--destructive-foreground))'
     			},
     			text: {
-    				DEFAULT: '#000000',
-    				foreground: '#1A1A1A'
+    				DEFAULT: 'hsl(var(--foreground))',
+    				foreground: 'hsl(var(--muted-foreground))'
     			},
     			border: 'hsl(var(--border))',
     			input: {
-    				DEFAULT: '#979797',
+    				DEFAULT: 'hsl(var(--input))',
     				background: '#E6E6E6',
     				border: '#979797'
     			},

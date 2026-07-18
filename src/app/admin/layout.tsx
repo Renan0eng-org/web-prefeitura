@@ -12,9 +12,11 @@ import {
   SidebarProvider,
   SidebarTrigger,
 } from "@/components/ui/sidebar";
+import { ThemeToggle } from "@/components/theme-toggle";
 import { AlertProvider } from "@/hooks/use-alert";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ChatProvider } from "@/hooks/use-chat";
+import { PinnedPlantaoProvider } from "@/hooks/use-pinned-plantao";
 
 export default async function RootLayout({
   children,
@@ -27,6 +29,7 @@ export default async function RootLayout({
       <AlertProvider>
         <AuthProvider>
           <ChatProvider>
+            <PinnedPlantaoProvider>
             <GlobalAlert />
             <SidebarProvider>
               <AppSidebar />
@@ -48,6 +51,9 @@ export default async function RootLayout({
                       <Separator orientation="vertical" className="mr-2 h-4" />
                       <BreadcrumbDynamic />
                     </div>
+                    <div className="ml-auto flex items-center">
+                      <ThemeToggle />
+                    </div>
                   </div>
                 </header>
                 <div className="w-full h-[calc(100vh-56px-64px)] md:h-[calc(100vh-84px)] overflow-auto scrollable">
@@ -58,6 +64,7 @@ export default async function RootLayout({
             </SidebarProvider>
             <ChatFloatButton />
             <ChatSidebar />
+            </PinnedPlantaoProvider>
           </ChatProvider>
         </AuthProvider>
       </AlertProvider>

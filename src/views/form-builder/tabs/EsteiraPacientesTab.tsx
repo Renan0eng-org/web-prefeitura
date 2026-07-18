@@ -268,7 +268,7 @@ export default function EsteiraPacientesTab() {
                         {visibleColumnsEsteira.actions && <TableHead className="text-center">Ações</TableHead>}
                     </TableRow>
                 </TableHeader>
-                <TableBody className="bg-white/40">
+                <TableBody className="bg-card/40">
                     {isLoading ? (
                             Array.from({ length: 5 }).map((_, i) => (
                             <TableRow key={`skel-${i}`}>

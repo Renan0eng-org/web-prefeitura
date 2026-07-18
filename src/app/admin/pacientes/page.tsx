@@ -494,7 +494,7 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
 
             <div className="rounded-lg overflow-hidden border">
                 <div className="overflow-x-auto scrollable">
-                    <Table className="bg-white/40 min-w-[800px]">
+                    <Table className="bg-card/40 min-w-[800px]">
                     <TableHeader className="bg-muted sticky top-0 z-10">
                         <TableRow>
                             {columns.name && <TableHead>Nome</TableHead>}
@@ -513,7 +513,7 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
                         </TableRow>
                     </TableHeader>
                     {loaderRefresh ?
-                        <TableBody className="bg-white">
+                        <TableBody className="bg-card">
                             {Array.from({ length: 6 }).map((_, i) => (
                                 <TableRow key={`skeleton-${i}`}>
                                     {columns.name && <TableCell><Skeleton className="h-4 w-40" /></TableCell>}
@@ -532,7 +532,7 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
                                 </TableRow>
                             ))}
                         </TableBody>
-                    :<TableBody className="bg-white">
+                    :<TableBody className="bg-card">
                             {paged.map((u) => (
                                 <TableRow key={u.idUser}>
                                     {columns.name && <TableCell>

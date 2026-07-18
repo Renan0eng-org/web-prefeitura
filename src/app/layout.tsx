@@ -1,4 +1,5 @@
 import { ServiceWorkerRegister } from '@/components/serviceWorkerRegister';
+import { ThemeProvider } from '@/components/theme-provider';
 import { Nunito } from '@next/font/google';
 import { Analytics } from "@vercel/analytics/react";
 import type { Metadata } from "next";
@@ -21,14 +22,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" suppressHydrationWarning>
       <head>
         <link rel="manifest" href="/manifest.json" />
       </head>
       <body className={`${nunito.className} antialiased`}>
-        <ServiceWorkerRegister />
-        {children}
-        <Analytics />
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+          <ServiceWorkerRegister />
+          {children}
+          <Analytics />
+        </ThemeProvider>
       </body>
     </html>
   );

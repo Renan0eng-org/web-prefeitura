@@ -8,10 +8,13 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
+import { PlantaoTimeline, TimelineIcon, type PlantaoEvent } from "@/components/escala/plantao-timeline"
 import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
+import { useEscalaRealtime } from "@/hooks/use-escala-realtime"
+import { usePinnedPlantao } from "@/hooks/use-pinned-plantao"
 import api from "@/services/api"
-import { CalendarDays, ChevronLeft, ChevronRight, HandHelping, Loader2, LogIn, LogOut, PlusCircle, Trash2, Undo2 } from "lucide-react"
+import { CalendarDays, ChevronLeft, ChevronRight, HandHelping, Loader2, LogIn, LogOut, Pencil, Pin, PlusCircle, Trash2, Undo2 } from "lucide-react"
 import * as React from "react"
 
 type Status = "Aberto" | "Agendado" | "EmAndamento" | "Concluido" | "Cancelado"
@@ -48,6 +51,10 @@ const fmtTime = (iso: string) => new Date(iso).toLocaleTimeString("pt-BR", { hou
 
 // --- Interações de arraste no calendário ---
 const SNAP_MIN = 15
+// No touch, exige um "toque e segure" (long press) para iniciar a interação —
+// assim o toque normal continua rolando a tela e só o long press inicia o arraste.
+const LONG_PRESS_MS = 320
+const LONG_PRESS_MOVE_TOL = 12 // px: se o dedo mover mais que isso antes do long press, é scroll
 const MAX_MIN = (END_HOUR - START_HOUR) * 60
 const clampMin = (m: number) => Math.max(0, Math.min(MAX_MIN, m))
 const snapMin = (m: number) => Math.round(m / SNAP_MIN) * SNAP_MIN
@@ -82,14 +89,26 @@ export default function EscalaPage() {
     const [form, setForm] = React.useState({ open: false, doctorId: "", setor: "Triagem", date: "", start: "07:00", end: "13:00" })
     const [saving, setSaving] = React.useState(false)
 
+    const [editOpen, setEditOpen] = React.useState(false)
+    const [editForm, setEditForm] = React.useState({ id: "", open: false, doctorId: "", setor: "Triagem", date: "", start: "07:00", end: "13:00" })
+    const [savingEdit, setSavingEdit] = React.useState(false)
+
     const [detail, setDetail] = React.useState<Plantao | null>(null)
     const [showDeleted, setShowDeleted] = React.useState(false)
+
+    // Histórico (timeline) do plantão selecionado.
+    const [history, setHistory] = React.useState<PlantaoEvent[]>([])
+    const [loadingHistory, setLoadingHistory] = React.useState(false)
+    const historyScrollRef = React.useRef<HTMLDivElement | null>(null)
 
     // Grade de interação (arraste para criar/mover/redimensionar/duplicar).
     const gridRef = React.useRef<HTMLDivElement | null>(null)
     const [drag, setDrag] = React.useState<DragState | null>(null)
     const dragRef = React.useRef<DragState | null>(null)
     const setDragState = (d: DragState | null) => { dragRef.current = d; setDrag(d) }
+    // Long-press pendente (touch): guarda a interação até o toque ser mantido.
+    const pendingRef = React.useRef<{ desc: DragState; startX: number; startY: number; timer: number } | null>(null)
+    const [longPressing, setLongPressing] = React.useState(false)
 
     const { setAlert } = useAlert()
     const { getPermissions, user } = useAuth()
@@ -130,6 +149,38 @@ export default function EscalaPage() {
         else setIsLoading(false)
     }, [canView, fetchData])
 
+    const { pin } = usePinnedPlantao()
+
+    const loadHistory = React.useCallback(async (plantaoId: string, showLoader = false) => {
+        if (showLoader) setLoadingHistory(true)
+        try {
+            const res = await api.get(`/admin/escala/${plantaoId}/historico`)
+            setHistory(Array.isArray(res.data) ? res.data : [])
+        } catch {
+            setHistory([])
+        } finally {
+            setLoadingHistory(false)
+        }
+    }, [])
+
+    // Atualização em tempo real: refaz a lista e, se o detalhe estiver aberto, seu histórico.
+    const liveConnected = useEscalaRealtime(() => {
+        fetchData()
+        if (detail?.id) loadHistory(detail.id)
+    }, canView)
+
+    // Carrega a timeline de histórico ao abrir o detalhe de um plantão.
+    React.useEffect(() => {
+        if (!detail?.id) { setHistory([]); return }
+        loadHistory(detail.id, true)
+    }, [detail?.id, loadHistory])
+
+    // Mantém a visão no evento mais recente (rola para o fim ao mudar o histórico).
+    React.useEffect(() => {
+        const el = historyScrollRef.current
+        if (el) requestAnimationFrame(() => el.scrollTo({ top: el.scrollHeight, behavior: "smooth" }))
+    }, [history])
+
     // Permissões das interações de calendário.
     const canCreateShift = !!escalaAdminPerm?.criar && !showDeleted
     const canEditShift = !!escalaAdminPerm?.editar && !showDeleted
@@ -143,12 +194,33 @@ export default function EscalaPage() {
         return { day, min }
     }
 
+    const clearPending = () => {
+        if (pendingRef.current) { clearTimeout(pendingRef.current.timer); pendingRef.current = null }
+        setLongPressing(false)
+    }
+
+    // Mouse: inicia na hora. Touch/caneta: exige long-press (evita conflito com o scroll).
+    const beginInteraction = (e: React.PointerEvent, desc: DragState) => {
+        if (e.pointerType === "mouse") {
+            setDragState(desc)
+            return
+        }
+        const timer = window.setTimeout(() => {
+            pendingRef.current = null
+            setLongPressing(false)
+            setDragState(desc)
+            if (typeof navigator !== "undefined" && navigator.vibrate) navigator.vibrate(15)
+        }, LONG_PRESS_MS)
+        pendingRef.current = { desc, startX: e.clientX, startY: e.clientY, timer }
+        setLongPressing(true)
+    }
+
     // Arrastar em área vazia -> criar plantão (abre modal com o horário selecionado).
     const startCreateDrag = (e: React.PointerEvent) => {
         if (!canCreateShift || e.button !== 0) return
         if ((e.target as HTMLElement).closest("[data-plantao]")) return
         const { day, min } = pointerToGrid(e.clientX, e.clientY)
-        setDragState({ kind: "create", originDay: day, anchorMin: min, durationMin: 0, grabOffsetMin: 0, curDay: day, curStartMin: min, curEndMin: min, moved: false })
+        beginInteraction(e, { kind: "create", originDay: day, anchorMin: min, durationMin: 0, grabOffsetMin: 0, curDay: day, curStartMin: min, curEndMin: min, moved: false })
     }
 
     // Arrastar o corpo do evento -> mover (ou duplicar com Alt).
@@ -158,7 +230,7 @@ export default function EscalaPage() {
         const { min } = pointerToGrid(e.clientX, e.clientY)
         const s = startMinOf(p.startsAt), en = startMinOf(p.endsAt)
         const duplicate = e.altKey && !!escalaAdminPerm?.criar
-        setDragState({ kind: duplicate ? "duplicate" : "move", plantao: p, originDay: di, anchorMin: s, durationMin: en - s, grabOffsetMin: min - s, curDay: di, curStartMin: s, curEndMin: en, moved: false })
+        beginInteraction(e, { kind: duplicate ? "duplicate" : "move", plantao: p, originDay: di, anchorMin: s, durationMin: en - s, grabOffsetMin: min - s, curDay: di, curStartMin: s, curEndMin: en, moved: false })
     }
 
     // Arrastar as bordas -> redimensionar o tempo.
@@ -166,12 +238,19 @@ export default function EscalaPage() {
         if (!canEditShift || !isEditableStatus(p.status) || e.button !== 0) return
         e.stopPropagation()
         const s = startMinOf(p.startsAt), en = startMinOf(p.endsAt)
-        setDragState({ kind: edge === "top" ? "resize-top" : "resize-bottom", plantao: p, originDay: di, anchorMin: s, durationMin: en - s, grabOffsetMin: 0, curDay: di, curStartMin: s, curEndMin: en, moved: false })
+        beginInteraction(e, { kind: edge === "top" ? "resize-top" : "resize-bottom", plantao: p, originDay: di, anchorMin: s, durationMin: en - s, grabOffsetMin: 0, curDay: di, curStartMin: s, curEndMin: en, moved: false })
     }
 
     // Listeners globais durante um arraste (move + up).
     React.useEffect(() => {
         const onMove = (e: PointerEvent) => {
+            // Long-press pendente: se o dedo mover antes de ativar, é scroll → cancela.
+            if (pendingRef.current) {
+                const dx = e.clientX - pendingRef.current.startX
+                const dy = e.clientY - pendingRef.current.startY
+                if (Math.hypot(dx, dy) > LONG_PRESS_MOVE_TOL) clearPending()
+                return
+            }
             const d = dragRef.current
             if (!d) return
             e.preventDefault()
@@ -224,17 +303,30 @@ export default function EscalaPage() {
             }
         }
         const onUp = () => {
+            // Toque solto antes do long-press ativar: trata como toque simples.
+            if (pendingRef.current) {
+                const desc = pendingRef.current.desc
+                clearPending()
+                if ((desc.kind === "move" || desc.kind === "duplicate") && desc.plantao) setDetail(desc.plantao)
+                return
+            }
             const d = dragRef.current
             if (!d) return
             dragRef.current = null
             setDrag(null)
             void finalizeDrag(d)
         }
+        // Bloqueia o scroll do navegador apenas enquanto há um arraste ativo.
+        const onTouchMove = (e: TouchEvent) => { if (dragRef.current) e.preventDefault() }
         window.addEventListener("pointermove", onMove)
         window.addEventListener("pointerup", onUp)
+        window.addEventListener("pointercancel", onUp)
+        window.addEventListener("touchmove", onTouchMove, { passive: false })
         return () => {
             window.removeEventListener("pointermove", onMove)
             window.removeEventListener("pointerup", onUp)
+            window.removeEventListener("pointercancel", onUp)
+            window.removeEventListener("touchmove", onTouchMove)
         }
     }, [days, fetchData, setAlert])
 
@@ -261,6 +353,35 @@ export default function EscalaPage() {
             setAlert(err.response?.data?.message || "Erro ao remover.", "error")
         } finally {
             setBusy(null)
+        }
+    }
+
+    const openEdit = (p: Plantao) => {
+        const s = new Date(p.startsAt), e = new Date(p.endsAt)
+        const hhmm = (d: Date) => `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`
+        setEditForm({ id: p.id, open: !p.doctorId, doctorId: p.doctorId || "", setor: p.setor, date: dateInput(s), start: hhmm(s), end: hhmm(e) })
+        setDetail(null)
+        setEditOpen(true)
+    }
+
+    const handleEdit = async () => {
+        if (!editForm.open && !editForm.doctorId) return setAlert("Selecione o médico ou deixe em aberto.", "error")
+        if (!editForm.date) return setAlert("Selecione a data.", "error")
+        setSavingEdit(true)
+        try {
+            const startsAt = new Date(`${editForm.date}T${editForm.start}:00`).toISOString()
+            const endsAt = new Date(`${editForm.date}T${editForm.end}:00`).toISOString()
+            await api.put(`/admin/escala/${editForm.id}`, {
+                doctorId: editForm.open ? "" : editForm.doctorId,
+                setor: editForm.setor, startsAt, endsAt,
+            })
+            setAlert("Plantão atualizado!", "success")
+            setEditOpen(false)
+            fetchData()
+        } catch (err: any) {
+            setAlert(err.response?.data?.message || "Erro ao editar plantão.", "error")
+        } finally {
+            setSavingEdit(false)
         }
     }
 
@@ -312,6 +433,13 @@ export default function EscalaPage() {
                 <div className="flex items-center gap-3">
                     <CalendarDays className="h-6 w-6 text-primary" />
                     <h1 className="text-xl sm:text-2xl font-bold tracking-tight">Escala de Plantão</h1>
+                    <span
+                        className={`flex items-center gap-1.5 text-[11px] font-medium ${liveConnected ? "text-emerald-600" : "text-muted-foreground"}`}
+                        title={liveConnected ? "Atualizando em tempo real" : "Sem conexão em tempo real"}
+                    >
+                        <span className={`h-2 w-2 rounded-full ${liveConnected ? "bg-emerald-500 animate-pulse" : "bg-muted-foreground/40"}`} />
+                        {liveConnected ? "Ao vivo" : "Offline"}
+                    </span>
                 </div>
                 <div className="flex items-center gap-2 flex-wrap">
                     <Button variant="outline" size="sm" onClick={() => setWeekStart(startOfWeek(new Date()))}>Hoje</Button>
@@ -360,7 +488,7 @@ export default function EscalaPage() {
             </div>
             {(canCreateShift || canEditShift) && (
                 <p className="text-xs text-muted-foreground mb-3">
-                    Arraste em um espaço livre para criar um plantão. Arraste um plantão pelo meio para movê-lo de dia/horário, pelas bordas para esticar ou encurtar, e segure <kbd className="px-1 rounded border bg-muted">Alt</kbd> ao arrastar para duplicar.
+                    Arraste em um espaço livre para criar um plantão. Arraste um plantão pelo meio para movê-lo de dia/horário, pelas bordas para esticar ou encurtar, e segure <kbd className="px-1 rounded border bg-muted">Alt</kbd> ao arrastar para duplicar. No celular, <strong>toque e segure</strong> para começar a criar ou editar (o toque comum continua rolando a tela).
                 </p>
             )}
 
@@ -394,7 +522,7 @@ export default function EscalaPage() {
                             </div>
 
                             {/* grade dos dias (área de interação por arraste) */}
-                            <div ref={gridRef} className="flex flex-1 relative" onPointerDown={startCreateDrag}>
+                            <div ref={gridRef} className={`flex flex-1 relative transition ${longPressing ? "ring-2 ring-inset ring-primary/50" : ""}`} onPointerDown={startCreateDrag}>
                             {days.map((d, di) => {
                                 const eventos = plantoes.filter(p => sameDay(new Date(p.startsAt), d))
                                 const today = sameDay(d, now)
@@ -456,10 +584,21 @@ export default function EscalaPage() {
 
             {/* Dialog de detalhe/ações */}
             <Dialog open={!!detail} onOpenChange={(o) => { if (!o) setDetail(null) }}>
-                <DialogContent>
+                <DialogContent className="max-h-[88vh] !flex flex-col overflow-hidden gap-0">
                     {detail && (
                         <>
-                            <DialogHeader>
+                            {/* Fixar como card flutuante (ao lado do X) */}
+                            <button
+                                type="button"
+                                onClick={() => { pin(detail.id); setDetail(null) }}
+                                className="absolute right-11 top-4 rounded-sm opacity-70 hover:opacity-100 transition-opacity z-10"
+                                title="Fixar na tela (card flutuante)"
+                                aria-label="Fixar na tela"
+                            >
+                                <Pin className="h-4 w-4" />
+                            </button>
+                            {/* Header fixo */}
+                            <DialogHeader className="shrink-0">
                                 <DialogTitle className="flex items-center gap-2">
                                     <span className={`h-3 w-3 rounded-sm ${STATUS_STYLE[detail.status].dot}`} />
                                     {detail.doctor?.name || "Plantão disponível"}
@@ -468,11 +607,29 @@ export default function EscalaPage() {
                                     {detail.setor} · {new Date(detail.startsAt).toLocaleDateString("pt-BR", { weekday: "long", day: "2-digit", month: "long" })} · {fmtTime(detail.startsAt)}–{fmtTime(detail.endsAt)}
                                 </DialogDescription>
                             </DialogHeader>
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 shrink-0 mt-3">
                                 <Badge variant="outline">{STATUS_STYLE[detail.status].label}</Badge>
                                 {detail.doctor?.especialidade && <span className="text-sm text-muted-foreground">{detail.doctor.especialidade}</span>}
                             </div>
-                            <DialogFooter className="flex-wrap gap-2">
+
+                            {/* Histórico / timeline — meio scrollável */}
+                            <div className="flex-1 min-h-0 flex flex-col border-t mt-3 pt-3">
+                                <div className="flex items-center justify-between mb-1 shrink-0">
+                                    <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                                        <TimelineIcon className="h-4 w-4" /> Histórico
+                                    </div>
+                                    {history.length > 0 && <span className="text-xs text-muted-foreground">{history.length} evento{history.length > 1 ? "s" : ""}</span>}
+                                </div>
+                                <div ref={historyScrollRef} className="flex-1 min-h-0 overflow-y-auto scrollable pr-1">
+                                    {loadingHistory ? (
+                                        <p className="text-sm text-muted-foreground text-center py-6">Carregando histórico...</p>
+                                    ) : (
+                                        <PlantaoTimeline events={history} />
+                                    )}
+                                </div>
+                            </div>
+
+                            <DialogFooter className="flex-wrap gap-2 shrink-0 border-t mt-3 pt-3">
                                 {showDeleted ? (
                                     escalaAdminPerm?.excluir && (
                                         <Button disabled={busy === detail.id} onClick={() => doAction(detail.id, "restaurar")}>
@@ -481,6 +638,11 @@ export default function EscalaPage() {
                                     )
                                 ) : (
                                   <>
+                                {escalaAdminPerm?.editar && isEditableStatus(detail.status) && (
+                                    <Button variant="outline" onClick={() => openEdit(detail)}>
+                                        <Pencil className="h-4 w-4" />Editar
+                                    </Button>
+                                )}
                                 {detail.status === "Aberto" && isMedico && (
                                     <Button disabled={busy === detail.id} onClick={() => doAction(detail.id, "pegar")}>
                                         <HandHelping className="h-4 w-4" />Pegar plantão
@@ -563,6 +725,59 @@ export default function EscalaPage() {
                     <DialogFooter>
                         <Button variant="ghost" onClick={() => setCreateOpen(false)} disabled={saving}>Cancelar</Button>
                         <Button onClick={handleCreate} disabled={saving}>{saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}{form.open ? "Publicar" : "Atribuir"}</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
+
+            {/* Dialog editar */}
+            <Dialog open={editOpen} onOpenChange={setEditOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Editar Plantão</DialogTitle>
+                        <DialogDescription>Altere o médico, o setor ou o horário do plantão.</DialogDescription>
+                    </DialogHeader>
+                    <div className="space-y-4">
+                        <div className="flex items-center justify-between rounded-lg border p-3">
+                            <div>
+                                <Label className="text-sm">Deixar em aberto</Label>
+                                <p className="text-xs text-muted-foreground">Remove o médico e devolve ao mercado.</p>
+                            </div>
+                            <Switch checked={editForm.open} onCheckedChange={(v) => setEditForm(f => ({ ...f, open: v }))} />
+                        </div>
+                        {!editForm.open && (
+                            <div className="grid gap-2">
+                                <Label>Médico</Label>
+                                <Select value={editForm.doctorId} onValueChange={(v) => setEditForm(f => ({ ...f, doctorId: v }))}>
+                                    <SelectTrigger><SelectValue placeholder="Selecione..." /></SelectTrigger>
+                                    <SelectContent>
+                                        {medicos.map((m: any) => <SelectItem key={m.idUser} value={m.idUser}>{m.name} — {m.especialidade}</SelectItem>)}
+                                        {medicos.length === 0 && <div className="px-2 py-1.5 text-sm text-muted-foreground">Cadastre médicos primeiro</div>}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="grid gap-2">
+                                <Label>Setor</Label>
+                                <Select value={editForm.setor} onValueChange={(v) => setEditForm(f => ({ ...f, setor: v }))}>
+                                    <SelectTrigger><SelectValue /></SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="Triagem">Triagem</SelectItem>
+                                        <SelectItem value="Ambulatorio">Ambulatório</SelectItem>
+                                        <SelectItem value="Urgencia">Urgência</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                            <div className="grid gap-2"><Label>Data</Label><Input type="date" value={editForm.date} onChange={(e) => setEditForm(f => ({ ...f, date: e.target.value }))} /></div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="grid gap-2"><Label>Início</Label><Input type="time" value={editForm.start} onChange={(e) => setEditForm(f => ({ ...f, start: e.target.value }))} /></div>
+                            <div className="grid gap-2"><Label>Fim</Label><Input type="time" value={editForm.end} onChange={(e) => setEditForm(f => ({ ...f, end: e.target.value }))} /></div>
+                        </div>
+                    </div>
+                    <DialogFooter>
+                        <Button variant="ghost" onClick={() => setEditOpen(false)} disabled={savingEdit}>Cancelar</Button>
+                        <Button onClick={handleEdit} disabled={savingEdit}>{savingEdit && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}Salvar</Button>
                     </DialogFooter>
                 </DialogContent>
             </Dialog>

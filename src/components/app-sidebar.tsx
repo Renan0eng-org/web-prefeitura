@@ -70,7 +70,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarHeader>
-      <SidebarContent>
+      <SidebarContent className="scrollable">
         {filteredGroups.map((group) => (
           <NavMain key={group.label} items={group.items} title={group.label} />
         ))}

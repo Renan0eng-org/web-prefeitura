@@ -150,8 +150,8 @@ const config: Config = {
     			border: 'hsl(var(--border))',
     			input: {
     				DEFAULT: 'hsl(var(--input))',
-    				background: '#E6E6E6',
-    				border: '#979797'
+    				background: 'hsl(var(--input-background))',
+    				border: '#8a8a8a'
     			},
     			ring: 'hsl(var(--ring))',
     			chart: {

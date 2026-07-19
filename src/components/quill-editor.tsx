@@ -9,9 +9,11 @@ type QuillEditorProps = {
     height?: number
     placeholder?: string
     readOnly?: boolean
+    /** Recebe a instância do Quill quando pronta (para seleção/IA). */
+    onReady?: (quill: any) => void
 }
 
-export function QuillEditor({ value, onChange, height = 380, placeholder, readOnly }: QuillEditorProps) {
+export function QuillEditor({ value, onChange, height = 380, placeholder, readOnly, onReady }: QuillEditorProps) {
     const editorRef = useRef<HTMLDivElement | null>(null)
     const quillRef = useRef<any>(null)
 
@@ -56,6 +58,8 @@ export function QuillEditor({ value, onChange, height = 380, placeholder, readOn
                 const html = editorRef.current!.querySelector('.ql-editor')!.innerHTML
                 onChange(html)
             })
+
+            onReady?.(quillRef.current)
         })
 
         return () => { mounted = false }
@@ -75,11 +79,11 @@ export function QuillEditor({ value, onChange, height = 380, placeholder, readOn
         <div className="rounded-lg overflow-hidden">
             <div ref={editorRef} />
             <style jsx global>{`
-        :root { --primary: var(--primary, #0ea5e9); }
-        /* Toolbar and container: no borders/shadows */
+        /* Cores seguem o tema (claro/escuro) via variáveis do design. */
         .ql-toolbar.ql-snow,
         .ql-snow .ql-toolbar {
-          background: #f8fafc;
+          background: hsl(var(--muted));
+          color: hsl(var(--foreground));
           border: 0 !important;
           border-bottom: 0 !important;
           box-shadow: none !important;
@@ -104,22 +108,31 @@ export function QuillEditor({ value, onChange, height = 380, placeholder, readOn
           border: 0 !important;
           box-shadow: none !important;
         }
+        /* Ícones da barra seguem o texto; ativo/hover usa o primário do tema */
+        .ql-snow .ql-stroke { stroke: hsl(var(--muted-foreground)); }
+        .ql-snow .ql-fill, .ql-snow .ql-stroke.ql-fill { fill: hsl(var(--muted-foreground)); }
+        .ql-snow .ql-picker { color: hsl(var(--foreground)); }
         .ql-snow .ql-toolbar .ql-picker-label.ql-active,
         .ql-snow .ql-toolbar .ql-picker-item.ql-selected,
         .ql-snow .ql-toolbar button.ql-active .ql-stroke,
         .ql-snow .ql-toolbar button:hover .ql-stroke {
-          stroke: var(--primary, #0ea5e9);
+          stroke: hsl(var(--primary));
         }
         .ql-snow .ql-toolbar button.ql-active .ql-fill,
         .ql-snow .ql-toolbar button:hover .ql-fill {
-          fill: var(--primary, #0ea5e9);
+          fill: hsl(var(--primary));
         }
         /* System font as default */
         .ql-snow .ql-editor {
           padding: 12px;
+          color: hsl(var(--foreground));
           font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Noto Sans, Ubuntu, Cantarell, Helvetica Neue, Arial, "Apple Color Emoji", "Segoe UI Emoji";
           font-size: 14px;
           line-height: 1.7;
+        }
+        .ql-snow .ql-editor.ql-blank::before {
+          color: hsl(var(--muted-foreground));
+          font-style: normal;
         }
         /* Picker labels and items use system font */
         .ql-snow .ql-picker,
@@ -131,7 +144,7 @@ export function QuillEditor({ value, onChange, height = 380, placeholder, readOn
         /* Rounded, filled pickers to match system style */
         .ql-snow .ql-picker {
           border: none !important;
-          background: #f1f5f9;
+          background: hsl(var(--muted));
           border-radius: 8px;
           padding: 0 4px;
           min-height: 32px;
@@ -150,13 +163,14 @@ export function QuillEditor({ value, onChange, height = 380, placeholder, readOn
         }
         .ql-snow .ql-picker-label:hover,
         .ql-snow .ql-picker.ql-expanded .ql-picker-label {
-          background: #e2e8f0;
+          background: hsl(var(--accent));
         }
         .ql-snow .ql-picker-options {
-          border: none !important;
+          border: 1px solid hsl(var(--border)) !important;
           box-shadow: none !important;
           border-radius: 8px;
-          background: #f8fafc;
+          background: hsl(var(--popover));
+          color: hsl(var(--popover-foreground));
           padding: 4px;
           min-width: 110px;
         }
@@ -167,7 +181,7 @@ export function QuillEditor({ value, onChange, height = 380, placeholder, readOn
         }
         .ql-snow .ql-picker-item:hover,
         .ql-snow .ql-picker-item.ql-selected {
-          background: #e2e8f0;
+          background: hsl(var(--accent));
         }
         /* Remove extra padding for size picker */
         .ql-snow .ql-picker.ql-size {

@@ -71,13 +71,6 @@ export const data = {
           nivel_acesso: "agendamento",
         },
         {
-          title: "Atendimentos",
-          url: "/admin/atendimentos",
-          icon: Stethoscope,
-          isActive: false,
-          nivel_acesso: "atendimento",
-        },
-        {
           title: "Encaminhamentos",
           url: "/admin/encaminhamentos",
           icon: ListStart,
@@ -89,6 +82,20 @@ export const data = {
     {
       label: "Gestão Hospitalar",
       items: [
+        {
+          title: "Atendimentos",
+          url: "/admin/atendimentos",
+          icon: Stethoscope,
+          isActive: false,
+          nivel_acesso: "atendimento",
+        },
+        {
+          title: "Fila de Atendimento",
+          url: "/admin/fila",
+          icon: ListOrdered,
+          isActive: false,
+          nivel_acesso: "fila",
+        },
         {
           title: "Médicos",
           url: "/admin/medicos",
@@ -102,13 +109,6 @@ export const data = {
           icon: CalendarClock,
           isActive: false,
           nivel_acesso: "escala",
-        },
-        {
-          title: "Fila de Atendimento",
-          url: "/admin/fila",
-          icon: ListOrdered,
-          isActive: false,
-          nivel_acesso: "fila",
         },
         {
           title: "Estoque de Insumos",

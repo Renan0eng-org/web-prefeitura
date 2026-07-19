@@ -36,11 +36,11 @@ const HOUR_PX = 44
 const DAYS = ["Domingo", "Segunda-feira", "Terça-feira", "Quarta-feira", "Quinta-feira", "Sexta-feira", "Sábado"]
 
 const STATUS_STYLE: Record<Status, { box: string; label: string; dot: string }> = {
-    Aberto: { box: "bg-amber-50 border-l-4 border-amber-400 text-amber-900", label: "Disponível", dot: "bg-amber-400" },
-    Agendado: { box: "bg-blue-50 border-l-4 border-blue-500 text-blue-900", label: "Atribuído", dot: "bg-blue-500" },
-    EmAndamento: { box: "bg-emerald-50 border-l-4 border-emerald-500 text-emerald-900", label: "Em andamento", dot: "bg-emerald-500" },
-    Concluido: { box: "bg-slate-100 border-l-4 border-slate-300 text-slate-500", label: "Concluído", dot: "bg-slate-300" },
-    Cancelado: { box: "bg-red-50 border-l-4 border-red-400 text-red-800 line-through", label: "Cancelado", dot: "bg-red-400" },
+    Aberto: { box: "bg-amber-50 dark:bg-amber-950/40 border-l-4 border-amber-400 text-amber-900 dark:text-amber-200", label: "Disponível", dot: "bg-amber-400" },
+    Agendado: { box: "bg-blue-50 dark:bg-blue-950/40 border-l-4 border-blue-500 text-blue-900 dark:text-blue-200", label: "Atribuído", dot: "bg-blue-500" },
+    EmAndamento: { box: "bg-emerald-50 dark:bg-emerald-950/40 border-l-4 border-emerald-500 text-emerald-900 dark:text-emerald-200", label: "Em andamento", dot: "bg-emerald-500" },
+    Concluido: { box: "bg-slate-100 dark:bg-slate-800/50 border-l-4 border-slate-300 dark:border-slate-600 text-slate-500 dark:text-slate-400", label: "Concluído", dot: "bg-slate-300" },
+    Cancelado: { box: "bg-red-50 dark:bg-red-950/40 border-l-4 border-red-400 text-red-800 dark:text-red-300 line-through", label: "Cancelado", dot: "bg-red-400" },
 }
 
 const startOfWeek = (d: Date) => { const x = new Date(d); x.setDate(x.getDate() - x.getDay()); x.setHours(0, 0, 0, 0); return x }
@@ -63,6 +63,39 @@ const startMinOf = (iso: string) => { const d = new Date(iso); return d.getHours
 const isoAt = (day: Date, min: number) => new Date(day.getFullYear(), day.getMonth(), day.getDate(), Math.floor(min / 60), min % 60, 0).toISOString()
 const dateInput = (day: Date) => `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`
 const isEditableStatus = (s: Status) => s === "Aberto" || s === "Agendado"
+
+// Layout de colunas para eventos que se sobrepõem no mesmo dia (estilo Google Calendar/Teams):
+// eventos concorrentes ficam lado a lado, cada um em sua coluna.
+function layoutDayEvents(events: Plantao[]): Map<string, { col: number; cols: number }> {
+    const res = new Map<string, { col: number; cols: number }>()
+    const sorted = [...events].sort(
+        (a, b) => startMinOf(a.startsAt) - startMinOf(b.startsAt) || startMinOf(a.endsAt) - startMinOf(b.endsAt),
+    )
+    let columns: Plantao[][] = []
+    let lastEnd = -1
+
+    const pack = () => {
+        const n = columns.length
+        columns.forEach((col, i) => col.forEach((ev) => res.set(ev.id, { col: i, cols: n })))
+        columns = []
+    }
+
+    for (const ev of sorted) {
+        const s = startMinOf(ev.startsAt)
+        const e = startMinOf(ev.endsAt)
+        // Sem sobreposição com o grupo atual -> fecha o grupo.
+        if (lastEnd !== -1 && s >= lastEnd) { pack(); lastEnd = -1 }
+        let placed = false
+        for (const col of columns) {
+            const last = col[col.length - 1]
+            if (startMinOf(last.endsAt) <= s) { col.push(ev); placed = true; break }
+        }
+        if (!placed) columns.push([ev])
+        if (lastEnd === -1 || e > lastEnd) lastEnd = e
+    }
+    pack()
+    return res
+}
 
 type DragKind = "create" | "move" | "duplicate" | "resize-top" | "resize-bottom"
 type DragState = {
@@ -457,14 +490,14 @@ export default function EscalaPage() {
 
             {/* Mercado de plantões abertos */}
             {!showDeleted && abertos.length > 0 && (
-                <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50/60 p-3">
-                    <div className="flex items-center gap-2 mb-2 text-sm font-semibold text-amber-800">
+                <div className="mb-4 rounded-xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/60 dark:bg-amber-950/30 p-3">
+                    <div className="flex items-center gap-2 mb-2 text-sm font-semibold text-amber-800 dark:text-amber-300">
                         <HandHelping className="h-4 w-4" /> Plantões disponíveis ({abertos.length})
-                        <span className="font-normal text-amber-700">— qualquer médico do grupo pode pegar</span>
+                        <span className="font-normal text-amber-700 dark:text-amber-400/80">— qualquer médico do grupo pode pegar</span>
                     </div>
                     <div className="flex gap-2 overflow-x-auto pb-1">
                         {abertos.map(p => (
-                            <div key={p.id} className="shrink-0 rounded-lg border border-amber-300 bg-white px-3 py-2 text-xs">
+                            <div key={p.id} className="shrink-0 rounded-lg border border-amber-300 dark:border-amber-900/60 bg-card px-3 py-2 text-xs">
                                 <div className="font-semibold">{p.setor}</div>
                                 <div className="text-muted-foreground">{new Date(p.startsAt).toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" })} · {fmtTime(p.startsAt)}–{fmtTime(p.endsAt)}</div>
                                 {isMedico && (
@@ -525,10 +558,11 @@ export default function EscalaPage() {
                             <div ref={gridRef} className={`flex flex-1 relative transition ${longPressing ? "ring-2 ring-inset ring-primary/50" : ""}`} onPointerDown={startCreateDrag}>
                             {days.map((d, di) => {
                                 const eventos = plantoes.filter(p => sameDay(new Date(p.startsAt), d))
+                                const layout = layoutDayEvents(eventos)
                                 const today = sameDay(d, now)
                                 return (
                                     <div key={di} className={`flex-1 relative border-l ${canCreateShift ? "cursor-crosshair" : ""}`}
-                                        style={{ backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR_PX - 1}px, var(--border, #e5e7eb) ${HOUR_PX - 1}px, var(--border, #e5e7eb) ${HOUR_PX}px)` }}>
+                                        style={{ backgroundImage: `repeating-linear-gradient(to bottom, transparent 0, transparent ${HOUR_PX - 1}px, hsl(var(--border)) ${HOUR_PX - 1}px, hsl(var(--border)) ${HOUR_PX}px)` }}>
                                         {today && nowTop >= 0 && nowTop <= (END_HOUR - START_HOUR) * HOUR_PX && (
                                             <div className="absolute left-0 right-0 z-20 pointer-events-none" style={{ top: nowTop }}>
                                                 <div className="h-[2px] bg-red-500" />
@@ -539,11 +573,15 @@ export default function EscalaPage() {
                                             const style = STATUS_STYLE[p.status]
                                             const interactive = canEditShift && isEditableStatus(p.status)
                                             const dimmed = !!drag && drag.plantao?.id === p.id && drag.kind !== "duplicate"
+                                            // Posição horizontal: eventos sobrepostos ficam lado a lado.
+                                            const lay = layout.get(p.id) || { col: 0, cols: 1 }
+                                            const wPct = 100 / lay.cols
+                                            const posStyle = { left: `calc(${lay.col * wPct}% + 2px)`, width: `calc(${wPct}% - 4px)` }
                                             if (interactive) {
                                                 return (
                                                     <div key={p.id} data-plantao
-                                                        className={`absolute left-0.5 right-0.5 z-10 rounded-md overflow-hidden shadow-sm hover:shadow transition ${style.box} ${dimmed ? "opacity-30" : ""}`}
-                                                        style={{ top: st.top, height: st.height, cursor: "grab" }}
+                                                        className={`absolute z-10 rounded-md overflow-hidden shadow-sm hover:shadow transition ${style.box} ${dimmed ? "opacity-30" : ""}`}
+                                                        style={{ top: st.top, height: st.height, cursor: "grab", ...posStyle }}
                                                         onPointerDown={(e) => startEventDrag(e, p, di)}
                                                         title="Arraste para mover · bordas p/ redimensionar · Alt p/ duplicar">
                                                         <div className="absolute top-0 left-0 right-0 h-2 z-20 cursor-ns-resize" onPointerDown={(e) => startResizeDrag(e, p, di, "top")} />
@@ -557,8 +595,8 @@ export default function EscalaPage() {
                                             }
                                             return (
                                                 <button key={p.id} data-plantao onClick={() => setDetail(p)}
-                                                    className={`absolute left-0.5 right-0.5 z-10 rounded-md px-1.5 py-1 text-left overflow-hidden shadow-sm hover:shadow transition ${style.box}`}
-                                                    style={{ top: st.top, height: st.height }}>
+                                                    className={`absolute z-10 rounded-md px-1.5 py-1 text-left overflow-hidden shadow-sm hover:shadow transition ${style.box}`}
+                                                    style={{ top: st.top, height: st.height, ...posStyle }}>
                                                     <div className="text-[11px] font-semibold leading-tight truncate">{p.doctor?.name || style.label}</div>
                                                     <div className="text-[10px] leading-tight truncate opacity-80">{p.setor} · {fmtTime(p.startsAt)}–{fmtTime(p.endsAt)}</div>
                                                 </button>
@@ -584,9 +622,11 @@ export default function EscalaPage() {
 
             {/* Dialog de detalhe/ações */}
             <Dialog open={!!detail} onOpenChange={(o) => { if (!o) setDetail(null) }}>
-                <DialogContent className="max-h-[88vh] !flex flex-col overflow-hidden gap-0">
+                <DialogContent className="max-h-[88vh] !flex flex-col overflow-hidden gap-0 p-0">
                     {detail && (
                         <>
+                            <div className="p-3 bg-card/70">
+
                             {/* Fixar como card flutuante (ao lado do X) */}
                             <button
                                 type="button"
@@ -611,9 +651,12 @@ export default function EscalaPage() {
                                 <Badge variant="outline">{STATUS_STYLE[detail.status].label}</Badge>
                                 {detail.doctor?.especialidade && <span className="text-sm text-muted-foreground">{detail.doctor.especialidade}</span>}
                             </div>
+                            </div>
 
-                            {/* Histórico / timeline — meio scrollável */}
-                            <div className="flex-1 min-h-0 flex flex-col border-t mt-3 pt-3">
+                            <hr className="bg-card" />
+
+                            {/* Histórico / timeline — painel branco, meio scrollável */}
+                            <div className="flex-1 min-h-0 flex flex-col bg-card text-card-foreground p-3">
                                 <div className="flex items-center justify-between mb-1 shrink-0">
                                     <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
                                         <TimelineIcon className="h-4 w-4" /> Histórico
@@ -629,7 +672,9 @@ export default function EscalaPage() {
                                 </div>
                             </div>
 
-                            <DialogFooter className="flex-wrap gap-2 shrink-0 border-t mt-3 pt-3">
+                            <hr className="bg-card" />
+
+                            <DialogFooter className="flex-wrap gap-2 shrink-0 border-t p-3 bg-card/70">
                                 {showDeleted ? (
                                     escalaAdminPerm?.excluir && (
                                         <Button disabled={busy === detail.id} onClick={() => doAction(detail.id, "restaurar")}>

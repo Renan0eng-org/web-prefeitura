@@ -25,8 +25,9 @@ import {
     type DragEndEvent,
     type DragStartEvent,
 } from "@dnd-kit/core"
-import { CalendarClock, CheckCircle2, ChevronDown, ChevronRight, Clock, GripVertical, Loader2, PhoneCall, PlusCircle, RefreshCcw, RotateCcw, TicketCheck, Trash2 } from "lucide-react"
+import { CalendarClock, CheckCircle2, ChevronDown, ChevronRight, Clock, GripVertical, Loader2, Pencil, PhoneCall, PlusCircle, RefreshCcw, RotateCcw, Stethoscope, TicketCheck, Trash2 } from "lucide-react"
 import * as React from "react"
+import { useRouter } from "next/navigation"
 import { PatientSelect } from "@/components/select/PatientSelect"
 
 type QueueStatus = "Aguardando" | "Chamado" | "EmAtendimento" | "Concluido" | "Cancelado" | "Faltou"
@@ -76,10 +77,11 @@ const BOARD_COLUMNS: { key: QueueStatus; title: string }[] = [
 
 // Arrastar um card de uma coluna para outra dispara a ação correspondente no backend.
 // Só permitimos os avanços válidos do fluxo (o backend valida o estado de origem).
+// EmAtendimento -> Concluido NÃO é permitido manualmente: a senha só é concluída
+// automaticamente quando o atendimento é criado (ver openAttend / CriarAtendimentoView).
 const TRANSITIONS: Partial<Record<QueueStatus, Partial<Record<QueueStatus, string>>>> = {
     Aguardando: { Chamado: "chamar" },
     Chamado: { EmAtendimento: "confirmar" },
-    EmAtendimento: { Concluido: "concluir" },
 }
 
 function fmtWait(s: number) {
@@ -189,10 +191,41 @@ export default function FilaPage() {
     }, [collapsed])
     const toggleCollapse = (key: string) => setCollapsed(c => ({ ...c, [key]: !c[key] }))
 
+    const router = useRouter()
     const { setAlert } = useAlert()
     const { getPermissions } = useAuth()
     const permissions = React.useMemo(() => getPermissions("fila"), [getPermissions])
     const agendamentoPerm = React.useMemo(() => getPermissions("agendamentos") ?? getPermissions("agendamento"), [getPermissions])
+    const atendimentoPerm = React.useMemo(() => getPermissions("atendimento"), [getPermissions])
+
+    // Abre a tela de criação de atendimento a partir da senha em "Em atendimento".
+    // A senha é concluída sozinha ao salvar o atendimento (ver CriarAtendimentoView).
+    const openAttend = (t: Ticket) => {
+        const params = new URLSearchParams()
+        params.set("ticketId", t.id)
+        if (t.appointmentId) params.set("appointmentId", t.appointmentId)
+        else if (t.patient?.idUser) params.set("patientId", t.patient.idUser)
+        router.push(`/admin/atendimentos/criar?${params.toString()}`)
+    }
+
+    // Abre a edição do atendimento vinculado a uma senha concluída (localiza pelo agendamento).
+    const openEditAttendance = async (t: Ticket) => {
+        setBusy(t.id)
+        try {
+            let attId: string | null = null
+            if (t.appointmentId) {
+                const res = await api.get("/attendances", { params: { appointmentId: t.appointmentId, pageSize: 1 } })
+                const list = res.data?.data ?? res.data ?? []
+                attId = Array.isArray(list) && list[0] ? list[0].id : null
+            }
+            if (attId) router.push(`/admin/atendimentos/editar/${attId}`)
+            else setAlert("Nenhum atendimento vinculado a esta senha.", "warning")
+        } catch (err: any) {
+            setAlert(err.response?.data?.message || "Erro ao abrir o atendimento.", "error")
+        } finally {
+            setBusy(null)
+        }
+    }
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 8 } }),
@@ -298,7 +331,11 @@ export default function FilaPage() {
         if (ticket.status === targetStatus) return
         const path = TRANSITIONS[ticket.status]?.[targetStatus]
         if (!path) {
-            setAlert("Não é possível mover esta senha para essa coluna.", "error")
+            if (ticket.status === "EmAtendimento" && targetStatus === "Concluido") {
+                setAlert("Para concluir, clique em Atender e finalize o atendimento — a senha se move sozinha.", "warning")
+            } else {
+                setAlert("Não é possível mover esta senha para essa coluna.", "error")
+            }
             return
         }
         setTickets(prev => prev.map(t => t.id === ticket.id ? { ...t, status: targetStatus } : t))
@@ -472,8 +509,20 @@ export default function FilaPage() {
                         <Badge variant="secondary" className="text-emerald-700 bg-emerald-100 text-[10px]">Confirmado</Badge>
                     </div>
                     {ticketMeta(t)}
-                    {permissions?.editar && (
-                        <Button size="sm" variant="outline" className="w-full mt-2 h-8" disabled={busy === t.id} onClick={() => action(t.id, "concluir")}>Concluir</Button>
+                    {atendimentoPerm?.criar && (
+                        <>
+                            <Button
+                                size="sm"
+                                className="w-full mt-2 h-8"
+                                disabled={busy === t.id || !(t.appointmentId || t.patient?.idUser)}
+                                onClick={() => openAttend(t)}
+                            >
+                                <Stethoscope className="w-3 h-3" />Atender
+                            </Button>
+                            {!(t.appointmentId || t.patient?.idUser) && (
+                                <p className="text-[10px] text-muted-foreground mt-1 text-center">Paciente sem cadastro — atenda pelo módulo de atendimentos.</p>
+                            )}
+                        </>
                     )}
                 </>
             )}
@@ -484,6 +533,20 @@ export default function FilaPage() {
                         <Badge variant="secondary" className="text-emerald-700 bg-emerald-100 text-[10px]"><CheckCircle2 className="w-3 h-3 mr-1" />Concluído</Badge>
                     </div>
                     {ticketMeta(t)}
+                    {atendimentoPerm?.editar && (
+                        <Button
+                            size="sm"
+                            variant="outline"
+                            className="w-full mt-2 h-8"
+                            disabled={busy === t.id || !t.appointmentId}
+                            onClick={() => openEditAttendance(t)}
+                        >
+                            {busy === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Pencil className="w-3 h-3" />}Editar atendimento
+                        </Button>
+                    )}
+                    {atendimentoPerm?.editar && !t.appointmentId && (
+                        <p className="text-[10px] text-muted-foreground mt-1 text-center">Senha avulsa — sem atendimento vinculado.</p>
+                    )}
                 </>
             )}
         </Card>

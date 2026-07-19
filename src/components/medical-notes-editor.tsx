@@ -5,9 +5,11 @@ import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Switch } from "@/components/ui/switch"
 import { Textarea } from "@/components/ui/textarea"
+import { useAlert } from "@/hooks/use-alert"
 import { cn } from "@/lib/utils"
+import api from "@/services/api"
 import {
-    List,
+    Loader2,
     Plus,
     Sparkles,
     Wand2,
@@ -27,6 +29,8 @@ export interface MedicalNote {
 interface MedicalNotesEditorProps {
     medicalNotes?: MedicalNote[]
     onChange: (notes: MedicalNote[]) => void
+    /** Habilita a melhoria de notas por IA (nível de acesso "atendimento-ia"). */
+    aiEnabled?: boolean
 }
 
 interface NoteTab {
@@ -37,20 +41,20 @@ interface NoteTab {
     allowFutureUse: boolean
 }
 
-export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEditorProps) {
+export function MedicalNotesEditor({ medicalNotes, onChange, aiEnabled = false }: MedicalNotesEditorProps) {
     const [tabs, setTabs] = useState<NoteTab[]>([])
     const [activeTabId, setActiveTabId] = useState("")
     const [advancedMode, setAdvancedMode] = useState(true)
-    const [selectedText, setSelectedText] = useState("")
-    const [showAiMenu, setShowAiMenu] = useState(false)
+    const [aiLoading, setAiLoading] = useState(false)
     const textareaRef = useRef<HTMLTextAreaElement | null>(null)
     const tabInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({})
+    const quillRef = useRef<any>(null)
     const isInitialized = useRef(false)
+    const { setAlert } = useAlert()
 
     // Inicializar abas a partir de medicalNotes ou criar abas padrão
     useEffect(() => {
         if (medicalNotes && medicalNotes.length > 0 && !isInitialized.current) {
-            // Carregar notas existentes apenas na primeira vez
             const loadedTabs: NoteTab[] = medicalNotes
                 .sort((a, b) => a.order - b.order)
                 .map((note, index) => ({
@@ -65,7 +69,6 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
             setAdvancedMode(medicalNotes[0]?.mode === "advanced")
             isInitialized.current = true
         } else if (tabs.length === 0 && !isInitialized.current) {
-            // Criar abas padrão apenas se não houver nenhuma
             const defaultTabs: NoteTab[] = [
                 { id: "tab-1", title: "Queixa Principal", content: "", isEditing: false, allowFutureUse: false },
                 { id: "tab-2", title: "História Atual", content: "", isEditing: false, allowFutureUse: false },
@@ -107,7 +110,7 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
 
     const removeTab = (tabId: string, e: React.MouseEvent) => {
         e.stopPropagation()
-        if (tabs.length <= 1) return // Manter pelo menos uma aba
+        if (tabs.length <= 1) return
 
         const newTabs = tabs.filter(tab => tab.id !== tabId)
         setTabs(newTabs)
@@ -145,101 +148,69 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
         ))
     }
 
-    const addTopic = () => {
-        const currentContent = activeTab?.content || ""
-        if (advancedMode) {
-            // HTML topic
-            const topicNumber = (currentContent.match(/<li/gi) || []).length + 1
-            const addition = `<p>• Tópico ${topicNumber}: </p>`
-            const newContent = currentContent ? `${currentContent}${addition}` : addition
-            updateContent(newContent)
-            setTimeout(() => textareaRef.current?.focus(), 0)
-            return
-        }
-        const lines = currentContent.split('\n')
-        const topicNumber = lines.filter(line => /^•\s/.test(line.trim())).length + 1
-        const newContent = currentContent
-            ? `${currentContent}\n\n• Tópico ${topicNumber}: `
-            : `• Tópico ${topicNumber}: `
-        updateContent(newContent)
-
-        setTimeout(() => textareaRef.current?.focus(), 0)
-    }
-
-    const addSubtopic = () => {
-        const currentContent = activeTab?.content || ""
-        if (advancedMode) {
-            const addition = `<p style="margin-left:20px">◦ Subtópico: </p>`
-            const newContent = currentContent ? `${currentContent}${addition}` : addition
-            updateContent(newContent)
-            setTimeout(() => textareaRef.current?.focus(), 0)
-            return
-        }
-        const newContent = currentContent
-            ? `${currentContent}\n  ◦ Subtópico: `
-            : `  ◦ Subtópico: `
-        updateContent(newContent)
-
-        setTimeout(() => textareaRef.current?.focus(), 0)
-    }
-
-    const handleTextSelection = () => {
-        const textarea = textareaRef.current
-        if (!textarea) return
-
-        const selection = textarea.value.substring(
-            textarea.selectionStart,
-            textarea.selectionEnd
-        )
-
-        if (selection.length > 0) {
-            setSelectedText(selection)
-            setShowAiMenu(true)
-        } else {
-            setShowAiMenu(false)
-        }
-    }
-
-    const aiActions = [
-        {
-            icon: Wand2,
-            label: "Melhorar",
-            action: () => {
-                console.log("Melhorar:", selectedText)
-                setShowAiMenu(false)
-            },
-        },
-        {
-            icon: Sparkles,
-            label: "Simplificar",
-            action: () => {
-                console.log("Simplificar:", selectedText)
-                setShowAiMenu(false)
-            },
-        },
-        {
-            icon: List,
-            label: "Criar tópicos",
-            action: () => {
-                console.log("Criar tópicos:", selectedText)
-                setShowAiMenu(false)
-            },
-        },
-    ]
-
-
     const updateAllowFutureUse = (tabId: string, value: boolean) => {
         if (!tabId) return
         setTabs(prev => prev.map(tab =>
             tab.id === tabId ? { ...tab, allowFutureUse: value } : tab
         ))
     }
+
+    // Melhoria por IA: se houver texto selecionado, melhora só a seleção;
+    // caso contrário, melhora a nota inteira.
+    const improveWithAI = async () => {
+        if (!activeTab || aiLoading) return
+        try {
+            setAiLoading(true)
+            const title = activeTab.title
+            const content = activeTab.content || ""
+
+            if (advancedMode) {
+                const quill = quillRef.current
+                if (quill) {
+                    const sel = quill.getSelection()
+                    if (sel && sel.length > 0) {
+                        const text = String(quill.getText(sel.index, sel.length)).trim()
+                        if (!text) { setAlert("Selecione um texto com conteúdo.", "warning"); return }
+                        const { data } = await api.post("/attendances/ai/improve", { text, scope: "selection", format: "text", noteTitle: title })
+                        quill.deleteText(sel.index, sel.length)
+                        quill.insertText(sel.index, data.result)
+                    } else {
+                        if (!String(quill.getText()).trim()) { setAlert("Escreva algo na nota antes de melhorar.", "warning"); return }
+                        const { data } = await api.post("/attendances/ai/improve", { text: content, scope: "whole", format: "html", noteTitle: title })
+                        updateContent(data.result)
+                    }
+                } else {
+                    if (!content.trim()) { setAlert("Escreva algo na nota antes de melhorar.", "warning"); return }
+                    const { data } = await api.post("/attendances/ai/improve", { text: content, scope: "whole", format: "html", noteTitle: title })
+                    updateContent(data.result)
+                }
+            } else {
+                const ta = textareaRef.current
+                if (ta && ta.selectionStart !== ta.selectionEnd) {
+                    const start = ta.selectionStart, end = ta.selectionEnd
+                    const text = content.substring(start, end)
+                    const { data } = await api.post("/attendances/ai/improve", { text, scope: "selection", format: "text", noteTitle: title })
+                    updateContent(content.substring(0, start) + data.result + content.substring(end))
+                } else {
+                    if (!content.trim()) { setAlert("Escreva algo na nota antes de melhorar.", "warning"); return }
+                    const { data } = await api.post("/attendances/ai/improve", { text: content, scope: "whole", format: "text", noteTitle: title })
+                    updateContent(data.result)
+                }
+            }
+            setAlert("Nota melhorada com IA.", "success")
+        } catch (err: any) {
+            setAlert(err?.response?.data?.message || "Não foi possível melhorar a nota.", "error")
+        } finally {
+            setAiLoading(false)
+        }
+    }
+
     return (
-        <div className="bg-white rounded-lg border overflow-hidden">
+        <div className="bg-card text-foreground rounded-lg border overflow-hidden">
             {/* Header estilo navegador */}
             <div className="overflow-x-auto scrollable">
-                <div className="bg-gray-100 border-b px-1 pt-1 flex items-center gap-1 w-max min-w-full">
-                    <div className="flex items-center  gap-1">
+                <div className="bg-muted border-b px-1 pt-1 flex items-center gap-1 w-max min-w-full">
+                    <div className="flex items-center gap-1">
                         {tabs.map((tab) => (
                             <div
                                 key={tab.id}
@@ -247,12 +218,11 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
                                 className={cn(
                                     "group flex items-center gap-2 px-3 py-1.5 rounded-t-md cursor-pointer transition-colors min-w-[120px] max-w-[200px]",
                                     activeTabId === tab.id
-                                        ? "bg-white border-t border-x"
-                                        : "bg-gray-200 hover:bg-gray-300"
+                                        ? "bg-card border-t border-x"
+                                        : "bg-muted/50 text-muted-foreground hover:bg-muted"
                                 )}
                             >
                                 {tab.isEditing ? (
-                                    // {true ? (
                                     <input
                                         ref={(el) => { tabInputRefs.current[tab.id] = el }}
                                         type="text"
@@ -262,14 +232,12 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
                                         onKeyDown={(e) => {
                                             if (e.key === 'Enter') finishEditingTabTitle(tab.id)
                                         }}
-                                        className="flex-1 min-w-0 w-fit truncate bg-transparent border-0 border-b h-[20px]  border-gray-400 outline-none text-sm px-0 py-0 focus:border-blue-500"
+                                        className="flex-1 min-w-0 w-fit truncate bg-transparent border-0 border-b h-[20px] border-border outline-none text-sm px-0 py-0 focus:border-primary"
                                         onClick={(e) => e.stopPropagation()}
-                                        // passa a largura do texto
                                         style={{ width: `${tab.title.length + 1}ch` }}
                                     />
                                 ) : (
                                     <span
-                                        // pega a larguro do componente
                                         className="text-sm flex-1 truncate"
                                         onDoubleClick={(e) => startEditingTabTitle(tab.id, e)}
                                     >
@@ -279,7 +247,7 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
                                 <button
                                     onClick={(e) => removeTab(tab.id, e)}
                                     className={cn(
-                                        "opacity-0 group-hover:opacity-100 transition-opacity hover:bg-gray-300 rounded p-0.5",
+                                        "opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted-foreground/20 rounded p-0.5",
                                         tabs.length <= 1 && "hidden"
                                     )}
                                 >
@@ -290,7 +258,7 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
                     </div>
                     <button
                         onClick={(e) => { e.preventDefault(); addNewTab() }}
-                        className="p-1 hover:bg-gray-300 rounded transition-colors"
+                        className="p-1 hover:bg-muted-foreground/20 rounded transition-colors"
                         title="Nova aba"
                     >
                         <Plus className="w-4 h-4" />
@@ -300,15 +268,29 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
 
             {/* Conteúdo da aba ativa */}
             <div className="p-4 sm:p-6 space-y-3">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-3 flex-wrap">
                     <input
-                        className="w-full text-3xl border-b-2 border-gray-200 focus:border-primary outline-none pb-2 bg-transparent"
+                        className="flex-1 min-w-[180px] text-2xl sm:text-3xl border-b-2 border-border focus:border-primary outline-none pb-2 bg-transparent"
                         type="text"
                         placeholder="Título da nota"
                         value={activeTab?.title || ""}
                         onChange={(e) => updateTabTitle(activeTabId, e.target.value)}
                     />
-                    <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-3">
+                        {aiEnabled && (
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                onClick={improveWithAI}
+                                disabled={aiLoading}
+                                className="h-8 gap-1.5"
+                                title="Melhora o texto selecionado, ou a nota inteira se nada estiver selecionado"
+                            >
+                                {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+                                Melhorar com IA
+                            </Button>
+                        )}
                         <div className="flex items-center gap-2 text-xs sm:text-sm text-muted-foreground">
                             <Switch
                                 id={`allow-future-${activeTabId || "current"}`}
@@ -319,40 +301,6 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
                                 Permitir reutilização futura
                             </Label>
                         </div>
-                        {/* <div className="flex rounded border overflow-hidden">
-                            <button
-                                type="button"
-                                className={cn("px-2 py-1 text-xs", !advancedMode ? "bg-gray-200" : "bg-transparent hover:bg-gray-100")}
-                                onClick={() => setAdvancedMode(false)}
-                                title="Modo simples"
-                            >Simples</button>
-                            <button
-                                type="button"
-                                className={cn("px-2 py-1 text-xs", advancedMode ? "bg-gray-200" : "bg-transparent hover:bg-gray-100")}
-                                onClick={() => setAdvancedMode(true)}
-                                title="Modo avançado (Word)"
-                            >Avançado</button>
-                        </div> */}
-                        {/* <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={addTopic}
-                            className="h-7 px-2 text-xs gap-1"
-                        >
-                            <List className="w-3 h-3" />
-                            Tópico
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={addSubtopic}
-                            className="h-7 px-2 text-xs gap-1"
-                        >
-                            <IndentIncrease className="w-3 h-3" />
-                            Subtópico
-                        </Button> */}
                     </div>
                 </div>
 
@@ -362,6 +310,7 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
                             key={activeTabId}
                             value={activeTab?.content || ""}
                             onChange={(html) => updateContent(html)}
+                            onReady={(q) => { quillRef.current = q }}
                             height={380}
                             placeholder="Digite suas anotações aqui..."
                         />
@@ -371,63 +320,28 @@ export function MedicalNotesEditor({ medicalNotes, onChange }: MedicalNotesEdito
                             ref={textareaRef}
                             value={activeTab?.content || ""}
                             onChange={(e) => updateContent(e.target.value)}
-                            onMouseUp={handleTextSelection}
-                            onKeyUp={handleTextSelection}
                             placeholder="Digite suas anotações aqui..."
                             className="min-h-[300px] font-mono text-sm resize-y"
-                            style={{
-                                lineHeight: "1.8",
-                                padding: "12px",
-                            }}
+                            style={{ lineHeight: "1.8", padding: "12px" }}
                         />
-                    )}
-
-                    {/* Menu de IA para texto selecionado */}
-                    {showAiMenu && selectedText && (
-                        <div className="fixed z-50 bg-white border rounded-md shadow-lg p-1 flex gap-1">
-                            {aiActions.map((action, index) => (
-                                <Button
-                                    key={index}
-                                    type="button"
-                                    variant="ghost"
-                                    size="sm"
-                                    onClick={action.action}
-                                    className="h-7 px-2 text-xs gap-1"
-                                >
-                                    <action.icon className="w-3 h-3" />
-                                    {action.label}
-                                </Button>
-                            ))}
-                            <Button
-                                type="button"
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => setShowAiMenu(false)}
-                                className="h-7 px-2"
-                            >
-                                <X className="w-3 h-3" />
-                            </Button>
-                        </div>
                     )}
                 </div>
 
                 {/* Informações e dicas */}
                 <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>
-                        {activeTab?.content.split('\n').filter(line => /^•\s/.test(line.trim())).length || 0} tópico(s) • {' '}
-                        {activeTab?.content.split('\n').filter(line => /^\s+◦\s/.test(line)).length || 0} subtópico(s)
-                    </span>
                     <span>{activeTab?.content.length || 0} caracteres</span>
+                    {aiEnabled && (
+                        <span className="flex items-center gap-1"><Sparkles className="w-3 h-3" /> Selecione um trecho e clique em Melhorar com IA para refinar só ele</span>
+                    )}
                 </div>
 
                 {!activeTab?.content && (
-                    <div className="bg-blue-50 border border-blue-200 rounded-md p-3 text-xs space-y-1">
-                        <p className="font-medium text-blue-900">💡 Dicas rápidas:</p>
-                        <ul className="list-disc list-inside space-y-1 text-blue-800">
+                    <div className="bg-muted/50 border rounded-md p-3 text-xs space-y-1 text-muted-foreground">
+                        <p className="font-medium text-foreground">💡 Dicas rápidas:</p>
+                        <ul className="list-disc list-inside space-y-1">
                             <li>Clique duas vezes no nome da aba para renomeá-la</li>
-                            <li>Use os botões para criar tópicos e subtópicos</li>
-                            <li>Selecione texto para acessar ferramentas de IA (em breve)</li>
                             <li>Adicione quantas abas precisar com o botão +</li>
+                            {aiEnabled && <li>Selecione um trecho e use “Melhorar com IA” para refinar apenas ele</li>}
                         </ul>
                     </div>
                 )}

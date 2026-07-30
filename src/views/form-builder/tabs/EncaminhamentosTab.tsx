@@ -306,7 +306,7 @@ export default function EncaminhamentosTab() {
             {encaminhamentoPerm?.visualizar && (
                 <>
                     <div className="overflow-x-auto scrollable rounded-t-lg">
-                        <Table className="min-w-[700px]">
+                        <Table className="min-w-[700px] bg-card text-card-foreground">
                         <TableHeader className="sticky top-0 z-10 bg-muted">
                             <TableRow>
                                 {visibleColumns.paciente && <TableHead>Paciente</TableHead>}
@@ -317,7 +317,7 @@ export default function EncaminhamentosTab() {
                                 {visibleColumns.actions && <TableHead className="text-center">Ações</TableHead>}
                             </TableRow>
                         </TableHeader>
-                        <TableBody className="bg-white/40">
+                        <TableBody className="bg-card">
                             {isLoading ? (
                                 Array.from({ length: 5 }).map((_, i) => (
                                     <TableRow key={`sk-${i}`}>

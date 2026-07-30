@@ -50,6 +50,7 @@ type AuthContextType = {
   login: (email: string, password: string) => Promise<void>
   logout: () => Promise<void>
   getPermissions: (slug: string) => MenuPermission | null;
+  isImpersonating: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({} as AuthContextType)
@@ -59,6 +60,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [accessToken, setAccessToken] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [pushRegistered, setPushRegistered] = useState(false)
+  const [isImpersonating, setIsImpersonating] = useState(false)
   const { setAlert } = useAlert()
 
   const router = useRouter();
@@ -68,7 +70,26 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   useEffect(() => {
     const loadSession = async () => {
       try {
-        const { data } = await api.get('/auth/me')
+        const fragment = typeof window !== 'undefined' ? window.location.hash : ''
+        const tokenFromFragment = fragment.startsWith('#impersonation=')
+          ? decodeURIComponent(fragment.slice('#impersonation='.length))
+          : null
+        const storedToken = typeof window !== 'undefined' ? sessionStorage.getItem('impersonation_token') : null
+        const impersonationToken = tokenFromFragment || storedToken
+
+        let data
+        if (impersonationToken) {
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('impersonation_token', impersonationToken)
+            sessionStorage.setItem('impersonation_session', 'true')
+            window.history.replaceState(null, '', window.location.pathname + window.location.search)
+          }
+          setIsImpersonating(true)
+          data = (await api.get('/auth/me-token', { headers: { Authorization: `Bearer ${impersonationToken}` } })).data
+          setAccessToken(impersonationToken)
+        } else {
+          data = (await api.get('/auth/me')).data
+        }
         setUser(data)
       } catch (err) {
         console.error("Nenhuma sessão válida encontrada.", err)
@@ -77,6 +98,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           router.push(`/auth/login?redirect=${redirect}`)
         }
         setUser(null)
+        setIsImpersonating(false)
       } finally {
         setLoading(false)
       }
@@ -141,6 +163,16 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const logout = async () => {
+    if (isImpersonating) {
+      sessionStorage.removeItem('impersonation_token')
+      sessionStorage.removeItem('impersonation_session')
+      setAccessToken(null)
+      setUser(null)
+      setIsImpersonating(false)
+      if (typeof window !== 'undefined' && window.opener) window.close()
+      else router.push('/auth/login')
+      return
+    }
     try {
       await api.post('/auth/logout-web')
       setAlert("Você saiu com sucesso.", "success")
@@ -171,7 +203,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
   if (isAdminRoute && loading) {
     return (
-      <AuthContext.Provider value={{ user, accessToken, loading, login, logout, getPermissions }}>
+      <AuthContext.Provider value={{ user, accessToken, loading, login, logout, getPermissions, isImpersonating }}>
         <div className="min-h-screen flex items-center justify-center bg-background">
           <div className="flex flex-col items-center gap-4">
             <div className="h-10 w-10 animate-spin rounded-full border-4 border-primary border-t-transparent" />
@@ -183,7 +215,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   return (
-    <AuthContext.Provider value={{ user, accessToken, loading, login, logout, getPermissions }}>
+    <AuthContext.Provider value={{ user, accessToken, loading, login, logout, getPermissions, isImpersonating }}>
       {children}
     </AuthContext.Provider>
   )

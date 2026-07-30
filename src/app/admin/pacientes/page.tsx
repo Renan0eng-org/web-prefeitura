@@ -615,7 +615,7 @@ export default function PatientsPage({ className, initialPageSize = 10 }: { clas
                     </TableBody>}
                 </Table>
                 </div>
-                <div className="border-t border-gray-200">
+                <div className="">
                     <Pagination
                         page={page}
                         pageSize={pageSize}

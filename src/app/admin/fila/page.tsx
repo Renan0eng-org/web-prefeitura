@@ -42,6 +42,7 @@ type Ticket = {
     patient?: { idUser: string; name: string } | null
     doctor?: { idUser: string; name: string } | null
     appointmentId?: string | null
+    attendanceId?: string | null
     appointment?: { id: string; scheduledAt: string; status: string; modality?: string } | null
 }
 type Stats = { aguardando: number; chamado: number; emAtendimento: number; concluidos: number; avgWaitSeconds: number }
@@ -208,8 +209,13 @@ export default function FilaPage() {
         router.push(`/admin/atendimentos/criar?${params.toString()}`)
     }
 
-    // Abre a edição do atendimento vinculado a uma senha concluída (localiza pelo agendamento).
+    // Abre a edição do atendimento vinculado a uma senha concluída.
+    // Prioriza o vínculo direto (attendanceId gravado ao concluir); cai no agendamento.
     const openEditAttendance = async (t: Ticket) => {
+        if (t.attendanceId) {
+            router.push(`/admin/atendimentos/editar/${t.attendanceId}`)
+            return
+        }
         setBusy(t.id)
         try {
             let attId: string | null = null
@@ -538,14 +544,14 @@ export default function FilaPage() {
                             size="sm"
                             variant="outline"
                             className="w-full mt-2 h-8"
-                            disabled={busy === t.id || !t.appointmentId}
+                            disabled={busy === t.id || !(t.attendanceId || t.appointmentId)}
                             onClick={() => openEditAttendance(t)}
                         >
                             {busy === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Pencil className="w-3 h-3" />}Editar atendimento
                         </Button>
                     )}
-                    {atendimentoPerm?.editar && !t.appointmentId && (
-                        <p className="text-[10px] text-muted-foreground mt-1 text-center">Senha avulsa — sem atendimento vinculado.</p>
+                    {atendimentoPerm?.editar && !(t.attendanceId || t.appointmentId) && (
+                        <p className="text-[10px] text-muted-foreground mt-1 text-center">Sem atendimento vinculado — conclua criando o atendimento.</p>
                     )}
                 </>
             )}

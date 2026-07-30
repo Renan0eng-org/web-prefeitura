@@ -1,11 +1,13 @@
 "use client"
 
-import { PlantaoTimeline, TimelineIcon, type PlantaoEvent } from "@/components/escala/plantao-timeline"
+import { PlantaoHistorico, type PlantaoAtendimento, type PlantaoEvent } from "@/components/escala/plantao-timeline"
 import { Badge } from "@/components/ui/badge"
 import { useEscalaRealtime } from "@/hooks/use-escala-realtime"
+import { useAuth } from "@/hooks/use-auth"
+import { useAlert } from "@/hooks/use-alert"
 import { cn } from "@/lib/utils"
 import api from "@/services/api"
-import { GripVertical, Loader2, X } from "lucide-react"
+import { BellRing, GripVertical, Loader2, Maximize2, Minus, X } from "lucide-react"
 import * as React from "react"
 
 type Plantao = {
@@ -14,6 +16,7 @@ type Plantao = {
     startsAt: string
     endsAt: string
     status: "Aberto" | "Agendado" | "EmAndamento" | "Concluido" | "Cancelado"
+    doctorId?: string | null
     doctor?: { idUser: string; name: string; especialidade?: string | null } | null
 }
 
@@ -31,42 +34,67 @@ const MIN_W = 300, MIN_H = 260
 
 type Rect = { x: number; y: number; w: number; h: number }
 
-function defaultRect(): Rect {
-    if (typeof window === "undefined") return { x: 80, y: 90, w: 380, h: 460 }
-    return { x: Math.max(16, window.innerWidth - 420), y: 90, w: 380, h: 480 }
+// Posição inicial: encostada à direita, com leve cascata por índice p/ não sobrepor.
+function defaultRect(index = 0): Rect {
+    const off = index * 28
+    if (typeof window === "undefined") return { x: 80 + off, y: 90 + off, w: 380, h: 460 }
+    const x = Math.max(16, window.innerWidth - 420 - off)
+    const y = Math.min(90 + off, Math.max(16, window.innerHeight - 200))
+    return { x, y, w: 380, h: 480 }
 }
 
-export function FloatingPlantaoCard({ id, onClose }: { id: string; onClose: () => void }) {
+export function FloatingPlantaoCard({ id, index = 0, z = 60, onFocus, onClose }: { id: string; index?: number; z?: number; onFocus?: () => void; onClose: () => void }) {
+    const { getPermissions } = useAuth()
+    const { setAlert } = useAlert()
     const [plantao, setPlantao] = React.useState<Plantao | null>(null)
     const [history, setHistory] = React.useState<PlantaoEvent[]>([])
+    const [atendimentos, setAtendimentos] = React.useState<PlantaoAtendimento[]>([])
     const [loading, setLoading] = React.useState(true)
     const [notFound, setNotFound] = React.useState(false)
+    const [notifying, setNotifying] = React.useState(false)
+    const isEscalaAdmin = !!getPermissions("escala-admin")?.visualizar
+
+    // Rect e estado minimizado persistidos POR plantão (cada card lembra o seu).
+    const rectKey = `pinned_plantao_rect_${id}`
+    const minKey = `pinned_plantao_min_${id}`
 
     const [rect, setRect] = React.useState<Rect>(() => {
         try {
-            const raw = localStorage.getItem("pinned_plantao_rect")
+            const raw = sessionStorage.getItem(rectKey)
             if (raw) return JSON.parse(raw)
         } catch { /* ignore */ }
-        return defaultRect()
+        return defaultRect(index)
     })
+    const [minimized, setMinimized] = React.useState<boolean>(() => {
+            try { return sessionStorage.getItem(minKey) === "1" } catch { return false }
+    })
+
     const rectRef = React.useRef(rect)
     rectRef.current = rect
     const setRectPersist = (r: Rect) => {
         rectRef.current = r
         setRect(r)
-        try { localStorage.setItem("pinned_plantao_rect", JSON.stringify(r)) } catch { /* ignore */ }
+        try { sessionStorage.setItem(rectKey, JSON.stringify(r)) } catch { /* ignore */ }
     }
 
-    const bodyRef = React.useRef<HTMLDivElement | null>(null)
+    const toggleMinimized = () => {
+        setMinimized((m) => {
+            const next = !m
+            try { sessionStorage.setItem(minKey, next ? "1" : "0") } catch { /* ignore */ }
+            return next
+        })
+    }
 
     const load = React.useCallback(async () => {
         try {
-            const [pRes, hRes] = await Promise.all([
+            const [pRes, hRes, aRes] = await Promise.all([
                 api.get(`/admin/escala/${id}`),
                 api.get(`/admin/escala/${id}/historico`),
+                api.get(`/admin/escala/${id}/atendimentos`).catch(() => ({ data: [] })),
             ])
             setPlantao(pRes.data)
             setHistory(Array.isArray(hRes.data) ? hRes.data : [])
+            setAtendimentos(Array.isArray(aRes.data) ? aRes.data : [])
             setNotFound(false)
         } catch (err: any) {
             if (err?.response?.status === 404) setNotFound(true)
@@ -77,11 +105,22 @@ export function FloatingPlantaoCard({ id, onClose }: { id: string; onClose: () =
 
     React.useEffect(() => { setLoading(true); load() }, [load])
 
-    // Mantém a visão no evento mais recente (rola para o fim quando o histórico muda).
-    React.useEffect(() => {
-        const el = bodyRef.current
-        if (el) requestAnimationFrame(() => el.scrollTo({ top: el.scrollHeight, behavior: "smooth" }))
-    }, [history])
+    const canNotifyCheckin = !!plantao && isEscalaAdmin && plantao.status === "Agendado" && !!plantao.doctorId &&
+        new Date() >= new Date(plantao.startsAt) && new Date() < new Date(plantao.endsAt)
+
+    const notifyCheckin = async () => {
+        if (!plantao) return
+        setNotifying(true)
+        try {
+            await api.post(`/admin/escala/${plantao.id}/notificar-checkin`)
+            setAlert("Solicitação de check-in enviada ao médico.", "success")
+            await load()
+        } catch (err: any) {
+            setAlert(err.response?.data?.message || "Não foi possível solicitar o check-in.", "error")
+        } finally {
+            setNotifying(false)
+        }
+    }
 
     // Atualização em tempo real do plantão fixado.
     useEscalaRealtime(load, true)
@@ -125,13 +164,15 @@ export function FloatingPlantaoCard({ id, onClose }: { id: string; onClose: () =
 
     return (
         <div
-            className="fixed z-[60] rounded-xl border bg-card text-card-foreground shadow-2xl flex flex-col overflow-hidden"
-            style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h }}
+            className="fixed rounded-xl border bg-card text-card-foreground shadow-2xl flex flex-col overflow-hidden"
+            style={{ left: rect.x, top: rect.y, width: rect.w, height: minimized ? "auto" : rect.h, zIndex: z }}
+            onPointerDownCapture={onFocus}
         >
             {/* Cabeçalho (alça de arraste) — status + a quem está atribuído */}
             <div
-                className="flex items-start gap-2 px-3 py-2 border-b bg-muted/50 cursor-grab active:cursor-grabbing touch-none"
+                className={cn("flex items-start gap-2 px-3 py-2 bg-muted/50 cursor-grab active:cursor-grabbing touch-none", !minimized && "border-b")}
                 onPointerDown={(e) => startDrag(e, "move")}
+                onDoubleClick={toggleMinimized}
             >
                 <GripVertical className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
                 <div className="min-w-0 flex-1">
@@ -145,40 +186,60 @@ export function FloatingPlantaoCard({ id, onClose }: { id: string; onClose: () =
                         </div>
                     )}
                 </div>
+                {canNotifyCheckin && (
+                    <button
+                        className="rounded-md p-1 text-amber-600 hover:bg-accent hover:text-amber-700 shrink-0 disabled:opacity-50"
+                        onClick={() => void notifyCheckin()}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        disabled={notifying}
+                        aria-label="Solicitar check-in"
+                        title="Solicitar check-in"
+                    >
+                        <BellRing className="h-4 w-4" />
+                    </button>
+                )}
+                <button
+                    className="rounded-md p-1 hover:bg-accent shrink-0"
+                    onClick={toggleMinimized}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    aria-label={minimized ? "Expandir" : "Minimizar"}
+                    title={minimized ? "Expandir" : "Minimizar"}
+                >
+                    {minimized ? <Maximize2 className="h-4 w-4" /> : <Minus className="h-4 w-4" />}
+                </button>
                 <button
                     className="rounded-md p-1 hover:bg-accent shrink-0"
                     onClick={onClose}
                     onPointerDown={(e) => e.stopPropagation()}
                     aria-label="Fechar"
+                    title="Fechar"
                 >
                     <X className="h-4 w-4" />
                 </button>
             </div>
 
-            {/* Corpo */}
-            <div ref={bodyRef} className="flex-1 overflow-y-auto scrollable p-3">
-                {loading ? (
-                    <div className="flex items-center justify-center py-10 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
-                ) : notFound ? (
-                    <p className="text-sm text-muted-foreground text-center py-10">Plantão não encontrado (pode ter sido excluído).</p>
-                ) : (
-                    <>
-                        <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground mb-1">
-                            <TimelineIcon className="h-4 w-4" /> Histórico
-                            {history.length > 0 && <span className="text-xs font-normal ml-auto">{history.length} evento{history.length > 1 ? "s" : ""}</span>}
-                        </div>
-                        <PlantaoTimeline events={history} />
-                    </>
-                )}
-            </div>
+            {/* Corpo (oculto quando minimizado) */}
+            {!minimized && (
+                <div className="flex-1 min-h-0 flex flex-col p-3">
+                    {loading ? (
+                        <div className="flex items-center justify-center py-10 text-muted-foreground"><Loader2 className="h-5 w-5 animate-spin" /></div>
+                    ) : notFound ? (
+                        <p className="text-sm text-muted-foreground text-center py-10">Plantão não encontrado (pode ter sido excluído).</p>
+                    ) : (
+                        <PlantaoHistorico events={history} atendimentos={atendimentos} />
+                    )}
+                </div>
+            )}
 
-            {/* Alça de redimensionamento */}
-            <div
-                className={cn("absolute bottom-0 right-0 h-4 w-4 cursor-nwse-resize touch-none")}
-                onPointerDown={(e) => startDrag(e, "resize")}
-            >
-                <div className="absolute bottom-1 right-1 h-2 w-2 border-b-2 border-r-2 border-muted-foreground/50" />
-            </div>
+            {/* Alça de redimensionamento (só quando expandido) */}
+            {!minimized && (
+                <div
+                    className={cn("absolute bottom-0 right-0 h-4 w-4 cursor-nwse-resize touch-none")}
+                    onPointerDown={(e) => startDrag(e, "resize")}
+                >
+                    <div className="absolute bottom-1 right-1 h-2 w-2 border-b-2 border-r-2 border-muted-foreground/50" />
+                </div>
+            )}
         </div>
     )
 }

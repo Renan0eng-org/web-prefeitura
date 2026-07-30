@@ -30,7 +30,7 @@ export function EmailVerificationBanner() {
     }
 
     return (
-        <div className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800 md:px-4">
+        <div className="flex items-center gap-2 border-b border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800 md:px-4 dark:border-amber-800 dark:bg-amber-950 dark:text-amber-300">
             <MailWarning className="h-3.5 w-3.5 shrink-0" />
             <span className="flex-1 truncate">
                 Seu e-mail ainda não foi verificado.
@@ -41,7 +41,7 @@ export function EmailVerificationBanner() {
                     size="sm"
                     onClick={handleResend}
                     disabled={sending}
-                    className="h-6 px-2 text-xs font-semibold text-amber-800 hover:bg-amber-100 hover:text-amber-900"
+                    className="inline-flex shrink-0 items-center gap-1 rounded-md border border-orange-300/70 px-2 py-1 text-xs hover:bg-orange-500/10 dark:text-amber-300 text-amber-800"
                 >
                     {sending ? <Loader2 className="h-3 w-3 animate-spin" /> : "Reenviar e-mail"}
                 </Button>

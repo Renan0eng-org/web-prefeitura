@@ -17,7 +17,7 @@ import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
 import { NivelAcesso, UserComNivel } from "@/types/access-level"
-import { Filter, Loader2, Mail, MoreHorizontal, PlusCircle, RefreshCcw, RotateCcw, Settings2, Trash2 } from "lucide-react"
+import { Eye, Filter, Loader2, Mail, MoreHorizontal, PlusCircle, RefreshCcw, RotateCcw, Settings2, Trash2 } from "lucide-react"
 import * as React from "react"
 
 export default function UsuariosPage() {
@@ -64,6 +64,11 @@ export default function UsuariosPage() {
 
     const permBoasVindas = React.useMemo(
         () => getPermissions("boas-vindas"),
+        [getPermissions]
+    )
+
+    const permLogarComo = React.useMemo(
+        () => getPermissions("logar-como"),
         [getPermissions]
     )
 
@@ -149,6 +154,10 @@ export default function UsuariosPage() {
         }
     }
 
+    const handleLoginAs = async (user: UserComNivel) => {
+        window.open(`/admin/impersonar?userId=${encodeURIComponent(user.idUser)}`, '_blank')
+    }
+
     const [confirmOpen, setConfirmOpen] = React.useState(false)
     const [pendingUser, setPendingUser] = React.useState<UserComNivel | null>(null)
 
@@ -201,7 +210,7 @@ export default function UsuariosPage() {
                                 {visibleColumns.acoes && <TableHead className="text-right">Ações</TableHead>}
                             </TableRow>
                         </TableHeader>
-                        <TableBody className="bg-white">
+                        <TableBody className="bg-card">
                             {Array.from({ length: 6 }).map((_, i) => (
                                 <TableRow key={i}>
                                     {visibleColumns.usuario && (
@@ -357,20 +366,20 @@ export default function UsuariosPage() {
 
             <div className="rounded-lg overflow-hidden border">
                 <div className="overflow-x-auto scrollable">
-                    <Table className="bg-white/40 min-w-[600px]">
+                    <Table className="bg-card text-card-foreground min-w-[600px]">
                     <TableHeader className="bg-muted sticky top-0 z-10">
                         <TableRow>
                             {visibleColumns.usuario && <TableHead>Usuário</TableHead>}
                             {visibleColumns.nivel && <TableHead>Nível</TableHead>}
                             {visibleColumns.tipo && <TableHead>Tipo</TableHead>}
                             {visibleColumns.status && <TableHead>Status</TableHead>}
-                            {visibleColumns.acoes && (permissions?.editar || permissions?.excluir) && (
+                            {visibleColumns.acoes && (permissions?.editar || permissions?.excluir || permLogarComo?.visualizar) && (
                                 <TableHead className="w-[64px] text-right">Ações</TableHead>
                             )}
                         </TableRow>
                     </TableHeader>
                     {loaderRefresh ?
-                        <TableBody className="bg-white">
+                        <TableBody className="bg-card">
                             {Array.from({ length: 6 }).map((_, i) => (
                                 <TableRow key={i}>
                                     {visibleColumns.usuario && (    
@@ -394,7 +403,7 @@ export default function UsuariosPage() {
                                             <Skeleton className="h-4 w-16" />
                                         </TableCell>
                                     )}
-                                    {visibleColumns.acoes && (permissions?.editar || permissions?.excluir) && (
+                                    {visibleColumns.acoes && (permissions?.editar || permissions?.excluir || permLogarComo?.visualizar) && (
                                         <TableCell className="text-right">
                                             <Skeleton className="h-8 w-8 ml-auto rounded-full" />
                                         </TableCell>
@@ -402,7 +411,7 @@ export default function UsuariosPage() {
                                 </TableRow>
                             ))}
                         </TableBody>
-                    :<TableBody className="bg-white">
+                    :<TableBody className="bg-card">
                         {paginatedUsers.map((user) => (
                             <TableRow key={user.idUser}>
                                 {visibleColumns.usuario && (
@@ -430,7 +439,7 @@ export default function UsuariosPage() {
                                         )}
                                     </TableCell>
                                 )}
-                                {visibleColumns.acoes && (permissions?.editar || permissions?.excluir) && (
+                                {visibleColumns.acoes && (permissions?.editar || permissions?.excluir || permLogarComo?.visualizar) && (
                                     <TableCell className="text-right">
                                         <DropdownMenu>
                                             <DropdownMenuTrigger asChild>
@@ -447,6 +456,11 @@ export default function UsuariosPage() {
                                                     )
                                                 ) : (
                                                   <>
+                                                {permLogarComo?.visualizar && user.active && (
+                                                    <DropdownMenuItem onClick={() => handleLoginAs(user)}>
+                                                        <Eye className="h-4 w-4 mr-2" />Logar como
+                                                    </DropdownMenuItem>
+                                                )}
                                                 {permBoasVindas?.visualizar && (
                                                     <DropdownMenuItem
                                                         onClick={() => {
@@ -495,7 +509,7 @@ export default function UsuariosPage() {
                     </TableBody>}
                 </Table>
                 </div>
-                <div className="border-t border-gray-200">
+                <div className="border-t border-border">
                     <Pagination
                         page={page}
                         pageSize={pageSize}

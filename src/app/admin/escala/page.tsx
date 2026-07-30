@@ -8,13 +8,13 @@ import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { Switch } from "@/components/ui/switch"
-import { PlantaoTimeline, TimelineIcon, type PlantaoEvent } from "@/components/escala/plantao-timeline"
+import { PlantaoHistorico, type PlantaoAtendimento, type PlantaoEvent } from "@/components/escala/plantao-timeline"
 import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import { useEscalaRealtime } from "@/hooks/use-escala-realtime"
 import { usePinnedPlantao } from "@/hooks/use-pinned-plantao"
 import api from "@/services/api"
-import { CalendarDays, ChevronLeft, ChevronRight, HandHelping, Loader2, LogIn, LogOut, Pencil, Pin, PlusCircle, Trash2, Undo2 } from "lucide-react"
+import { BellRing, CalendarDays, ChevronLeft, ChevronRight, HandHelping, Loader2, LogIn, LogOut, Pencil, Pin, PlusCircle, Trash2, Undo2 } from "lucide-react"
 import * as React from "react"
 
 type Status = "Aberto" | "Agendado" | "EmAndamento" | "Concluido" | "Cancelado"
@@ -128,11 +128,17 @@ export default function EscalaPage() {
 
     const [detail, setDetail] = React.useState<Plantao | null>(null)
     const [showDeleted, setShowDeleted] = React.useState(false)
+    const [now, setNow] = React.useState(() => new Date())
+
+    React.useEffect(() => {
+        const timer = window.setInterval(() => setNow(new Date()), 30_000)
+        return () => window.clearInterval(timer)
+    }, [])
 
     // Histórico (timeline) do plantão selecionado.
     const [history, setHistory] = React.useState<PlantaoEvent[]>([])
+    const [atendimentos, setAtendimentos] = React.useState<PlantaoAtendimento[]>([])
     const [loadingHistory, setLoadingHistory] = React.useState(false)
-    const historyScrollRef = React.useRef<HTMLDivElement | null>(null)
 
     // Grade de interação (arraste para criar/mover/redimensionar/duplicar).
     const gridRef = React.useRef<HTMLDivElement | null>(null)
@@ -187,10 +193,15 @@ export default function EscalaPage() {
     const loadHistory = React.useCallback(async (plantaoId: string, showLoader = false) => {
         if (showLoader) setLoadingHistory(true)
         try {
-            const res = await api.get(`/admin/escala/${plantaoId}/historico`)
-            setHistory(Array.isArray(res.data) ? res.data : [])
+            const [hRes, aRes] = await Promise.all([
+                api.get(`/admin/escala/${plantaoId}/historico`),
+                api.get(`/admin/escala/${plantaoId}/atendimentos`).catch(() => ({ data: [] })),
+            ])
+            setHistory(Array.isArray(hRes.data) ? hRes.data : [])
+            setAtendimentos(Array.isArray(aRes.data) ? aRes.data : [])
         } catch {
             setHistory([])
+            setAtendimentos([])
         } finally {
             setLoadingHistory(false)
         }
@@ -204,15 +215,9 @@ export default function EscalaPage() {
 
     // Carrega a timeline de histórico ao abrir o detalhe de um plantão.
     React.useEffect(() => {
-        if (!detail?.id) { setHistory([]); return }
+        if (!detail?.id) { setHistory([]); setAtendimentos([]); return }
         loadHistory(detail.id, true)
     }, [detail?.id, loadHistory])
-
-    // Mantém a visão no evento mais recente (rola para o fim ao mudar o histórico).
-    React.useEffect(() => {
-        const el = historyScrollRef.current
-        if (el) requestAnimationFrame(() => el.scrollTo({ top: el.scrollHeight, behavior: "smooth" }))
-    }, [history])
 
     // Permissões das interações de calendário.
     const canCreateShift = !!escalaAdminPerm?.criar && !showDeleted
@@ -376,6 +381,20 @@ export default function EscalaPage() {
         }
     }
 
+    const notifyCheckin = async (id: string) => {
+        setBusy(id)
+        try {
+            await api.post(`/admin/escala/${id}/notificar-checkin`)
+            setAlert("Solicitação de check-in enviada ao médico.", "success")
+            if (detail?.id === id) await loadHistory(id)
+            await fetchData()
+        } catch (err: any) {
+            setAlert(err.response?.data?.message || "Não foi possível solicitar o check-in.", "error")
+        } finally {
+            setBusy(null)
+        }
+    }
+
     const removePlantao = async (id: string) => {
         setBusy(id)
         try {
@@ -449,7 +468,6 @@ export default function EscalaPage() {
         return { top, height: Math.max(22, rawH) }
     }
 
-    const now = new Date()
     const nowTop = (now.getHours() + now.getMinutes() / 60 - START_HOUR) * HOUR_PX
 
     if (isLoading) {
@@ -585,6 +603,19 @@ export default function EscalaPage() {
                                                         onPointerDown={(e) => startEventDrag(e, p, di)}
                                                         title="Arraste para mover · bordas p/ redimensionar · Alt p/ duplicar">
                                                         <div className="absolute top-0 left-0 right-0 h-2 z-20 cursor-ns-resize" onPointerDown={(e) => startResizeDrag(e, p, di, "top")} />
+                                                        {isEscalaAdmin && p.status === "Agendado" && p.doctorId && new Date() >= new Date(p.startsAt) && new Date() < new Date(p.endsAt) && (
+                                                            <button
+                                                                type="button"
+                                                                className="pointer-events-auto absolute right-1 top-1 z-30 rounded bg-background/70 p-0.5 text-amber-600 hover:bg-background hover:text-amber-700"
+                                                                title="Solicitar check-in"
+                                                                aria-label="Solicitar check-in"
+                                                                disabled={busy === p.id}
+                                                                onPointerDown={(e) => e.stopPropagation()}
+                                                                onClick={(e) => { e.stopPropagation(); void notifyCheckin(p.id) }}
+                                                            >
+                                                                <BellRing className="h-3.5 w-3.5" />
+                                                            </button>
+                                                        )}
                                                         <div className="px-1.5 py-1 pointer-events-none">
                                                             <div className="text-[11px] font-semibold leading-tight truncate">{p.doctor?.name || style.label}</div>
                                                             <div className="text-[10px] leading-tight truncate opacity-80">{p.setor} · {fmtTime(p.startsAt)}–{fmtTime(p.endsAt)}</div>
@@ -650,6 +681,19 @@ export default function EscalaPage() {
                             <div className="flex items-center gap-2 shrink-0 mt-3">
                                 <Badge variant="outline">{STATUS_STYLE[detail.status].label}</Badge>
                                 {detail.doctor?.especialidade && <span className="text-sm text-muted-foreground">{detail.doctor.especialidade}</span>}
+                                {isEscalaAdmin && detail.status === "Agendado" && detail.doctorId && new Date() >= new Date(detail.startsAt) && new Date() < new Date(detail.endsAt) && (
+                                    <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="ml-auto text-amber-600 hover:text-amber-700"
+                                        disabled={busy === detail.id}
+                                        title="Solicitar check-in"
+                                        onClick={() => void notifyCheckin(detail.id)}
+                                    >
+                                        <BellRing className="h-4 w-4" />
+                                        Solicitar check-in
+                                    </Button>
+                                )}
                             </div>
                             </div>
 
@@ -657,19 +701,7 @@ export default function EscalaPage() {
 
                             {/* Histórico / timeline — painel branco, meio scrollável */}
                             <div className="flex-1 min-h-0 flex flex-col bg-card text-card-foreground p-3">
-                                <div className="flex items-center justify-between mb-1 shrink-0">
-                                    <div className="flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-                                        <TimelineIcon className="h-4 w-4" /> Histórico
-                                    </div>
-                                    {history.length > 0 && <span className="text-xs text-muted-foreground">{history.length} evento{history.length > 1 ? "s" : ""}</span>}
-                                </div>
-                                <div ref={historyScrollRef} className="flex-1 min-h-0 overflow-y-auto scrollable pr-1">
-                                    {loadingHistory ? (
-                                        <p className="text-sm text-muted-foreground text-center py-6">Carregando histórico...</p>
-                                    ) : (
-                                        <PlantaoTimeline events={history} />
-                                    )}
-                                </div>
+                                <PlantaoHistorico events={history} atendimentos={atendimentos} loading={loadingHistory} />
                             </div>
 
                             <hr className="bg-card" />

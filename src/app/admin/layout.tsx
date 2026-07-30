@@ -17,6 +17,8 @@ import { AlertProvider } from "@/hooks/use-alert";
 import { AuthProvider } from "@/hooks/use-auth";
 import { ChatProvider } from "@/hooks/use-chat";
 import { PinnedPlantaoProvider } from "@/hooks/use-pinned-plantao";
+import { ImpersonationBanner } from "@/components/impersonation-banner";
+import { ShiftStartNotifications } from "@/components/escala/shift-start-notifications";
 
 export default async function RootLayout({
   children,
@@ -31,9 +33,11 @@ export default async function RootLayout({
           <ChatProvider>
             <PinnedPlantaoProvider>
             <GlobalAlert />
+            <ShiftStartNotifications />
             <SidebarProvider>
               <AppSidebar />
               <SidebarInset>
+                <ImpersonationBanner />
                 <EmailVerificationBanner />
                 <header className="flex h-14 md:h-16 shrink-0 items-center gap-2 text-text">
                   <div className="flex items-center gap-2 px-3 md:px-4 w-full">

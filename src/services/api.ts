@@ -27,6 +27,9 @@ api.interceptors.response.use(
 
         // If 401 and we haven't retried yet, attempt refresh
         if (error.response?.status === 401 && !originalRequest._retry) {
+            if (typeof window !== 'undefined' && sessionStorage.getItem('impersonation_session') === 'true') {
+                return Promise.reject(error)
+            }
             originalRequest._retry = true
 
             if (isRefreshing) {

@@ -507,7 +507,7 @@ export default function CriarAtendimentoView({ appointmentId, attendanceId, pati
             // ----- Concluir a senha da fila de origem (auto-mover para "Concluídos hoje") -----
             if (ticketId) {
                 try {
-                    await api.post(`/admin/fila/${ticketId}/concluir`, {})
+                    await api.post(`/admin/fila/${ticketId}/concluir`, { attendanceId: savedAttendanceId })
                 } catch {
                     setAlert("Atendimento salvo, mas não foi possível concluir a senha da fila.", "warning")
                 }
@@ -859,15 +859,16 @@ export default function CriarAtendimentoView({ appointmentId, attendanceId, pati
                                         placeholder="1"
                                         className="pr-20 no-arrows"
                                         value={leadingNumber(prescDialog.draft.dosage)}
-                                        onChange={(e) =>
+                                        onChange={(e) => {
+                                            const n = e.target.value.replace(/[^\d.,]/g, "").replace(",", ".")
                                             setPrescDialog((s) => ({
                                                 ...s,
                                                 draft: {
                                                     ...s.draft,
-                                                    dosage: e.target.value.replace(/[^\d.,]/g, ""),
+                                                    dosage: n ? `${n} ${Number(n) === 1 ? "dose" : "doses"}` : "",
                                                 },
                                             }))
-                                        }
+                                        }}
                                     />
 
                                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
@@ -902,7 +903,7 @@ export default function CriarAtendimentoView({ appointmentId, attendanceId, pati
                                                 ...s,
                                                 draft: {
                                                     ...s.draft,
-                                                    frequency: n,
+                                                    frequency: n ? `A cada ${n} ${n === "1" ? "hora" : "horas"}` : "",
                                                 },
                                             }));
                                         }}
@@ -940,7 +941,7 @@ export default function CriarAtendimentoView({ appointmentId, attendanceId, pati
                                                 ...s,
                                                 draft: {
                                                     ...s.draft,
-                                                    duration: n,
+                                                    duration: n ? `${n} ${n === "1" ? "dia" : "dias"}` : "",
                                                 },
                                             }));
                                         }}

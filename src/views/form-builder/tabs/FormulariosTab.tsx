@@ -63,7 +63,7 @@ export default function FormulariosTab() {
     const [filterTitle, setFilterTitle] = useState<string>('')
     const [filterDescription, setFilterDescription] = useState<string>('')
     const [filterDateRange, setFilterDateRange] = useState<DateRange | undefined>(undefined)
-        const [filterCreatedDateRange, setFilterCreatedDateRange] = useState<DateRange | undefined>(undefined)
+    const [filterCreatedDateRange, setFilterCreatedDateRange] = useState<DateRange | undefined>(undefined)
     const [filterScreening, setFilterScreening] = useState<boolean | undefined>(undefined)
     const [filterResponsesMin, setFilterResponsesMin] = useState<number | undefined>(undefined)
     const [filterResponsesMax, setFilterResponsesMax] = useState<number | undefined>(undefined)
@@ -74,8 +74,8 @@ export default function FormulariosTab() {
         description?: string
         from?: string
         to?: string
-            createdFrom?: string
-            createdTo?: string
+        createdFrom?: string
+        createdTo?: string
         isScreening?: boolean
         responsesMin?: number
         responsesMax?: number
@@ -91,8 +91,8 @@ export default function FormulariosTab() {
                 if (filters.description) params.description = filters.description
                 if (filters.from) params.from = filters.from
                 if (filters.to) params.to = filters.to
-                    if (filters.createdFrom) params.createdFrom = filters.createdFrom
-                    if (filters.createdTo) params.createdTo = filters.createdTo
+                if (filters.createdFrom) params.createdFrom = filters.createdFrom
+                if (filters.createdTo) params.createdTo = filters.createdTo
                 if (typeof filters.isScreening === 'boolean') params.isScreening = filters.isScreening
                 if (typeof filters.responsesMin === 'number') params.responsesMin = filters.responsesMin
                 if (typeof filters.responsesMax === 'number') params.responsesMax = filters.responsesMax
@@ -196,14 +196,14 @@ export default function FormulariosTab() {
                     <ColumnsDropdown
                         columns={columns}
                         onChange={(c: Record<string, boolean>) => setColumns(c)}
-                        labels={{ 
-                            title: 'Título', 
-                            description: 'Descrição', 
-                            isScreening: 'Triagem', 
-                            updatedAt: 'Atualizado em', 
+                        labels={{
+                            title: 'Título',
+                            description: 'Descrição',
+                            isScreening: 'Triagem',
+                            updatedAt: 'Atualizado em',
                             createdAt: 'Criado em',
-                            responses: 'Respostas', 
-                            actions: 'Ações' 
+                            responses: 'Respostas',
+                            actions: 'Ações'
                         }}
                         buttonLabel={<><Settings2 className="h-4 w-4" /> Colunas</>}
                         contentClassName="p-2"
@@ -299,10 +299,9 @@ export default function FormulariosTab() {
             )}
 
             {error && <p className="text-red-500">{error}</p>}
-            <div className="rounded-t-lg overflow-hidden">
-                <div className="overflow-x-auto scrollable">
-                    <Table className="min-w-[700px]">
-                    <TableHeader className="sticky top-0 z-10 bg-muted">
+            <div className="overflow-x-auto scrollable rounded-t-lg">
+                <Table className="bg-card text-card-foreground min-w-[700px] rounded-t-lg">
+                    <TableHeader className="bg-muted sticky top-0 z-10">
                         <TableRow>
                             {columns.title && <TableHead className="min-w-52">Título</TableHead>}
                             {columns.description && <TableHead>Descrição</TableHead>}
@@ -313,7 +312,7 @@ export default function FormulariosTab() {
                             {columns.actions && <TableHead className="min-w-20 flex justify-center items-center">Ações</TableHead>}
                         </TableRow>
                     </TableHeader>
-                    <TableBody className="bg-white/40">
+                    <TableBody>
                         {isLoading ? (
                             // show skeleton rows while loading
                             Array.from({ length: 5 }).map((_, i) => (
@@ -358,7 +357,7 @@ export default function FormulariosTab() {
                                     )}
                                     {columns.isScreening && (
                                         <TableCell>
-                                            <Badge className={"px-2 py-1 " + (form.isScreening ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-600')}>
+                                            <Badge className={"px-2 py-1 " + (form.isScreening ? 'bg-green-100 text-green-800 dark:bg-green-500/20 dark:text-green-300' : 'bg-gray-100 text-gray-600 dark:bg-muted dark:text-muted-foreground')}>
                                                 {form.isScreening ? 'Ativa' : 'Inativa'}
                                             </Badge>
                                         </TableCell>
@@ -450,7 +449,6 @@ export default function FormulariosTab() {
                         )}
                     </TableBody>
                 </Table>
-                </div>
             </div>
 
             <Pagination

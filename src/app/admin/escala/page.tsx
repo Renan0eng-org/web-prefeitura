@@ -188,7 +188,7 @@ export default function EscalaPage() {
         else setIsLoading(false)
     }, [canView, fetchData])
 
-    const { pin } = usePinnedPlantao()
+    const { pin, floatAttendance } = usePinnedPlantao()
 
     const loadHistory = React.useCallback(async (plantaoId: string, showLoader = false) => {
         if (showLoader) setLoadingHistory(true)
@@ -701,7 +701,7 @@ export default function EscalaPage() {
 
                             {/* Histórico / timeline — painel branco, meio scrollável */}
                             <div className="flex-1 min-h-0 flex flex-col bg-card text-card-foreground p-3">
-                                <PlantaoHistorico events={history} atendimentos={atendimentos} loading={loadingHistory} />
+                                <PlantaoHistorico events={history} atendimentos={atendimentos} loading={loadingHistory} onAttendanceLongPress={floatAttendance} />
                             </div>
 
                             <hr className="bg-card" />

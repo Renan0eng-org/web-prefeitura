@@ -164,19 +164,27 @@ const AT_STATUS: Record<PlantaoAtendimento["status"], { label: string; cls: stri
     Faltou: { label: "Faltou", cls: "bg-slate-200 text-slate-600 dark:bg-slate-600/30 dark:text-slate-300" },
 }
 
-function AtendimentoCard({ a, pal, align }: { a: PlantaoAtendimento; pal: Pal; align: "left" | "right" }) {
+function AtendimentoCard({ a, pal, align, onLongPress }: { a: PlantaoAtendimento; pal: Pal; align: "left" | "right"; onLongPress?: (id: string) => void }) {
     const router = useRouter()
+    const timer = React.useRef<ReturnType<typeof setTimeout> | null>(null)
+    const longPressed = React.useRef(false)
     const diagnosis = a.attendance?.diagnosis?.trim()
     const st = AT_STATUS[a.status] ?? { label: a.status, cls: pal.badge }
     const right = align === "right"
     // Clicável apenas quando há um atendimento vinculado (abre a tela de visualização).
     const clickable = !!a.attendanceId
-    const open = () => { if (a.attendanceId) router.push(`/admin/atendimentos/editar/${a.attendanceId}?view=true`) }
+    const open = () => { if (a.attendanceId && !longPressed.current) router.push(`/admin/atendimentos/visualizar/${a.attendanceId}`) }
+    const startLongPress = () => { if (!a.attendanceId || !onLongPress) return; longPressed.current = false; timer.current = setTimeout(() => { longPressed.current = true; onLongPress(a.attendanceId!) }, 650) }
+    const cancelLongPress = () => { if (timer.current) { clearTimeout(timer.current); timer.current = null } }
     return (
         <div
             role={clickable ? "button" : undefined}
             tabIndex={clickable ? 0 : undefined}
             onClick={clickable ? open : undefined}
+            onPointerDown={clickable ? startLongPress : undefined}
+            onPointerUp={cancelLongPress}
+            onPointerLeave={cancelLongPress}
+            onPointerCancel={cancelLongPress}
             onKeyDown={clickable ? (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open() } } : undefined}
             title={clickable ? "Ver detalhes do atendimento" : undefined}
             className={cn(
@@ -242,7 +250,7 @@ function buildNodes(events: PlantaoEvent[], atendimentos: PlantaoAtendimento[], 
     return nodes.sort((x, y) => x.at - y.at)
 }
 
-function TimelineList({ nodes, emptyLabel }: { nodes: TimelineNode[]; emptyLabel: string }) {
+function TimelineList({ nodes, emptyLabel, onAttendanceLongPress }: { nodes: TimelineNode[]; emptyLabel: string; onAttendanceLongPress?: (id: string) => void }) {
     if (nodes.length === 0) {
         return <p className="text-sm text-muted-foreground text-center py-6">{emptyLabel}</p>
     }
@@ -275,7 +283,7 @@ function TimelineList({ nodes, emptyLabel }: { nodes: TimelineNode[]; emptyLabel
                             dot={pal.dot}
                             personSide="right"
                             person={<PersonBlock name={n.a.patientName} role="Paciente" pal={pal} />}
-                            card={<AtendimentoCard a={n.a} pal={pal} align="left" />}
+                                card={<AtendimentoCard a={n.a} pal={pal} align="left" onLongPress={onAttendanceLongPress} />}
                         />
                     )
                 })}
@@ -310,11 +318,13 @@ export function PlantaoHistorico({
     atendimentos,
     loading = false,
     className,
+    onAttendanceLongPress,
 }: {
     events: PlantaoEvent[]
     atendimentos: PlantaoAtendimento[]
     loading?: boolean
     className?: string
+    onAttendanceLongPress?: (id: string) => void
 }) {
     const [filter, setFilter] = React.useState<HistoryFilter>("tudo")
     const scrollRef = React.useRef<HTMLDivElement | null>(null)
@@ -356,7 +366,7 @@ export function PlantaoHistorico({
                 {loading ? (
                     <p className="text-sm text-muted-foreground text-center py-6">Carregando histórico...</p>
                 ) : (
-                    <TimelineList nodes={nodes} emptyLabel={EMPTY_LABEL[filter]} />
+                    <TimelineList nodes={nodes} emptyLabel={EMPTY_LABEL[filter]} onAttendanceLongPress={onAttendanceLongPress} />
                 )}
             </div>
         </div>

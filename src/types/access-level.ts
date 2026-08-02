@@ -80,6 +80,18 @@ export type Grupo = {
   membros: GrupoMembro[];
 }
 
+export type GrupoAfiliacao = {
+  id: number;
+  origemId: number;
+  destinoId: number;
+  status: "Pendente" | "Ativa" | "Recusada" | "Encerrada";
+  criadoEm: string;
+  respondidoEm: string | null;
+  origem: { idGrupo: number; nome: string };
+  destino: { idGrupo: number; nome: string };
+  solicitadoPor?: { idUser: string; name: string; email: string } | null;
+}
+
 export type UserFormData = {
     name: string;
     email: string;

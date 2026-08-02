@@ -25,7 +25,8 @@ import {
     type DragEndEvent,
     type DragStartEvent,
 } from "@dnd-kit/core"
-import { CalendarClock, CheckCircle2, ChevronDown, ChevronRight, Clock, GripVertical, Loader2, Pencil, PhoneCall, PlusCircle, RefreshCcw, RotateCcw, Stethoscope, TicketCheck, Trash2 } from "lucide-react"
+import { CalendarClock, Bell, BellOff, CheckCircle2, ChevronDown, ChevronRight, Clock, GripVertical, Loader2, Pencil, PhoneCall, PlusCircle, RefreshCcw, RotateCcw, Stethoscope, TicketCheck, Trash2 } from "lucide-react"
+import { useEscalaRealtime } from "@/hooks/use-escala-realtime"
 import * as React from "react"
 import { useRouter } from "next/navigation"
 import { PatientSelect } from "@/components/select/PatientSelect"
@@ -46,6 +47,7 @@ type Ticket = {
     appointment?: { id: string; scheduledAt: string; status: string; modality?: string } | null
 }
 type Stats = { aguardando: number; chamado: number; emAtendimento: number; concluidos: number; avgWaitSeconds: number }
+type NotificationConfig = { canManageGroup: boolean; groupForced: Record<string, boolean>; pessoal: Record<string, boolean>; effective: Record<string, boolean> }
 type Appointment = {
     id: string
     scheduledAt: string
@@ -198,6 +200,8 @@ export default function FilaPage() {
     const permissions = React.useMemo(() => getPermissions("fila"), [getPermissions])
     const agendamentoPerm = React.useMemo(() => getPermissions("agendamentos") ?? getPermissions("agendamento"), [getPermissions])
     const atendimentoPerm = React.useMemo(() => getPermissions("atendimento"), [getPermissions])
+    const notificationPerm = React.useMemo(() => getPermissions("fila-notificacoes"), [getPermissions])
+    const [notificationConfig, setNotificationConfig] = React.useState<NotificationConfig | null>(null)
 
     // Abre a tela de criação de atendimento a partir da senha em "Em atendimento".
     // A senha é concluída sozinha ao salvar o atendimento (ver CriarAtendimentoView).
@@ -273,6 +277,25 @@ export default function FilaPage() {
         }
     }, [setAlert, agendamentoPerm?.visualizar])
 
+    const loadNotificationConfig = React.useCallback(async () => {
+        if (!notificationPerm?.visualizar) return
+        try { const res = await api.get("/admin/fila/notificacoes/config"); setNotificationConfig(res.data) } catch { /* configuração é opcional para a fila */ }
+    }, [notificationPerm?.visualizar])
+
+    useEscalaRealtime(fetchData, !!permissions?.visualizar)
+
+    const toggleNotification = async (status: QueueStatus) => {
+        if (!notificationConfig || !notificationPerm?.visualizar) return
+        const forced = !!notificationConfig.groupForced[status]
+        if (forced && !notificationConfig.canManageGroup) return
+        const groupMode = notificationConfig.canManageGroup
+        const active = groupMode ? forced : !!notificationConfig.pessoal[status]
+        try {
+            const res = await api.put(`/admin/fila/notificacoes/${groupMode ? "grupo" : "pessoal"}`, { status, ativo: !active })
+            setNotificationConfig(res.data)
+        } catch (err: any) { setAlert(err.response?.data?.message || "Não foi possível alterar a notificação.", "error") }
+    }
+
     const refreshDeleted = React.useCallback(async () => {
         try {
             setLoadingDeleted(true)
@@ -288,10 +311,11 @@ export default function FilaPage() {
     React.useEffect(() => {
         if (!permissions?.visualizar) { setIsLoading(false); return }
         fetchData()
+        loadNotificationConfig()
         if (permissions?.excluir) refreshDeleted()
         const t = setInterval(fetchData, 15000) // auto-refresh
         return () => clearInterval(t)
-    }, [permissions?.visualizar, permissions?.excluir, fetchData, refreshDeleted])
+    }, [permissions?.visualizar, permissions?.excluir, fetchData, refreshDeleted, loadNotificationConfig])
 
     const action = async (id: string, path: string, body?: any) => {
         setBusy(id)
@@ -665,7 +689,15 @@ export default function FilaPage() {
                                                 {isCollapsed ? <ChevronRight className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
                                                 {title}
                                             </span>
-                                            <span>{list.length}</span>
+                                            <span className="flex items-center gap-1">
+                                                {notificationPerm?.visualizar && notificationConfig && (() => {
+                                                    const forced = !!notificationConfig.groupForced[key]
+                                                    const active = notificationConfig.canManageGroup ? forced : !!notificationConfig.effective[key]
+                                                    const locked = forced && !notificationConfig.canManageGroup
+                                                    return <button type="button" className={cn("rounded-md p-1 transition", active ? "text-amber-500 hover:bg-amber-500/10" : "text-muted-foreground hover:bg-muted", locked && "cursor-not-allowed opacity-70")} title={locked ? "Notificação ativada pelo administrador do grupo" : active ? "Desativar notificações desta coluna" : "Ativar notificações desta coluna"} aria-label={locked ? "Notificação obrigatória pelo grupo" : active ? "Desativar notificações" : "Ativar notificações"} disabled={locked} onClick={(e) => { e.stopPropagation(); void toggleNotification(key) }}>{active ? <Bell className="w-3.5 h-3.5" /> : <BellOff className="w-3.5 h-3.5" />}</button>
+                                                })()}
+                                                <span>{list.length}</span>
+                                            </span>
                                         </button>
                                         {!isCollapsed && (
                                             <div className="space-y-2 min-h-[80px] max-h-[65vh] overflow-y-auto scrollable pr-1">

@@ -13,13 +13,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAlert } from "@/hooks/use-alert"
 import { useAuth } from "@/hooks/use-auth"
 import api from "@/services/api"
-import { Grupo, UserComNivel } from "@/types/access-level"
-import { Loader2, Pencil, PlusCircle, Trash2, UserPlus, Users, X } from "lucide-react"
+import { Grupo, GrupoAfiliacao, UserComNivel } from "@/types/access-level"
+import { ArrowRight, Check, Loader2, Pencil, PlusCircle, RefreshCcw, Trash2, UserPlus, Users, X } from "lucide-react"
 import * as React from "react"
 
 export default function GruposPage() {
     const [grupos, setGrupos] = React.useState<Grupo[]>([])
     const [users, setUsers] = React.useState<UserComNivel[]>([])
+    const [afiliacoes, setAfiliacoes] = React.useState<GrupoAfiliacao[]>([])
     const [isLoading, setIsLoading] = React.useState(true)
 
     // dialog state
@@ -33,6 +34,12 @@ export default function GruposPage() {
     const [membrosGrupo, setMembrosGrupo] = React.useState<Grupo | null>(null)
     const [selectedUserId, setSelectedUserId] = React.useState("")
     const [addingMember, setAddingMember] = React.useState(false)
+    const [movingUserId, setMovingUserId] = React.useState("")
+    const [targetGroupId, setTargetGroupId] = React.useState("")
+    const [movingMember, setMovingMember] = React.useState(false)
+    const [affiliationOriginId, setAffiliationOriginId] = React.useState("")
+    const [affiliationTargetId, setAffiliationTargetId] = React.useState("")
+    const [savingAffiliation, setSavingAffiliation] = React.useState(false)
 
     // delete confirm
     const [confirmOpen, setConfirmOpen] = React.useState(false)
@@ -45,12 +52,14 @@ export default function GruposPage() {
 
     const fetchData = React.useCallback(async () => {
         try {
-            const [gruposRes, usersRes] = await Promise.all([
+            const [gruposRes, usersRes, affiliationsRes] = await Promise.all([
                 api.get("/admin/grupos"),
                 api.get("/admin/users"),
+                api.get("/admin/grupos/afiliacoes/lista"),
             ])
             setGrupos(gruposRes.data)
             setUsers(Array.isArray(usersRes.data) ? usersRes.data : usersRes.data.data || [])
+            setAfiliacoes(Array.isArray(affiliationsRes.data) ? affiliationsRes.data : [])
         } catch (err: any) {
             setAlert(err.response?.data?.message || "Erro ao carregar grupos.", "error")
         } finally {
@@ -141,6 +150,33 @@ export default function GruposPage() {
         } catch (err: any) {
             setAlert(err.response?.data?.message || "Erro ao remover membro.", "error")
         }
+    }
+
+    const handleMoveMember = async () => {
+        if (!membrosGrupo || !movingUserId || !targetGroupId) return
+        setMovingMember(true)
+        try {
+            const { data } = await api.put(`/admin/grupos/${targetGroupId}/membros/${movingUserId}/mover`)
+            setMembrosGrupo(null)
+            setGrupos(prev => prev.map(g => g.idGrupo === data.idGrupo ? data : g))
+            await fetchData()
+            setMovingUserId(""); setTargetGroupId("")
+            setAlert("Usuário movido para o grupo.", "success")
+        } catch (err: any) { setAlert(err.response?.data?.message || "Erro ao mover usuário.", "error") } finally { setMovingMember(false) }
+    }
+
+    const requestAffiliation = async () => {
+        if (!affiliationOriginId || !affiliationTargetId || affiliationOriginId === affiliationTargetId) return
+        setSavingAffiliation(true)
+        try {
+            await api.post(`/admin/grupos/${affiliationOriginId}/afiliacoes`, { destinoId: Number(affiliationTargetId) })
+            setAffiliationOriginId(""); setAffiliationTargetId(""); await fetchData(); setAlert("Solicitação de afiliação enviada.", "success")
+        } catch (err: any) { setAlert(err.response?.data?.message || "Erro ao solicitar afiliação.", "error") } finally { setSavingAffiliation(false) }
+    }
+
+    const updateAffiliation = async (id: number, status: "Ativa" | "Recusada" | "Encerrada") => {
+        try { await api.put(`/admin/grupos/afiliacoes/${id}`, { status }); await fetchData(); setAlert(status === "Ativa" ? "Grupos afiliados. Os dados serão compartilhados." : "Solicitação atualizada.", "success") }
+        catch (err: any) { setAlert(err.response?.data?.message || "Erro ao atualizar afiliação.", "error") }
     }
 
     const availableUsers = React.useMemo(() => {
@@ -380,8 +416,24 @@ export default function GruposPage() {
                             </TableBody>
                         </Table>
                     </div>
+                    <div className="rounded-lg border bg-muted/20 p-3 space-y-2">
+                        <div className="text-xs font-semibold">Mover usuário para outro grupo</div>
+                        <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-2 items-end">
+                            <div className="grid gap-1"><Label className="text-xs">Usuário</Label><Select value={movingUserId} onValueChange={setMovingUserId}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{membrosGrupo?.membros.map(m => <SelectItem key={m.userId} value={m.userId}>{m.user.name}</SelectItem>)}</SelectContent></Select></div>
+                            <div className="grid gap-1"><Label className="text-xs">Grupo destino</Label><Select value={targetGroupId} onValueChange={setTargetGroupId}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{grupos.filter(g => g.idGrupo !== membrosGrupo?.idGrupo).map(g => <SelectItem key={g.idGrupo} value={String(g.idGrupo)}>{g.nome}</SelectItem>)}</SelectContent></Select></div>
+                            <Button onClick={handleMoveMember} disabled={!movingUserId || !targetGroupId || movingMember}>{movingMember ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}Mover</Button>
+                        </div>
+                    </div>
                 </DialogContent>
             </Dialog>
+
+            <Card className="mt-6">
+                <CardHeader className="pb-3"><div className="flex items-center justify-between gap-2"><div><CardTitle className="text-base">Afiliação entre grupos</CardTitle><CardDescription>Afiliados compartilham pacientes, formulários e demais dados dentro do escopo permitido.</CardDescription></div><RefreshCcw className="h-4 w-4 text-muted-foreground" /></div></CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid sm:grid-cols-[1fr_1fr_auto] gap-2 items-end"><div className="grid gap-1"><Label className="text-xs">Grupo solicitante</Label><Select value={affiliationOriginId} onValueChange={setAffiliationOriginId}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{grupos.map(g => <SelectItem key={g.idGrupo} value={String(g.idGrupo)}>{g.nome}</SelectItem>)}</SelectContent></Select></div><div className="grid gap-1"><Label className="text-xs">Grupo a afiliar</Label><Select value={affiliationTargetId} onValueChange={setAffiliationTargetId}><SelectTrigger><SelectValue placeholder="Selecione" /></SelectTrigger><SelectContent>{grupos.filter(g => String(g.idGrupo) !== affiliationOriginId).map(g => <SelectItem key={g.idGrupo} value={String(g.idGrupo)}>{g.nome}</SelectItem>)}</SelectContent></Select></div><Button onClick={requestAffiliation} disabled={!affiliationOriginId || !affiliationTargetId || savingAffiliation}>{savingAffiliation ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}Solicitar</Button></div>
+                    <div className="space-y-2">{afiliacoes.length === 0 ? <p className="text-sm text-muted-foreground">Nenhuma afiliação solicitada.</p> : afiliacoes.map(a => <div key={a.id} className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-lg border p-3"><div className="text-sm"><b>{a.origem.nome}</b><ArrowRight className="inline h-3.5 w-3.5 mx-2" /><b>{a.destino.nome}</b><div className="text-xs text-muted-foreground">Status: {a.status}</div></div>{a.status === "Pendente" && permissions?.editar && <div className="flex gap-2"><Button size="sm" onClick={() => updateAffiliation(a.id, "Ativa")}><Check className="h-3.5 w-3.5" />Aceitar</Button><Button size="sm" variant="outline" onClick={() => updateAffiliation(a.id, "Recusada")}>Recusar</Button></div>}{a.status === "Ativa" && permissions?.editar && <Button size="sm" variant="outline" onClick={() => updateAffiliation(a.id, "Encerrada")}>Encerrar</Button>}</div>)}</div>
+                </CardContent>
+            </Card>
 
             <ConfirmDialog
                 open={confirmOpen}

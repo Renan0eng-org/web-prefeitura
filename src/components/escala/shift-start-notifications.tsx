@@ -3,7 +3,7 @@
 import { X, Bell, CheckCircle2, Clock3 } from "lucide-react"
 import { useCallback, useEffect, useRef, useState } from "react"
 import { useAuth } from "@/hooks/use-auth"
-import { useEscalaRealtime, type CheckinReminder } from "@/hooks/use-escala-realtime"
+import { useEscalaRealtime, type CheckinReminder, type QueueNotification } from "@/hooks/use-escala-realtime"
 import api from "@/services/api"
 import { Button } from "@/components/ui/button"
 
@@ -17,7 +17,7 @@ type ScheduledShift = {
   setor: string
 }
 
-type Notice = { id: string; kind: "15" | "5"; shift: ScheduledShift }
+type Notice = { id: string; kind: "15" | "5"; shift: ScheduledShift } | { id: string; kind: "queue"; queue: QueueNotification }
 
 const POLL_MS = 30_000
 const CHECKIN_REPEAT_MS = 15 * 60 * 1000
@@ -53,6 +53,25 @@ function playNotificationSound() {
   }
 }
 
+function playQueueNotificationSound() {
+  try {
+    const AudioContextClass = window.AudioContext || (window as typeof window & { webkitAudioContext?: typeof AudioContext }).webkitAudioContext
+    if (!AudioContextClass) return
+    const context = new AudioContextClass()
+    const oscillator = context.createOscillator()
+    const gain = context.createGain()
+    oscillator.type = "triangle"
+    oscillator.frequency.setValueAtTime(520, context.currentTime)
+    oscillator.frequency.setValueAtTime(740, context.currentTime + 0.14)
+    gain.gain.setValueAtTime(0.0001, context.currentTime)
+    gain.gain.exponentialRampToValueAtTime(0.18, context.currentTime + 0.02)
+    gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.42)
+    oscillator.connect(gain); gain.connect(context.destination)
+    oscillator.start(); oscillator.stop(context.currentTime + 0.43)
+    oscillator.addEventListener("ended", () => context.close())
+  } catch { /* áudio pode estar bloqueado pelo navegador */ }
+}
+
 export function ShiftStartNotifications() {
   const { user } = useAuth()
   const [notices, setNotices] = useState<Notice[]>([])
@@ -77,6 +96,16 @@ export function ShiftStartNotifications() {
     notifiedRef.current.add(id)
     setNotices((current) => [...current, { id, kind, shift }].slice(-3))
     playNotificationSound()
+    window.setTimeout(() => setNotices((current) => current.filter((notice) => notice.id !== id)), 10_000)
+  }, [])
+
+  const addQueueNotice = useCallback((queue: QueueNotification) => {
+    const id = `fila-${queue.ticketId}-${queue.status}`
+    setNotices((current) => {
+      if (current.some((notice) => notice.id === id)) return current
+      return [...current, { id, kind: "queue" as const, queue }].slice(-3)
+    })
+    playQueueNotificationSound()
     window.setTimeout(() => setNotices((current) => current.filter((notice) => notice.id !== id)), 10_000)
   }, [])
 
@@ -145,7 +174,12 @@ export function ShiftStartNotifications() {
     }
   }, [user?.idUser])
 
-  useEscalaRealtime(fetchAndEvaluate, !!user?.idUser, handleCheckinReminder)
+  const handleQueueNotification = useCallback((notification: QueueNotification) => {
+    if (!user?.idUser || notification.doctorId !== user.idUser) return
+    addQueueNotice(notification)
+  }, [addQueueNotice, user?.idUser])
+
+  useEscalaRealtime(fetchAndEvaluate, !!user?.idUser, handleCheckinReminder, handleQueueNotification)
 
   useEffect(() => {
     if (!user?.idUser) return
@@ -182,10 +216,7 @@ export function ShiftStartNotifications() {
             <div className="flex gap-3 pr-5">
               <Clock3 className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
               <div>
-                <p className="font-semibold">Plantão se aproximando</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  Faltam <strong>{notice.kind} minutos</strong> para o início do plantão de {notice.shift.setor}.
-                </p>
+                {notice.kind === "queue" ? <><p className="font-semibold">Nova senha na fila</p><p className="mt-1 text-sm text-muted-foreground">A senha <strong>{notice.queue.code}</strong> entrou em <strong>{notice.queue.setor}</strong> ({notice.queue.status}).</p></> : <><p className="font-semibold">Plantão se aproximando</p><p className="mt-1 text-sm text-muted-foreground">Faltam <strong>{notice.kind} minutos</strong> para o início do plantão de {notice.shift.setor}.</p></>}
               </div>
             </div>
           </div>

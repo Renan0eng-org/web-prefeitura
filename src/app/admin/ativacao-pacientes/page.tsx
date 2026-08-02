@@ -161,12 +161,12 @@ export default function AtivacaoPacientesPage() {
                     <Table>
                         <TableHeader className="bg-muted sticky top-0 z-10">
                             <TableRow>
-                                {visibleColumns.usuario && <TableHead><Skeleton className="h-4 w-32 bg-white" /></TableHead>}
-                                {visibleColumns.nivel && <TableHead><Skeleton className="h-4 w-28 bg-white" /></TableHead>}
-                                {visibleColumns.status && <TableHead className="flex justify-end items-center"><Skeleton className="h-4 w-24 bg-white" /></TableHead>}
+                                {visibleColumns.usuario && <TableHead><Skeleton className="h-4 w-32" /></TableHead>}
+                                {visibleColumns.nivel && <TableHead><Skeleton className="h-4 w-28" /></TableHead>}
+                                {visibleColumns.status && <TableHead className="flex justify-end items-center"><Skeleton className="h-4 w-24" /></TableHead>}
                             </TableRow>
                         </TableHeader>
-                        <TableBody className="bg-white/40">
+                        <TableBody className="bg-card">
                             {Array.from({ length: 6 }).map((_, i) => (
                                 <TableRow key={i}>
                                     {visibleColumns.usuario && (
@@ -285,7 +285,7 @@ export default function AtivacaoPacientesPage() {
 
             <div className="rounded-lg overflow-hidden border">
                 <div className="overflow-x-auto scrollable">
-                    <Table className="bg-white min-w-[500px]">
+                    <Table className="bg-card text-card-foreground min-w-[500px]">
                     <TableHeader className="bg-muted sticky top-0 z-10">
                         <TableRow>
                             {visibleColumns.usuario && <TableHead>Usuário</TableHead>}
@@ -294,7 +294,7 @@ export default function AtivacaoPacientesPage() {
                         </TableRow>
                     </TableHeader>
                     {loaderRefresh ?
-                        <TableBody className="bg-white">
+                        <TableBody className="bg-card">
                             {Array.from({ length: 6 }).map((_, i) => (
                                 <TableRow key={i}>
                                     {visibleColumns.usuario && <TableCell className="flex flex-col gap-2">
@@ -306,7 +306,7 @@ export default function AtivacaoPacientesPage() {
                                 </TableRow>
                             ))}
                         </TableBody> :
-                        <TableBody className="bg-white/40">
+                        <TableBody className="bg-card">
                             {paginatedUsers.map((user) => (
                                 <TableRow key={user.idUser}>
                                     {visibleColumns.usuario && (
@@ -349,7 +349,7 @@ export default function AtivacaoPacientesPage() {
                         </TableBody>}
                 </Table>
                 </div>
-                <div className="border-t border-gray-200">
+                <div className="border-t border-border">
                     <Pagination
                         page={page}
                         pageSize={pageSize}

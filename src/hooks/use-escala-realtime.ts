@@ -6,6 +6,7 @@ import { io, type Socket } from "socket.io-client"
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "https://prefeitura.back.renannardi.com"
 
 export type CheckinReminder = { id: string; doctorId: string; notifiedAt: string }
+export type QueueNotification = { doctorId: string; ticketId: string; code: string; status: string; setor: string }
 
 /**
  * Conecta ao gateway em tempo real da Escala de Plantão.
@@ -15,11 +16,13 @@ export type CheckinReminder = { id: string; doctorId: string; notifiedAt: string
  *
  * Retorna se o socket está conectado (para exibir um indicador "ao vivo").
  */
-export function useEscalaRealtime(onChange: () => void, enabled = true, onCheckinReminder?: (reminder: CheckinReminder) => void): boolean {
+export function useEscalaRealtime(onChange: () => void, enabled = true, onCheckinReminder?: (reminder: CheckinReminder) => void, onQueueNotification?: (notification: QueueNotification) => void): boolean {
     const cbRef = React.useRef(onChange)
     cbRef.current = onChange
     const reminderRef = React.useRef(onCheckinReminder)
     reminderRef.current = onCheckinReminder
+    const queueRef = React.useRef(onQueueNotification)
+    queueRef.current = onQueueNotification
     const [connected, setConnected] = React.useState(false)
 
     React.useEffect(() => {
@@ -40,12 +43,15 @@ export function useEscalaRealtime(onChange: () => void, enabled = true, onChecki
         socket.on("disconnect", () => setConnected(false))
         socket.on("escala:changed", onChanged)
         const onReminder = (reminder: CheckinReminder) => reminderRef.current?.(reminder)
+        const onQueue = (notification: QueueNotification) => queueRef.current?.(notification)
         socket.on("escala:checkin-reminder", onReminder)
+        socket.on("fila:notificacao", onQueue)
 
         return () => {
             if (timer) clearTimeout(timer)
             socket.off("escala:changed", onChanged)
             socket.off("escala:checkin-reminder", onReminder)
+            socket.off("fila:notificacao", onQueue)
             socket.disconnect()
         }
     }, [enabled])

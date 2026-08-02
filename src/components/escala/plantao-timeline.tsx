@@ -7,7 +7,7 @@ import * as React from "react"
 
 export type PlantaoEvent = {
     id: string
-    type: "Criado" | "Atribuido" | "Pegou" | "Devolvido" | "Editado" | "CheckIn" | "CheckOut" | "NotificacaoCheckIn" | "Removido" | "Restaurado"
+    type: "Criado" | "Atribuido" | "Pegou" | "Devolvido" | "Editado" | "CheckIn" | "CheckOut" | "NotificacaoCheckIn" | "NotificacaoFila" | "Removido" | "Restaurado"
     actorId: string | null
     actorName: string | null
     actorRole: string | null
@@ -50,6 +50,7 @@ const ICON: Record<PlantaoEvent["type"], LucideIcon> = {
     CheckIn: LogIn,
     CheckOut: LogOut,
     NotificacaoCheckIn: BellRing,
+    NotificacaoFila: BellRing,
     Removido: Trash2,
     Restaurado: RotateCcw,
 }
@@ -64,6 +65,7 @@ function title(e: PlantaoEvent): string {
         case "CheckIn": return "Fez check-in"
         case "CheckOut": return "Fez check-out"
         case "NotificacaoCheckIn": return "Solicitou check-in ao médico"
+        case "NotificacaoFila": return "Notificou o médico sobre uma senha da fila"
         case "Removido": return "Removeu o plantão"
         case "Restaurado": return "Restaurou o plantão"
         default: return "Alterou o plantão"
